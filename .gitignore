@@ -1,0 +1,5 @@
+node_modules/
+.npm-cache/
+*.preview.html
+.DS_Store
+Thumbs.db
