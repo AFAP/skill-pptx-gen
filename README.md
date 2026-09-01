@@ -47,6 +47,16 @@ deck.json（PPT-DSL，1280×720px 绝对定位）
 | --- | --- |
 | ![可编辑pptx实际效果-1](screenshot/可编辑pptx实际效果-1.png) | ![可编辑pptx实际效果-2](screenshot/可编辑pptx实际效果-2.png) |
 
+## 试用方式
+
+把本仓库地址发给任意 AI Agent（Cursor、GitHub Copilot、DeepSeek Harness、Codex 等），告知：
+
+> "用这个 skill 帮我做一份 PPT，主题是 XXX"
+
+Agent 会读取 `SKILL.md` 中的工作流指令，自动完成：生成 DSL → 预览检查 → 导出可编辑 PPTX。
+
+仓库地址：`https://github.com/AFAP/skill-pptx-gen`
+
 ## 快速开始
 
 ```bash
