@@ -47,7 +47,7 @@ deck.json（PPT-DSL，1280×720px 绝对定位）
 | --- | --- |
 | ![可编辑pptx实际效果-1](screenshot/可编辑pptx实际效果-1.png) | ![可编辑pptx实际效果-2](screenshot/可编辑pptx实际效果-2.png) |
 
-## 试用方式
+## 使用说明
 
 把本仓库地址发给任意 AI Agent（Cursor、GitHub Copilot、DeepSeek Harness、Codex 等），告知：
 
