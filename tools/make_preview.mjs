@@ -35,6 +35,11 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv);
+
+if (process.argv.includes('--help')) {
+  console.log('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--embed-images]');
+  process.exit(0);
+}
 if (!args.input) {
   console.error('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--embed-images]');
   process.exit(2);
@@ -43,7 +48,7 @@ if (!args.input) {
 const inputPath = resolve(args.input);
 const outputPath = resolve(args.output || basename(inputPath).replace(/\.json$/i, '') + '.preview.html');
 
-const deck = JSON.parse(await readFile(inputPath, 'utf-8'));
+const deck = JSON.parse((await readFile(inputPath, 'utf-8')).replace(/^\uFEFF/, '')); // 容忍 Windows BOM
 // 主题令牌在生成时解析，预览端拿到的就是最终颜色；宏展开为标准元素
 const theme = resolveTheme(deck.theme);
 const resolved = resolveTokens(deck, theme);
@@ -154,6 +159,11 @@ async function render() {
     scale: currentScale || fitScale(),
     editable: ${args.editable},
     fontFamily: THEME.fontFamily || undefined,
+    theme: THEME,
+    palette: THEME.palette,
+    primary: THEME.primary,
+    text: THEME.text,
+    textSecondary: THEME.textSecondary,
     onTextEdit,
   });
 }

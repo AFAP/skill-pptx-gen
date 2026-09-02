@@ -9,6 +9,11 @@ import { resolve } from 'node:path';
 
 const { validateDeck, formatReport } = await import('../core/dsl-validate.mjs');
 
+if (process.argv.includes('--help')) {
+  console.log('用法: node tools/check_deck.mjs deck.json [--json]');
+  process.exit(0);
+}
+
 const input = process.argv[2];
 const asJson = process.argv.includes('--json');
 if (!input) {
@@ -18,7 +23,7 @@ if (!input) {
 
 let deck;
 try {
-  deck = JSON.parse(await readFile(resolve(input), 'utf-8'));
+  deck = JSON.parse((await readFile(resolve(input), 'utf-8')).replace(/^\uFEFF/, '')); // 容忍 Windows BOM
 } catch (e) {
   console.error(`❌ 读取 deck 失败: ${e.message}`);
   process.exit(1);

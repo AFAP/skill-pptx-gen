@@ -36,7 +36,7 @@
 - 颜色值支持：`#RGB`、`#RRGGBB`、`#RRGGBBAA`（末两位透明度）、`rgb()/rgba()`。
 - 令牌（元素任意颜色字段可用）：
   - `$primary` `$accent` `$bg` `$text` `$text2` `$white` `$black`
-  - `$1`…`$9` → theme.palette 第 1~9 色
+  - `$1`…`$9` → theme.palette 第 1~9 色（实际可用到 `$N` 取决于 palette 长度；内置主题均为 6-9 色）
   - `$light:$primary` → 某令牌/色值的浅填充版（HSL 提亮，适合做卡片底色）
 - 令牌在构建/预览生成时解析为最终色值。
 
@@ -77,6 +77,7 @@
 ```
 - 图片来源优先级：`path`/`url`（http(s) 下载、本地相对 deck.json 路径）→ 生成 base64 嵌入。
 - 只有 `prompt` 时：预览显示占位框，导出跳过。生图完成后补 `path`。
+- 也可直接给 `data`（data URI），预览/导出均支持。
 - `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）。
 
 ### image-svg — SVG 矢量图
@@ -84,7 +85,7 @@
 {"elType":"image-svg","x":100,"y":100,"width":64,"height":64,
  "svgXml":"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>...</svg>"}
 ```
-- 导出为 SVG 嵌入（PowerPoint 2016+ 可显示；如需更强兼容，先自行转 PNG 用 image）。
+- Node 端导出：由 sharp 预栅格化为 PNG（2x）；未安装 sharp 则跳过并告警。浏览器端导出：由 pptxgenjs 栅格化 SVG。
 
 ### shape-rect — 矩形/圆角矩形
 ```json
@@ -93,6 +94,7 @@
  "shadowColor":"rgba(0,0,0,0.10)","shadowBlur":20,"shadowOffsetY":8}
 ```
 - `cornerRadius` > 0 → PPT roundRect（可编辑），0/缺省 → rect。
+- `shape-circle` 若只给 `width`，`height` 回退为 `width`；也支持 `radius`（半径）替代 width/height。
 
 ### shape-circle — 圆/椭圆（**x/y 为圆心**）
 ```json
@@ -104,9 +106,10 @@
 {"elType":"shape-line","pointArr":[{"x":120,"y":300},{"x":1160,"y":300}],
  "lineColor":"#CBD5E1","lineWidth":3,"dashType":"dash","lineEndArrowType":"arrow"}
 ```
-- `shape-arrow` 默认带 stealth 箭头。
+- `shape-arrow` 默认带 stealth 箭头（多段折线同样生效）；`shape-line` 指定 `lineEndArrowType` 时预览与导出都会画箭头。
 - `lineEndArrowType`: `arrow|triangle|stealth|diamond|oval|none`。
 - **多点折线**：pointArr 超过 2 点时，导出端自动走 customGeometry（全程折线，箭头尾端仍生效），与预览一致；两点时走原生 line。
+- pointArr 的 x/y 为画布绝对坐标（shape-line/arrow 以点为锚；shape-path/curve-quadratic 的 x/y 是路径元素的参考原点，通常设 0,0 更直观）。
 
 ### curve-quadratic — 二次贝塞尔曲线（连接线）
 ```json
@@ -151,12 +154,13 @@ Konva 预览与 PPTX 导出自动一致：
  "startAngle":-30,"endAngle":90,"fill":"$2","opacity":0.9}
 ```
 - 角度制：0°=正右，顺时针为正。外弧顺时针扫过、内弧返回，闭合为甜甜圈扇区。
-- 扫角自动归一化到 (0,360]：跨 0° 写法（如 startAngle:270, endAngle:25）自动按 +115° 处理。
+- 扫角自动归一化到 (0,360]：跨 0° 写法（如 startAngle:270, endAngle:25）自动按 +115° 处理；>360° 会取模。
+- `arrow`（默认 true）在段尾生成箭头尖并在段首留 V 形缺口；`arrowAngle` 默认 6°。
 - N 段轨道：startAngle 按 `i×(360/N)+缝隙角`、endAngle 按 `(i+1)×(360/N)-缝隙角` 分配，palette 循环填色。
 
 ### chart — 图表（导出为真实可编辑图表）
 ```json
-{"elType":"chart","chartType":"bar|line|pie|doughnut|area|radar",
+{"elType":"chart","chartType":"bar|line|pie|doughnut|area|radar|scatter",
  "x":60,"y":180,"width":640,"height":420,
  "labels":["Q1","Q2","Q3"],
  "data":[{"name":"系列A","values":[12,18,26]},{"name":"系列B","values":[5,14,28]}],
@@ -164,6 +168,8 @@ Konva 预览与 PPTX 导出自动一致：
 ```
 - `chartColors` 缺省取 theme.palette 前 6 色。
 - pie/doughnut 只用第一个系列的 values。
+- scatter 的 `values` 为 `[[x,y],...]` 数字对。
+- `showValue:true` 可在柱/线/面积图上显示数值标签；预览同步绘制。
 
 ### table — 表格（导出为真实可编辑表格）
 ```json

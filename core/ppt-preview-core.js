@@ -35,6 +35,30 @@
     return typeof s === 'string' && (/^#/.test(s) || /^rgb/.test(s) || ['white', 'black', 'transparent'].includes(s.toLowerCase()));
   }
 
+  /** 颜色字符串/对象 → Konva fill（对象形式的 transparency 转成 rgba，与导出端一致） */
+  function colorToFill(c) {
+    if (c && typeof c === 'object') {
+      if (!c.color) return null;
+      let hex = String(c.color).replace('#', '');
+      if (/^[0-9a-fA-F]{3}$/.test(hex)) hex = hex.split('').map(ch => ch + ch).join('');
+      const transparency = c.transparency != null ? c.transparency : 0;
+      const alpha = Math.min(1, Math.max(0, 1 - transparency / 100));
+      if (alpha >= 1) return '#' + hex.toUpperCase();
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    return typeof c === 'string' ? c : null;
+  }
+
+  /** 对象填充（含 transparency）与字符串填充统一交给 Konva */
+  function fillAttr(c) {
+    const v = colorToFill(c);
+    return v ? { fill: v } : {};
+  }
+
+
   /** 估算文本像素宽（中文全宽、ASCII 0.55） */
   function estTextWidth(text, fontSize) {
     let u = 0;
@@ -61,7 +85,7 @@
         shadowBlur: elop.shadowBlur || 8,
         shadowOffsetX: elop.shadowOffsetX ?? elop.shadowOffset?.x ?? 0,
         shadowOffsetY: elop.shadowOffsetY ?? elop.shadowOffset?.y ?? 4,
-        shadowOpacity: elop.shadowOpacity ?? 0.5,
+        shadowOpacity: elop.shadowOpacity ?? 0.3,
         shadowEnabled: true,
       };
     }
@@ -83,7 +107,7 @@
       }
       return { fillRadialGradientStartPoint: { x: (elop.width || 0) / 2, y: (elop.height || 0) / 2 }, fillRadialGradientEndPoint: { x: (elop.width || 0) / 2, y: (elop.height || 0) / 2 }, fillRadialGradientStartRadius: 0, fillRadialGradientEndRadius: Math.max(elop.width || 0, elop.height || 0) / 2, fillRadialGradientColorStops: stops };
     }
-    if (f && typeof f === 'object' && f.color) return { fill: '#' + String(f.color).replace('#', '') };
+    if (f && typeof f === 'object' && f.color) return fillAttr(f);
     if (typeof f === 'string') return { fill: f };
     return {};
   }
@@ -119,7 +143,7 @@
       const sizing = elop.sizing?.type === 'contain' ? 'contain' : 'cover'; // 默认 cover，与导出一致
       const cfg = {
         x: elop.x, y: elop.y, rotation: elop.rotation || elop.rotate || 0,
-        opacity: elop.opacity ?? 1, cornerRadius: elop.cornerRadius || 0,
+        opacity: elop.opacity ?? 1, cornerRadius: elop.cornerRadius || 0, stroke: elop.stroke, strokeWidth: elop.strokeWidth,
         image: img, ...konvaShadow(elop),
       };
       if (sizing === 'contain') {
@@ -148,17 +172,23 @@
   async function renderImageSvg(elop, group) {
     try {
       const img = await loadImage(svgToDataUri(elop.svgXml || ''));
-      group.add(new Konva.Image({ x: elop.x, y: elop.y, width: elop.width, height: elop.height, image: img, opacity: elop.opacity ?? 1 }));
+      group.add(new Konva.Image({
+        x: elop.x, y: elop.y, width: elop.width, height: elop.height, image: img,
+        opacity: elop.opacity ?? 1, rotation: elop.rotation || elop.rotate || 0,
+        ...konvaShadow(elop),
+      }));
     } catch (e) { /* 忽略失败 svg */ }
   }
 
   function renderText(elop, group, layer, opts) {
-    // 文本框底色（bgFill）：先垫同尺寸色块，与导出端一致
+    // 文本框底色（bgFill）：先垫同尺寸色块（含 transparency/rotation），与导出端一致
     if (elop.bgFill) {
       group.add(new Konva.Rect({
         x: elop.x, y: elop.y, width: elop.width, height: elop.height,
-        fill: typeof elop.bgFill === 'string' ? elop.bgFill : elop.bgFill.color,
+        ...fillAttr(elop.bgFill),
         cornerRadius: elop.bgRadius || 0,
+        rotation: elop.rotation || elop.rotate || 0,
+        opacity: elop.bgOpacity ?? 1,
       }));
     }
     const cfg = {
@@ -167,7 +197,7 @@
       fontSize: elop.fontSize || 18,
       fontFamily: elop.fontFamily || opts.fontFamily || 'Microsoft YaHei, PingFang SC, sans-serif',
       fontStyle: elop.fontStyle || (elop.bold ? 'bold' : '') + (elop.italic ? ' italic' : '') || 'normal',
-      fill: typeof elop.fill === 'string' ? elop.fill : (elop.fill?.color ? '#' + String(elop.fill.color).replace('#', '') : '#111111'),
+      fill: colorToFill(elop.fill) || '#111111',
       align: elop.align || 'left',
       verticalAlign: elop.verticalAlign || elop.valign || 'top',
       lineHeight: elop.lineHeight || 1.25,
@@ -209,10 +239,13 @@
   }
 
   function renderCircle(elop, group) {
-    const r = elop.radius || (elop.width || 0) / 2;
-    group.add(new Konva.Circle({
-      x: elop.x, y: elop.y, radius: r, // DSL 约定：x/y 为圆心
+    // DSL 约定：x/y 为圆心；width/height 分别为横/纵直径（缺省 height 回退为 width，与导出一致）
+    const rw = elop.radius ?? (elop.width || 0) / 2;
+    const rh = elop.radius ?? (elop.height || elop.width || 0) / 2;
+    group.add(new Konva.Ellipse({
+      x: elop.x, y: elop.y, radiusX: rw, radiusY: rh,
       opacity: elop.opacity ?? 1,
+      rotation: elop.rotation || elop.rotate || 0,
       ...konvaFill(elop),
       stroke: elop.stroke, strokeWidth: elop.strokeWidth,
       dash: dashArray(elop),
@@ -223,10 +256,23 @@
   function renderLine(elop, group) {
     const pts = (elop.pointArr || []).flatMap(p => [p.x, p.y]);
     if (pts.length < 4) return;
+    const stroke = elop.lineColor || elop.stroke || '#333333';
+    const strokeWidth = elop.lineWidth || elop.strokeWidth || 2;
+    const endArrow = elop.lineEndArrowType;
+    if (endArrow && endArrow !== 'none') {
+      // 导出端 lineEndArrowType 会生成 tailEnd；预览用 Konva.Arrow 保持一致
+      group.add(new Konva.Arrow({
+        points: pts,
+        pointerLength: strokeWidth * 2.4, pointerWidth: strokeWidth * 2.2,
+        stroke, strokeWidth, fill: stroke,
+        dash: dashArray(elop),
+        opacity: elop.opacity ?? 1,
+      }));
+      return;
+    }
     group.add(new Konva.Line({
       points: pts, // 多段折线全程渲染（导出端 >2 点走 customGeometry，一致）
-      stroke: elop.lineColor || elop.stroke || '#333333',
-      strokeWidth: elop.lineWidth || elop.strokeWidth || 2,
+      stroke, strokeWidth,
       dash: dashArray(elop),
       lineCap: 'round', lineJoin: 'round',
       opacity: elop.opacity ?? 1,
@@ -236,30 +282,37 @@
   function renderArrow(elop, group) {
     const pts = (elop.pointArr || []).flatMap(p => [p.x, p.y]);
     if (pts.length < 4) return;
-    const lw = elop.lineWidth || 2;
+    const lw = elop.lineWidth || elop.strokeWidth || 2;
+    const stroke = elop.lineColor || elop.stroke || '#333333';
     group.add(new Konva.Arrow({
       points: pts,
       pointerLength: lw * 2.4, pointerWidth: lw * 2.2,
-      stroke: elop.lineColor || elop.stroke || '#333333',
-      strokeWidth: lw,
-      fill: elop.lineColor || elop.stroke || '#333333',
+      stroke, strokeWidth: lw, fill: stroke,
+      dash: dashArray(elop),
       opacity: elop.opacity ?? 1,
     }));
   }
 
   function renderCurve(elop, group) {
+    const pointArr = elop.pointArr || [];
     let d = '';
-    (elop.pointArr || []).forEach((p, i) => {
-      if (i === 0) d = `M ${p.x} ${p.y}`;
-      else if (p.controlPoint && p.controlPoint.type === 'quadratic') d += ` Q ${p.controlPoint.x} ${p.controlPoint.y} ${p.x} ${p.y}`;
-      else if (p.curve && p.curve.type === 'cubic') d += ` C ${p.curve.x1} ${p.curve.y1} ${p.curve.x2} ${p.curve.y2} ${p.x} ${p.y}`;
-      else d += ` L ${p.x} ${p.y}`;
-    });
+    if (typeof pointsToSvgPath === 'function') {
+      d = pointsToSvgPath(pointArr); // 支持 quadratic/cubic/arc，与导出端同一套转换
+    } else {
+      pointArr.forEach((p, i) => {
+        if (i === 0) d = `M ${p.x} ${p.y}`;
+        else if (p.controlPoint && p.controlPoint.type === 'quadratic') d += ` Q ${p.controlPoint.x} ${p.controlPoint.y} ${p.x} ${p.y}`;
+        else if (p.curve && p.curve.type === 'cubic') d += ` C ${p.curve.x1} ${p.curve.y1} ${p.curve.x2} ${p.curve.y2} ${p.x} ${p.y}`;
+        else d += ` L ${p.x} ${p.y}`;
+      });
+    }
     if (!d) return;
+    const close = elop.closePath === true;
     group.add(new Konva.Path({
-      x: elop.x || 0, y: elop.y || 0, data: d,
+      x: elop.x || 0, y: elop.y || 0, data: d + (close ? ' Z' : ''),
       stroke: elop.stroke || '#333333', strokeWidth: elop.strokeWidth || 2,
       dash: dashArray(elop), opacity: elop.opacity ?? 1,
+      lineCap: 'round', lineJoin: 'round',
     }));
   }
 
@@ -267,22 +320,37 @@
     if (!elop.data) return;
     group.add(new Konva.Path({
       x: elop.x || 0, y: elop.y || 0, data: elop.data,
+      rotation: elop.rotation || elop.rotate || 0,
       ...konvaFill(elop),
       stroke: elop.stroke, strokeWidth: elop.strokeWidth,
       dash: dashArray(elop), opacity: elop.opacity ?? 1,
-      lineCap: elop.lineCap || 'butt',
+      lineCap: elop.lineCap || 'butt', lineJoin: elop.lineJoin || 'round',
     }));
   }
 
   /* ---------- chart：原生 Konva 绘制（预览用；导出 PPTX 为真实可编辑图表） ---------- */
-  function renderChart(elop, group) {
+  function renderChart(elop, group, opts = {}) {
     const { x = 0, y = 0, width: w = 400, height: h = 300 } = elop;
     const series = Array.isArray(elop.data) ? elop.data : [];
     const labels = elop.labels || series[0]?.labels || [];
-    const colors = (elop.chartColors && elop.chartColors.length ? elop.chartColors : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31'])
+    const defaultColors = (opts.palette && opts.palette.length ? opts.palette : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31']);
+    const colors = (elop.chartColors && elop.chartColors.length ? elop.chartColors : defaultColors)
       .map(c => typeof c === 'string' && !c.startsWith('#') && !c.startsWith('rgb') ? '#' + c : c);
     const type = elop.chartType || 'bar';
     const isPieLike = type === 'pie' || type === 'doughnut';
+    const secondary = opts.textSecondary || '#667085';
+    const gridColor = opts.gridColor || '#CBD5E1';
+
+    // 标题（导出端 showTitle/chartTitle 也会输出）
+    const chartTitle = elop.showTitle && (elop.chartTitle || elop.title) ? String(elop.chartTitle || elop.title) : '';
+    const titleH = chartTitle ? 22 : 0;
+    if (chartTitle) {
+      group.add(new Konva.Text({
+        x, y: y + 2, width: w, height: titleH,
+        text: chartTitle, fontSize: 14, fontStyle: 'bold',
+        fill: opts.text || '#111111', align: 'center', verticalAlign: 'middle',
+      }));
+    }
 
     // 图例：多系列或饼图时显示（预览默认给出以便核对文案）
     const legendNames = isPieLike ? labels : series.map(s => s.name).filter(Boolean);
@@ -292,15 +360,15 @@
       let lx = x + 8;
       legendNames.forEach((name, i) => {
         const c = colors[i % colors.length];
-        group.add(new Konva.Rect({ x: lx, y: y + 8, width: 10, height: 10, fill: c, cornerRadius: 2 }));
+        group.add(new Konva.Rect({ x: lx, y: y + titleH + 8, width: 10, height: 10, fill: c, cornerRadius: 2 }));
         const tw = estTextWidth(name, 11);
-        group.add(new Konva.Text({ x: lx + 14, y: y + 6, width: tw + 8, height: 16, text: String(name), fontSize: 11, fill: '#667085', verticalAlign: 'middle' }));
+        group.add(new Konva.Text({ x: lx + 14, y: y + titleH + 6, width: tw + 8, height: 16, text: String(name), fontSize: 11, fill: secondary, verticalAlign: 'middle' }));
         lx += 14 + tw + 20;
       });
     }
 
     const labelH = isPieLike ? 0 : (labels.length ? 18 : 0); // 底部类目标签区
-    const padL = 10, padT = legendH + 6, padB = labelH + 8;
+    const padL = 10, padT = titleH + legendH + 6, padB = labelH + 8;
     const cw = w - padL * 2, ch = h - padT - padB;
     const plotY = y + padT;
 
@@ -318,7 +386,7 @@
         angle += sweep;
       });
       if (type === 'doughnut') {
-        group.add(new Konva.Circle({ x: cx, y: cy, radius: r * 0.55, fill: elop._bg || '#FFFFFF' }));
+        group.add(new Konva.Circle({ x: cx, y: cy, radius: r * 0.55, fill: opts.slideBackground || '#FFFFFF' }));
       }
       return;
     }
@@ -342,7 +410,7 @@
         if (labels[i]) {
           group.add(new Konva.Text({
             x: cx + (r + 12) * Math.cos(a) - 40, y: cy + (r + 12) * Math.sin(a) - 8, width: 80, height: 16,
-            text: String(labels[i]), fontSize: 10, fill: '#667085', align: 'center',
+            text: String(labels[i]), fontSize: 10, fill: secondary, align: 'center',
           }));
         }
       }
@@ -368,7 +436,7 @@
           }));
         });
       });
-      group.add(new Konva.Line({ points: [x + padL, plotY + ch, x + padL + cw, plotY + ch], stroke: '#CBD5E1', strokeWidth: 1 }));
+      group.add(new Konva.Line({ points: [x + padL, plotY + ch, x + padL + cw, plotY + ch], stroke: gridColor, strokeWidth: 1 }));
       return;
     }
 
@@ -379,12 +447,18 @@
           x + padL + (cw * i) / (n - 1),
           plotY + ch - (Number(v) || 0) / maxV * ch,
         ]);
+        const c = colors[si % colors.length];
         group.add(new Konva.Line({
-          points: pts.flat(), stroke: colors[si % colors.length], strokeWidth: 2,
+          points: pts.flat(), stroke: c, strokeWidth: 2,
           lineCap: 'round', lineJoin: 'round', tension: 0.2,
-          ...(type === 'area' ? { fill: colors[si % colors.length] + '33', closed: true } : {}),
+          ...(type === 'area' ? { fill: c + '33', closed: true } : {}),
         }));
-        pts.forEach(p => group.add(new Konva.Circle({ x: p[0], y: p[1], radius: 3, fill: colors[si % colors.length] })));
+        pts.forEach(p => {
+          group.add(new Konva.Circle({ x: p[0], y: p[1], radius: 3, fill: c }));
+          if (elop.showValue) {
+            group.add(new Konva.Text({ x: p[0] - 18, y: p[1] - 16, width: 36, height: 12, text: String(Number(s.values?.[i]) || 0), fontSize: 9, fill: secondary, align: 'center' }));
+          }
+        });
       });
     } else {
       // bar（默认）
@@ -395,56 +469,62 @@
         series.forEach((s, si) => {
           const v = Number(s.values?.[i]) || 0;
           const bh = (v / maxV) * ch;
+          const bx = x + padL + slot * i + slot / 2 - (bw * series.length) / 2 + si * bw;
+          const by = plotY + ch - bh;
           group.add(new Konva.Rect({
-            x: x + padL + slot * i + slot / 2 - (bw * series.length) / 2 + si * bw,
-            y: plotY + ch - bh,
-            width: bw * 0.9, height: bh,
+            x: bx, y: by, width: bw * 0.9, height: bh,
             fill: colors[si % colors.length], cornerRadius: [3, 3, 0, 0],
           }));
+          if (elop.showValue) {
+            group.add(new Konva.Text({ x: bx - 10, y: by - 14, width: bw * 0.9 + 20, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
+          }
         });
       }
     }
 
-    // 底部类目标签（bar/line/area）
+    // 底部类目标签（bar/line/area/scatter 以外的类目轴）
     if (labelH) {
       const n = labels.length;
       for (let i = 0; i < n; i++) {
         group.add(new Konva.Text({
           x: x + padL + (cw * i) / n, y: y + h - labelH, width: cw / n, height: labelH - 4,
-          text: String(labels[i]), fontSize: 10, fill: '#667085', align: 'center', verticalAlign: 'top',
+          text: String(labels[i]), fontSize: 10, fill: secondary, align: 'center', verticalAlign: 'top',
         }));
       }
     }
     // 轴线
-    group.add(new Konva.Line({ points: [x + padL, plotY + ch, x + padL + cw, plotY + ch], stroke: '#CBD5E1', strokeWidth: 1 }));
-  }
+    group.add(new Konva.Line({ points: [x + padL, plotY + ch, x + padL + cw, plotY + ch], stroke: gridColor, strokeWidth: 1 }));
+    }
 
-  /* ---------- table ---------- */
-  function renderTable(elop, group, opts) {
-    const rows = elop.rows || [];
-    if (!rows.length) return;
-    const { x = 0, y = 0, width: w = 600, height: h = 200 } = elop;
-    const cols = Math.max(...rows.map(r => r.length));
-    const rh = h / rows.length, cw = w / cols;
-    const fontSize = elop.fontSize || 16;
-    const headerOn = elop.header?.enabled !== false;
-    const hdFill = elop.header?.fill || '#4A90E2';
-    const hdColor = elop.header?.color || '#FFFFFF';
-    rows.forEach((row, ri) => {
-      for (let ci = 0; ci < cols; ci++) {
-        const isHd = headerOn && ri === 0;
-        const bg = isHd ? hdFill : (ri % 2 === 0 && elop.stripeColor ? elop.stripeColor : '#FFFFFF');
-        group.add(new Konva.Rect({ x: x + ci * cw, y: y + ri * rh, width: cw, height: rh, fill: bg, stroke: elop.borderColor || '#E2E8F0', strokeWidth: 1 }));
-        group.add(new Konva.Text({
-          x: x + ci * cw + 6, y: y + ri * rh, width: cw - 12, height: rh,
-          text: String(row[ci] ?? ''), fontSize, fontFamily: opts.fontFamily,
-          fontStyle: isHd && elop.header?.bold !== false ? 'bold' : 'normal',
-          fill: isHd ? hdColor : (elop.color || '#1F2937'),
-          align: elop.align || 'left', verticalAlign: 'middle',
-        }));
-      }
-    });
-  }
+    /* ---------- table ---------- */
+    function renderTable(elop, group, opts = {}) {
+      const rows = elop.rows || [];
+      if (!rows.length) return;
+      const { x = 0, y = 0, width: w = 600, height: h = 200 } = elop;
+      const cols = Math.max(...rows.map(r => r.length));
+      const rh = h / rows.length, cw = w / cols;
+      const fontSize = elop.fontSize || 16;
+      const headerOn = elop.header?.enabled !== false;
+      // 缺省表头/文字颜色取主题，与导出端一致；斑马纹与导出端同为奇数数据行（ri%2===1）
+      const hdFill = colorToFill(elop.header?.fill) || (opts.primary || '#4A90E2');
+      const hdColor = colorToFill(elop.header?.color) || '#FFFFFF';
+      const bodyColor = colorToFill(elop.color) || opts.text || '#1F2937';
+      rows.forEach((row, ri) => {
+        for (let ci = 0; ci < cols; ci++) {
+          const isHd = headerOn && ri === 0;
+          const stripe = elop.stripeColor && ri % 2 === 1 ? colorToFill(elop.stripeColor) : null;
+          const bg = isHd ? hdFill : (stripe || '#FFFFFF');
+          group.add(new Konva.Rect({ x: x + ci * cw, y: y + ri * rh, width: cw, height: rh, fill: bg, stroke: colorToFill(elop.borderColor) || '#E2E8F0', strokeWidth: 1 }));
+          group.add(new Konva.Text({
+            x: x + ci * cw + 6, y: y + ri * rh, width: cw - 12, height: rh,
+            text: String(row[ci] ?? ''), fontSize, fontFamily: opts.fontFamily,
+            fontStyle: isHd && elop.header?.bold !== false ? 'bold' : 'normal',
+            fill: isHd ? hdColor : bodyColor,
+            align: elop.align || 'left', verticalAlign: 'middle',
+          }));
+        }
+      });
+    }
 
   /* ---------- 文本编辑（双击浮层） ---------- */
   function attachTextEditor(textNode, layer, opts) {
@@ -521,6 +601,11 @@
   async function renderDeck(deck, container, opts = {}) {
     const scale = opts.scale || 1;
     const gap = opts.pageGap ?? 24;
+    const theme = opts.theme || {};
+    const palette = (opts.palette || theme.palette || []).map(c => typeof c === 'string' && !c.startsWith('#') ? '#' + c : c);
+    const primary = opts.primary || (theme.primary ? '#' + theme.primary : '#4A90E2');
+    const text = opts.text || (theme.text ? '#' + theme.text : '#111111');
+    const textSecondary = opts.textSecondary || (theme.textSecondary ? '#' + theme.textSecondary : '#667085');
     container.innerHTML = '';
     const out = [];
     for (let i = 0; i < (deck.slides || []).length; i++) {
@@ -531,12 +616,14 @@
       const stage = new Konva.Stage({ container: holder, width: PPT_WIDTH * scale, height: PPT_HEIGHT * scale, scaleX: scale, scaleY: scale });
       const layer = new Konva.Layer();
       stage.add(layer);
-      // 背景：颜色直接铺底，图片异步 cover 铺满
-      const bg = slideSpec.background || '#FFFFFF';
-      if (!bg || isColorStr(bg)) {
-        layer.add(new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: bg || '#FFFFFF' }));
-      } else {
-        loadImage(bg).then(img => {
+      // 背景：颜色直接铺底；缺省回退 theme.background（与导出端 slideBackground 一致）
+      const bgSpec = slideSpec.background || (theme.background ? (String(theme.background).startsWith('#') ? theme.background : '#' + theme.background) : null);
+      const bgColor = colorToFill(bgSpec);
+      const bgIsColor = bgColor && isColorStr(bgColor);
+      if (bgIsColor) {
+        layer.add(new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: bgColor }));
+      } else if (typeof bgSpec === 'string' && bgSpec) {
+        loadImage(bgSpec).then(img => {
           const s2 = Math.max(PPT_WIDTH / img.width, PPT_HEIGHT / img.height);
           const cw = PPT_WIDTH / s2, ch = PPT_HEIGHT / s2;
           const bgImg = new Konva.Image({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, image: img, crop: { x: (img.width - cw) / 2, y: (img.height - ch) / 2, width: cw, height: ch } });
@@ -544,11 +631,16 @@
           bgImg.moveToBottom();
           layer.batchDraw();
         }).catch(() => {
-          layer.add(new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: '#F1F5F9' }));
+          const fallback = new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: '#F1F5F9' });
+          layer.add(fallback);
+          fallback.moveToBottom(); // 失败占位不能盖住已渲染内容
           layer.batchDraw();
         });
+      } else {
+        layer.add(new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: '#FFFFFF' }));
       }
-      await renderElements(slideSpec.elements, layer, layer, { ...opts, _slideIndex: i });
+      const slideOpts = { ...opts, _slideIndex: i, palette, primary, text, textSecondary, slideBackground: bgColor || '#FFFFFF' };
+      await renderElements(slideSpec.elements, layer, layer, slideOpts);
       out.push({ stage, layer, holder });
     }
     return out;

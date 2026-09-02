@@ -10,11 +10,12 @@
   "scripts": {
     "check": "node tools/check_deck.mjs",
     "build": "node tools/build_pptx.mjs",
-    "preview": "node tools/make_preview.mjs"
+    "preview": "node tools/make_preview.mjs",
+    "test": "node tests/smoke.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.1",
-    "pptxgenjs": "^4.0.1",
+    "pptxgenjs": "4.0.1",
     "sharp": "^0.35.4"
   }
 }

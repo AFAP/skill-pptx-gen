@@ -21,6 +21,8 @@ const MACRO_REQUIRED = {
   'arc-segment': ['cx', 'cy', 'rOuter', 'startAngle', 'endAngle'],
 };
 
+const CHART_TYPES = new Set(['bar', 'line', 'pie', 'doughnut', 'area', 'radar', 'scatter']);
+
 const DEFAULT_LINE_HEIGHT = 1.25; // 与渲染端（Konva / PPT 导出）默认一致
 
 /** 文本在容器内自动换行后的估算高度（中文全宽、ASCII 0.55 宽） */
@@ -63,6 +65,9 @@ function blendColor(bottomHex, topHex, alpha) {
 export function validateDeck(deck, opts = {}) {
   const errors = [];
   const warnings = [];
+  if (!deck || typeof deck !== 'object' || Array.isArray(deck)) {
+    return { ok: false, errors: ['deck 必须是 JSON 对象'], warnings };
+  }
   const theme = resolveTheme(deck.theme);
   const resolved = resolveTokens(deck, theme);
 
@@ -86,6 +91,14 @@ export function validateDeck(deck, opts = {}) {
       if (MACRO_REQUIRED[el.elType]) {
         for (const k of MACRO_REQUIRED[el.elType]) {
           if (typeof el[k] !== 'number') errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
+        }
+        if (el.elType === 'arc-segment') {
+          if (typeof el.rOuter === 'number' && el.rOuter <= 0) errors.push(`${at}: arc-segment rOuter 必须 > 0`);
+          if (typeof el.rInner === 'number' && el.rInner <= 0) errors.push(`${at}: arc-segment rInner 必须 > 0`);
+          if (typeof el.rOuter === 'number' && typeof el.rInner === 'number' && el.rInner > el.rOuter) errors.push(`${at}: arc-segment rInner(${el.rInner}) 不能大于 rOuter(${el.rOuter})`);
+        }
+        if ((el.elType === 'connector-s' || el.elType === 'connector-elbow') && el.orientation != null && !['auto', 'h', 'v', 'h-first', 'v-first'].includes(el.orientation)) {
+          warnings.push(`${at}: ${el.elType} orientation "${el.orientation}" 无法识别（将使用默认值）`);
         }
       }
     });
@@ -125,11 +138,13 @@ export function validateDeck(deck, opts = {}) {
       for (let j = 0; j < upto; j++) {
         const s = slide.elements[j];
         if (!s || (s.elType !== 'shape-rect' && s.elType !== 'shape-circle' && s.elType !== 'image')) continue;
-        const sx = s.elType === 'shape-circle' ? (s.x ?? 0) - (s.width ?? 0) / 2 : (s.x ?? 0);
-        const sy = s.elType === 'shape-circle' ? (s.y ?? 0) - (s.height ?? 0) / 2 : (s.y ?? 0);
-        if (cx >= sx && cx <= sx + (s.width ?? 0) && cy >= sy && cy <= sy + (s.height ?? 0)) {
-          const p = parseColor(fillOf(s.fill) || '');
-          if (!p) continue;
+          const sw = s.elType === 'shape-circle' ? (s.width ?? (s.radius ? s.radius * 2 : 0)) : (s.width ?? 0);
+          const sh = s.elType === 'shape-circle' ? (s.height ?? sw) : (s.height ?? 0);
+          const sx = s.elType === 'shape-circle' ? (s.x ?? 0) - sw / 2 : (s.x ?? 0);
+          const sy = s.elType === 'shape-circle' ? (s.y ?? 0) - sh / 2 : (s.y ?? 0);
+          if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) {
+            const p = parseColor(fillOf(s.fill) || '');
+            if (!p) continue;
           const a = (1 - (p.transparency ?? 0) / 100) * (s.opacity ?? 1); // 元素级 opacity 也参与混合
           if (a <= 0.01) continue; // 全透明填充不影响背景
           bg = blendColor(bg, p.color, a);
@@ -141,6 +156,34 @@ export function validateDeck(deck, opts = {}) {
     slide.elements.forEach((el, ei) => {
       const at = `${where} 元素${ei + 1}${el.elType ? `(${el.elType})` : ''}`;
 
+        // 路径类元素必须有合法 pointArr（shape-path 也允许预合成的 data）
+        const validatePointArr = (pa, label) => {
+          if (!Array.isArray(pa) || pa.length < 2) {
+            errors.push(`${at}: ${label} 缺少 pointArr（至少 2 个点）`);
+            return;
+          }
+          pa.forEach((p, pi) => {
+            if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') {
+              errors.push(`${at}: ${label} pointArr[${pi}] 的 x/y 必须是数字`);
+            }
+          });
+          const xs = pa.map(p => p.x).filter(v => typeof v === 'number');
+          const ys = pa.map(p => p.y).filter(v => typeof v === 'number');
+          if (xs.length && ys.length) {
+            const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+            if (minX < -1 || minY < -1 || maxX > PPT_WIDTH + 1 || maxY > PPT_HEIGHT + 1) {
+              warnings.push(`${at}: ${label} 点列越界（${Math.round(minX)},${Math.round(minY)} → ${Math.round(maxX)},${Math.round(maxY)}）`);
+            }
+          }
+        };
+        if (['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
+          validatePointArr(el.pointArr, el.elType);
+        }
+        if (el.elType === 'shape-path') {
+          if (Array.isArray(el.pointArr)) validatePointArr(el.pointArr, 'shape-path');
+          else if (!el.data && !el.svgPath) errors.push(`${at}: shape-path 缺少 pointArr/data`);
+        }
+
       // 几何检查（line/arrow/curve 用 pointArr，跳过矩形检查）
       if (!['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
         for (const k of ['x', 'y', 'width', 'height']) {
@@ -148,12 +191,14 @@ export function validateDeck(deck, opts = {}) {
         }
         const x = el.x ?? 0, y = el.y ?? 0, w = el.width ?? 0, h = el.height ?? 0;
         if (el.elType === 'shape-circle') {
-          // 圆心坐标
-          if (x - w / 2 < -1 || y - h / 2 < -1 || x + w / 2 > PPT_WIDTH + 1 || y + h / 2 > PPT_HEIGHT + 1)
-            warnings.push(`${at}: 圆形越界（圆心 ${x},${y} 半径 ${w / 2}）`);
+          // 圆心坐标；直径缺省 height 回退 width，与导出/预览一致
+          const dw = el.radius != null ? el.radius * 2 : (w || 0);
+          const dh = el.radius != null ? el.radius * 2 : (h || w || 0);
+          if (x - dw / 2 < -1 || y - dh / 2 < -1 || x + dw / 2 > PPT_WIDTH + 1 || y + dh / 2 > PPT_HEIGHT + 1)
+            warnings.push(`${at}: 圆形越界（圆心 ${x},${y} 半径 ${dw / 2}×${dh / 2}）`);
         } else {
-          if (x < -1 || y < -1) warnings.push(`${at}: 起点越界 x=${x}, y=${y}`);
-          if (x + w > PPT_WIDTH + 1 || y + h > PPT_HEIGHT + 1)
+            if (x < -1 || y < -1) warnings.push(`${at}: 起点越界 x=${x}, y=${y}`);
+            if (x + w > PPT_WIDTH + 1 || y + h > PPT_HEIGHT + 1)
             warnings.push(`${at}: 超出画布（右缘 ${Math.round(x + w)}/${PPT_WIDTH}，下缘 ${Math.round(y + h)}/${PPT_HEIGHT}）`);
         }
       }
@@ -174,40 +219,60 @@ export function validateDeck(deck, opts = {}) {
             warnings.push(`${at}: 文本可能溢出（估算高 ${Math.round(needH)}px > 容器 ${el.height}px），建议缩减文案或加高容器`);
           }
         }
-        // 对比度（与该位置实际承载它的形状填充色比较）
-        const fill = typeof el.fill === 'string' ? el.fill : el.fill?.color;
-        if (fill && el.opacity !== 0) {
-          const under = effectiveBg(el, ei);
-          const tLum = luminance(fill);
-          const uLum = luminance(under);
-          const contrast = (Math.max(tLum, uLum) + 0.05) / (Math.min(tLum, uLum) + 0.05);
-          if (contrast < 1.6) warnings.push(`${at}: 文字色 ${fill} 与背景对比度过低（${contrast.toFixed(2)}）`);
-        }
-      }
-      if (el.elType === 'image') {
-        if (!el.path && !el.url && !el._data && !el.data && !el.prompt) {
-          errors.push(`${at}: image 缺少 path/url/data（或用于 AI 生图的 prompt）`);
-        }
-        if ((el.width || 0) < 20 || (el.height || 0) < 20) warnings.push(`${at}: 图片尺寸过小`);
-      }
-      if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
-      if (el.elType === 'chart') {
-        if (!Array.isArray(el.data) || el.data.length === 0) {
-          errors.push(`${at}: chart 缺少 data 数组`);
-        } else {
-          const labels = el.labels || el.data[0]?.labels || [];
-          if (!labels.length && el.chartType !== 'pie' && el.chartType !== 'doughnut') {
-            warnings.push(`${at}: chart 缺少 labels（分类轴标签）`);
-          }
-          el.data.forEach((s, i2) => {
-            if (!Array.isArray(s.values) || s.values.length === 0) {
-              errors.push(`${at}: chart data[${i2}].values 为空`);
-            } else if (labels.length && s.values.length !== labels.length) {
-              warnings.push(`${at}: chart data[${i2}] 数值数(${s.values.length})与标签数(${labels.length})不一致`);
+          // 对比度：先叠元素自身 bgFill，再把文字透明度混入前景后计算
+          const fillParsed = parseColor(typeof el.fill === 'string' ? el.fill : el.fill?.color);
+          const fill = fillParsed?.color;
+          if (fill && el.opacity !== 0) {
+            let under = effectiveBg(el, ei);
+            if (el.bgFill) {
+              const bgP = parseColor(typeof el.bgFill === 'string' ? el.bgFill : el.bgFill?.color);
+              if (bgP) under = blendColor(under, bgP.color, (1 - (bgP.transparency ?? 0) / 100) * (el.bgOpacity ?? 1));
             }
-          });
+            const alpha = (1 - (fillParsed.transparency ?? 0) / 100) * (el.opacity ?? 1);
+            const tColor = alpha < 1 ? blendColor(under, fill, alpha) : fill;
+            const tLum = luminance(tColor);
+            const uLum = luminance(under);
+            const contrast = (Math.max(tLum, uLum) + 0.05) / (Math.min(tLum, uLum) + 0.05);
+            if (contrast < 1.6) warnings.push(`${at}: 文字色 ${fill} 与背景对比度过低（${contrast.toFixed(2)}）`);
+          }
         }
-      }
+        if (el.elType === 'text-path') {
+          warnings.push(`${at}: text-path 仅预览渲染，PPTX 导出会跳过；需要出片请改用普通 text`);
+        }
+        if (el.elType === 'image') {
+          if (!el.path && !el.url && !el._data && !el.data && !el.prompt) {
+            errors.push(`${at}: image 缺少 path/url/data（或用于 AI 生图的 prompt）`);
+          }
+          if ((el.width || 0) < 20 || (el.height || 0) < 20) warnings.push(`${at}: 图片尺寸过小`);
+        }
+        if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
+        if (el.elType === 'chart') {
+          const chartType = el.chartType || 'bar';
+          if (!CHART_TYPES.has(chartType)) {
+            warnings.push(`${at}: chartType "${chartType}" 无法识别（导出将退化为 bar）`);
+          }
+          if (!Array.isArray(el.data) || el.data.length === 0) {
+            errors.push(`${at}: chart 缺少 data 数组`);
+          } else {
+            const labels = el.labels || el.data[0]?.labels || [];
+            if (!labels.length && chartType !== 'pie' && chartType !== 'doughnut' && chartType !== 'scatter') {
+              warnings.push(`${at}: chart 缺少 labels（分类轴标签）`);
+            }
+            el.data.forEach((s, i2) => {
+              if (!Array.isArray(s.values) || s.values.length === 0) {
+                errors.push(`${at}: chart data[${i2}].values 为空`);
+              } else if (chartType === 'scatter') {
+                s.values.forEach((pt, pi) => {
+                  if (!Array.isArray(pt) || pt.length < 2 || typeof pt[0] !== 'number' || typeof pt[1] !== 'number') {
+                    errors.push(`${at}: scatter data[${i2}].values[${pi}] 必须是 [x,y] 数字对`);
+                  }
+                });
+              } else if (labels.length && s.values.length !== labels.length) {
+                warnings.push(`${at}: chart data[${i2}] 数值数(${s.values.length})与标签数(${labels.length})不一致`);
+              }
+            });
+          }
+        }
       if (el.elType === 'table') {
         if (!Array.isArray(el.rows) || el.rows.length === 0) {
           errors.push(`${at}: table 缺少 rows`);
@@ -224,13 +289,13 @@ export function validateDeck(deck, opts = {}) {
           }));
         }
       }
-      // 颜色格式抽查
-      for (const key of ['fill', 'stroke', 'lineColor', 'shadowColor']) {
-        const v = el[key];
-        if (typeof v === 'string' && v !== 'transparent' && !parseColor(v) && !v.startsWith('$')) {
-          warnings.push(`${at}: ${key} 颜色值无法识别 "${v}"`);
+        // 颜色格式抽查（令牌已在前面解析，残留的 $xxx 视为未解析令牌）
+        for (const key of ['fill', 'stroke', 'lineColor', 'shadowColor']) {
+          const v = el[key];
+          if (typeof v !== 'string' || v === 'transparent' || parseColor(v)) continue;
+          if (v.startsWith('$')) warnings.push(`${at}: ${key} 令牌无法解析 "${v}"（请检查 theme.palette 长度或令牌名）`);
+          else warnings.push(`${at}: ${key} 颜色值无法识别 "${v}"`);
         }
-      }
     });
   });
 

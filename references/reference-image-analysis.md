@@ -88,6 +88,6 @@ prompt 必须英文、详尽到足以复刻风格，且中文标题/要点原文
 
 参考图：深蓝底、金色细线、白色衬线大标题、右下角页码 →
 ```json
-"theme": {"background":"#14213D","primary":"#FFFFFF","accent":"#C9A96E","text":"#FFFFFF","textSecondary":"#A8B2C8","palette":["#FFFFFF","#C9A96E","#3E5C8A","#8A9BB8","#E5E0D5"],"fontFamily":"Georgia, SimSun, serif"}
+"theme": {"background":"#14213D","primary":"#FFFFFF","accent":"#C9A96E","text":"#FFFFFF","textSecondary":"#A8B2C8","palette":["#FFFFFF","#C9A96E","#3E5C8A","#8A9BB8","#E5E0D5","#6D7F99","#B8B09F"],"fontFamily":"Georgia, SimSun, serif"}
 ```
 布局上每页固定：金色细线装饰 + 衬线标题 + 右下角页码。

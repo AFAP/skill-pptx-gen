@@ -109,10 +109,9 @@ function expandConnectorElbow(el) {
 function expandArcSegment(el) {
   const { cx, cy, rOuter, rInner = rOuter * 0.72, startAngle, endAngle } = el;
   // 扫角归一化到 (0,360]：跨 0° 的写法（如 270→25）自动修正为 +115 而非 -245
-  let sweep = endAngle - startAngle;
-  while (sweep <= 0) sweep += 360;
+  let sweep = ((endAngle - startAngle) % 360 + 360) % 360 || 360; // 归一化到 (0,360]：跨 0° 取正向，>360 取模
   const arrow = el.arrow !== false;
-  const arrowAngle = el.arrowAngle ?? 8;   // 箭头前探/凹口角度
+  const arrowAngle = el.arrowAngle ?? 6;   // 箭头前探/凹口角度（与原项目 utils.js 一致）
   const rArrow = (rOuter + rInner) / 2;
   const p1 = arcPoint(cx, cy, rOuter, startAngle);
   const p2 = arcPoint(cx, cy, rOuter, endAngle);

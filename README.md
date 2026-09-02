@@ -25,9 +25,9 @@ deck.json（PPT-DSL，1280×720px 绝对定位）
 
 ## 特性
 
-- **单一数据源 PPT-DSL**：12 种元素类型（文本/图片/SVG/矩形/圆/直线/箭头/路径/曲线/图表/表格）+ 3 个连接线/弧形宏
+- **单一数据源 PPT-DSL**：12 种元素类型（文本/图片/SVG/矩形/圆/直线/箭头/路径/曲线/图表/表格/text-path，其中 text-path 仅预览）+ 3 个连接线/弧形宏
 - **主题令牌系统**：`$primary` `$accent` `$bg` `$text` `$1`~`$9` `$light:$primary`，换主题只改 theme 对象
-- **内置工业风模版**（墨青 × 机械橙），支持参考图风格提取与文字描述风格定制
+- **内置主题**：navy-brief（墨青 × 机械橙）及 business/tech/health/education/nature/creative/minimal/warm/dark；支持参考图风格提取与文字描述风格定制
 - **DSL 校验器**：越界检测、文本溢出估算、按透明度逐层混合的对比度检查
 - **连接线宏**：`connector-s`（脑图标准 S 曲线，自适应切线方向）、`connector-elbow`（肘形）、`arc-segment`（带箭头的轨道环段）——脑图/辐射/循环布局开箱即用
 - **预览即编辑器**：预览页双击文本就地修改，一键导出修改后的 deck.json 或直接浏览器端导出 PPTX
@@ -60,7 +60,7 @@ Agent 会读取 `SKILL.md` 中的工作流指令，自动完成：生成 DSL →
 ## 快速开始
 
 ```bash
-npm install        # 仅需 pptxgenjs
+npm install   # pptxgenjs + jszip; sharp is optional for Node-side SVG rasterizing        # pptxgenjs + jszip；sharp 用于 Node 端 SVG 栅格化
 
 # 校验 → 预览 → 构建
 node tools/check_deck.mjs examples/deck-report.json
@@ -88,7 +88,7 @@ node tools/build_pptx.mjs examples/deck-report.json -o out.pptx
 | `shape-circle` | 圆/椭圆（**x/y 为圆心**） | fill, stroke |
 | `shape-line` / `shape-arrow` | 直线/箭头 | pointArr, lineColor, lineWidth |
 | `curve-quadratic` / `shape-path` | 贝塞尔/自由路径 | pointArr（支持 quadratic/cubic/arc 曲线） |
-| `chart` | 真实可编辑图表 | chartType: bar/line/pie/doughnut/area/radar, data |
+| `chart` | 真实可编辑图表 | chartType: bar/line/pie/doughnut/area/radar/scatter, data |
 | `table` | 真实可编辑表格 | rows, header, stripeColor |
 | `connector-s`（宏） | 脑图 S 连接线 | x1,y1,x2,y2, orientation(h/v/auto), dashType |
 | `connector-elbow`（宏） | 直角肘形连接线 | x1,y1,x2,y2, orientation(h-first/v-first) |
@@ -102,19 +102,21 @@ node tools/build_pptx.mjs examples/deck-report.json -o out.pptx
 ```
 root/
 ├── SKILL.md                     # DSH skill 主入口（AI 工作流指令）
-├── package.json                 # 唯一依赖：pptxgenjs
+├── package.json                 # 依赖：pptxgenjs + jszip（sharp 可选）
 ├── core/                        # 转换核心
 │   ├── ppt-core.mjs             #   Node：DSL → PptxGenJS
+│   ├── dsl-to-pptx.mjs          #   纯转换层：DSL → PptxGenJS（双端共用）
 │   ├── ppt-preview-core.js      #   浏览器：DSL → Konva（含双击编辑回写）
 │   ├── connectors.mjs           #   连接线/弧形宏（构建期展开）
-│   ├── dsl-validate.mjs         #   DSL 校验器
-│   └── pptxgenjs-preview.js     #   备用：PptxGenJS 对象 → DOM 预览
+│   └── dsl-validate.mjs         #   DSL 校验器
+
 ├── tools/
 │   ├── check_deck.mjs           #   校验
 │   ├── make_preview.mjs         #   生成自包含预览 HTML
 │   └── build_pptx.mjs           #   构建可编辑 PPTX
 ├── references/                  # DSL 规范 / 设计系统 / 内置模版 / 参考图分析协议
 ├── assets/                      # konva + pptxgenjs 浏览器运行时
+├── tests/                        # 冒烟测试（npm test）
 └── examples/                    # 示例：可直接看效果
 ```
 
@@ -152,9 +154,9 @@ One DSL drives both ends: what you preview is what you export.
 
 ### Features
 
-- **Single-source PPT-DSL**: 12 element types + 3 connector/arc macros
+- **Single-source PPT-DSL**: 12 element types (text/image/SVG/shapes/path/chart/table/text-path) + 3 connector/arc macros
 - **Theme token system**: `$primary`, `$accent`, `$1`–`$9`, `$light:…` — re-skin via the theme object only
-- **Built-in industrial template** (ink navy × machine orange), plus reference-image style extraction and text-described style customization
+- **Built-in themes**: navy-brief (ink navy × machine orange) plus business/tech/health/education/nature/creative/minimal/warm/dark; reference-image style extraction and text-described style customization also supported
 - **DSL validator**: bounds check, text-overflow estimation, alpha-blended contrast analysis
 - **Connector macros**: `connector-s` (mind-map S-curves with adaptive tangents), `connector-elbow`, `arc-segment` (orbital ring segments with arrow notches)
 - **Preview doubles as editor**: dbl-click text to edit in place; export the edited deck.json or re-export PPTX right in the browser
@@ -163,7 +165,7 @@ One DSL drives both ends: what you preview is what you export.
 ### Quick start
 
 ```bash
-npm install
+npm install   # pptxgenjs + jszip; sharp is optional for Node-side SVG rasterizing
 
 node tools/check_deck.mjs examples/deck-report.json
 node tools/make_preview.mjs examples/deck-report.json
@@ -183,4 +185,5 @@ See the tree above. The conversion cores live in `core/`, CLIs in `tools/`, docs
 ### FAQ
 
 - **Text turns into a color block** → for text, `fill` is the font color; use `bgFill` for box background
+- **Text looks small in PPT** → adjust `theme.fontScale` (default 0.667; 0.75 is visually equal size)
 - **Connectors/arcs missing in exported PPTX** → custom geometry must use `pptx.shapes.CUSTOM_GEOMETRY` (`ShapeType.customGeometry` is undefined)

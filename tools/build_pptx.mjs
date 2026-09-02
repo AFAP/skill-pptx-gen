@@ -31,6 +31,11 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv);
+
+if (process.argv.includes('--help')) {
+  console.log('用法: node tools/build_pptx.mjs deck.json [-o output.pptx] [--no-validate] [--skip-images]');
+  process.exit(0);
+}
 if (!args.input) {
   console.error('用法: node tools/build_pptx.mjs deck.json [-o output.pptx] [--no-validate] [--skip-images]');
   process.exit(2);
@@ -42,7 +47,7 @@ const outputPath = resolve(args.output || basename(inputPath).replace(/\.json$/i
 
 let deck;
 try {
-  deck = JSON.parse(await readFile(inputPath, 'utf-8'));
+  deck = JSON.parse((await readFile(inputPath, 'utf-8')).replace(/^\uFEFF/, '')); // 容忍 Windows BOM
 } catch (e) {
   console.error(`❌ 读取 deck 失败: ${e.message}`);
   process.exit(1);

@@ -15,8 +15,13 @@ export const INCH_H = 7.5;
 export const DEFAULT_FONT_SCALE = 2 / 3;
 
 const PX2INCH = INCH_W / PPT_WIDTH;
+/** 描边宽度/阴影的 px→pt（画布 1280px = 960pt，视觉等比缩放 0.75） */
+const PX2PT = 0.75;
 export function pxToInch(px) {
   return Number((px * PX2INCH).toFixed(4));
+}
+export function pxToPt(px) {
+  return Number((px * PX2PT).toFixed(2));
 }
 
 /** 跨端 UTF-8 → base64（Node 用 Buffer，浏览器用 TextEncoder+btoa） */
@@ -115,6 +120,52 @@ export const BUILTIN_THEMES = {
     background: '#F7F6F3', text: '#17233B', textSecondary: '#667085',
     primary: '#0C1B2E', accent: '#F26B21', fontFamily: 'Microsoft YaHei',
   },
+  // 源自 PptxGenJS-Preview utils.js 的经典主题色板（schema 示例使用的 business 也在此注册）
+  business: {
+    palette: ['#1E3A5F', '#2C5282', '#3182CE', '#C9A96E', '#D4AF37', '#B7943C', '#2D3748', '#4A5568', '#718096'],
+    background: '#F7F6F3', text: '#17233B', textSecondary: '#667085',
+    primary: '#1E3A5F', accent: '#C9A96E', fontFamily: 'Microsoft YaHei',
+  },
+  tech: {
+    palette: ['#0F172A', '#1E293B', '#06B6D4', '#22D3EE', '#67E8F9', '#BAE6FD', '#3B82F6', '#6366F1', '#8B5CF6'],
+    background: '#F5F7FA', text: '#0F172A', textSecondary: '#475569',
+    primary: '#0F172A', accent: '#06B6D4', fontFamily: 'Microsoft YaHei',
+  },
+  health: {
+    palette: ['#166534', '#15803D', '#10B981', '#34D399', '#6EE7B7', '#059669', '#3B82F6', '#0EA5E9', '#38BDF8'],
+    background: '#F6F9F6', text: '#10241A', textSecondary: '#475569',
+    primary: '#166534', accent: '#10B981', fontFamily: 'Microsoft YaHei',
+  },
+  education: {
+    palette: ['#C2410C', '#EA580C', '#F97316', '#FB923C', '#84CC16', '#A3E635', '#CA8A04', '#EAB308', '#FACC15'],
+    background: '#FFF8F0', text: '#2B1A0E', textSecondary: '#78716C',
+    primary: '#C2410C', accent: '#F97316', fontFamily: 'Microsoft YaHei',
+  },
+  nature: {
+    palette: ['#14532D', '#166534', '#22C55E', '#4ADE80', '#92400E', '#B45309', '#D97706', '#F59E0B', '#FBBF24'],
+    background: '#F4F8F4', text: '#14291D', textSecondary: '#57534E',
+    primary: '#14532D', accent: '#D97706', fontFamily: 'Microsoft YaHei',
+  },
+  creative: {
+    palette: ['#581C87', '#7C3AED', '#8B5CF6', '#A78BFA', '#C084FC', '#EC4899', '#F472B6', '#FB7185', '#FDA4AF'],
+    background: '#FBF7FD', text: '#241230', textSecondary: '#52525B',
+    primary: '#581C87', accent: '#EC4899', fontFamily: 'Microsoft YaHei',
+  },
+  minimal: {
+    palette: ['#18181B', '#27272A', '#3F3F46', '#52525B', '#71717A', '#A1A1AA', '#D4D4D8', '#E4E4E7', '#F4F4F5'],
+    background: '#FAFAFA', text: '#18181B', textSecondary: '#71717A',
+    primary: '#18181B', accent: '#52525B', fontFamily: 'Microsoft YaHei',
+  },
+  warm: {
+    palette: ['#7F1D1D', '#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA', '#FEE2E2'],
+    background: '#FFF7F5', text: '#2A0E0E', textSecondary: '#78716C',
+    primary: '#7F1D1D', accent: '#DC2626', fontFamily: 'Microsoft YaHei',
+  },
+  dark: {
+    palette: ['#0C0A09', '#1C1917', '#292524', '#44403C', '#57534E', '#78716C', '#A8A29E', '#D6D3D1', '#E7E5E4'],
+    background: '#F5F5F4', text: '#0C0A09', textSecondary: '#57534E',
+    primary: '#0C0A09', accent: '#78716C', fontFamily: 'Microsoft YaHei',
+  },
 };
 
 /** 解析 deck 主题：deck.theme 可为字符串（内置主题名）或对象（可 extends 内置主题） */
@@ -197,14 +248,14 @@ function convertShadow(elop) {
   }
   if (elop.shadowOffsetX !== undefined) offsetX = elop.shadowOffsetX;
   if (elop.shadowOffsetY !== undefined) offsetY = elop.shadowOffsetY;
-  const offset = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+  const offset = pxToPt(Math.sqrt(offsetX * offsetX + offsetY * offsetY));
   let angle = offset > 0 ? (Math.atan2(offsetY, offsetX) * 180 / Math.PI) : 45;
   if (angle < 0) angle += 360;
   return {
     shadow: {
       type: elop.shadowType || 'outer',
-      blur: elop.shadowBlur || 8,
-      offset: offset || 4,
+      blur: pxToPt(elop.shadowBlur || 8),
+      offset: offset || pxToPt(4),
       angle: Math.round(angle),
       color: shadowColor,
       opacity: Math.min(1, Math.max(0, shadowOpacity)),
@@ -238,7 +289,7 @@ function convertStroke(elop) {
   if (colorRaw == null && elop.strokeWidth == null && elop.lineWidth == null) return {};
   const p = parseColor(colorRaw || '#000000');
   if (!p) return {};
-  const line = { color: p.color, width: elop.strokeWidth ?? elop.lineWidth ?? 2 };
+  const line = { color: p.color, width: pxToPt(elop.strokeWidth ?? elop.lineWidth ?? 2) };
   if (p.transparency) line.transparency = p.transparency;
   const dash = elop.dashType || elop.dash;
   if (dash === 'dash' || dash === true || (Array.isArray(dash) && dash.length)) line.dashType = 'dash';
@@ -362,6 +413,7 @@ export function applyElement(pptx, slide, elop, theme) {
   } else if (t === 'image') {
     const opt = baseOptions(elop);
     if (elop._data) opt.data = elop._data;
+      else if (elop.data) opt.data = elop.data; // 直接内嵌 data URI（预览/校验器同样支持）
     else if (elop.path || elop.url) opt.path = elop.path || elop.url; // 兜底：未预取时让 pptxgenjs 自行处理
     else return;
     // 默认 cover 裁满（与 Konva 预览一致），显式 contain 才完整容纳；不再默认 stretch 变形
@@ -390,7 +442,7 @@ export function applyElement(pptx, slide, elop, theme) {
     const opt = baseOptions(elop);
     // DSL 约定：shape-circle 的 x/y 为圆心（Konva 习惯）
     const w = elop.width ?? (elop.radius ? elop.radius * 2 : 0);
-    const h = elop.height ?? (elop.radius ? elop.radius * 2 : 0);
+    const h = elop.height ?? (elop.radius ? elop.radius * 2 : w);
     opt.w = pxToInch(w);
     opt.h = pxToInch(h);
     if (typeof elop.x === 'number') opt.x = pxToInch(elop.x - w / 2);
@@ -408,6 +460,10 @@ export function applyElement(pptx, slide, elop, theme) {
       opt.w = pxToInch(Math.max(...xs) - minX);
       opt.h = pxToInch(Math.max(...ys) - minY);
       opt.points = toGeometryPoints(pa, minX, minY); // 开放折线，不闭合
+      if (t === 'shape-arrow') {
+        opt.line = opt.line || {};
+        opt.line.endArrowType = opt.line.endArrowType || 'stealth';
+      }
       slide.addShape(pptx.shapes.CUSTOM_GEOMETRY, opt);
     } else if (pa.length >= 2) {
       opt.x = pxToInch(pa[0].x);
