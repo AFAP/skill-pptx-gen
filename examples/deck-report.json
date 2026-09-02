@@ -1,7 +1,7 @@
 {
   "meta": { "title": "埃斯顿 2026 中期业绩简报", "author": "ai-ppt-gen" },
   "theme": {
-    "name": "estun-industrial",
+    "name": "navy-brief",
     "palette": ["#0C1B2E", "#F26B21", "#4A7BA6", "#8FA3D9", "#C9CFDA", "#667085"],
     "primary": "#0C1B2E",
     "accent": "#F26B21",
@@ -67,7 +67,7 @@
         { "elType": "text", "text": "下半年四大看点与风险提示", "x": 190, "y": 656, "width": 700, "height": 24, "fontSize": 13, "fill": "$text2" },
         { "elType": "shape-rect", "x": 60, "y": 688, "width": 1160, "height": 1, "fill": "#E5E1D8" },
         { "elType": "text", "text": "ESTUN AUTOMATION · 2026 半年度报告", "x": 60, "y": 696, "width": 500, "height": 18, "fontSize": 10, "fill": "#9AA0AF" },
-        { "elType": "text", "text": "02 / 10", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
+        { "elType": "text", "text": "02 / 11", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
       ]
     },
     {
@@ -107,7 +107,7 @@
         { "elType": "text", "text": "营收 +1.14% 持平背景下，归母净利 +2,314%：高质量发展策略成效显现", "x": 60, "y": 600, "width": 1160, "height": 60, "fontSize": 17, "fontStyle": "bold", "fill": "#FFFFFF", "align": "center", "verticalAlign": "middle" },
         { "elType": "shape-rect", "x": 60, "y": 688, "width": 1160, "height": 1, "fill": "#E5E1D8" },
         { "elType": "text", "text": "ESTUN AUTOMATION · 2026 半年度报告", "x": 60, "y": 696, "width": 500, "height": 18, "fontSize": 10, "fill": "#9AA0AF" },
-        { "elType": "text", "text": "03 / 10", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
+        { "elType": "text", "text": "03 / 11", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
       ]
     },
     {
@@ -169,7 +169,7 @@
 
         { "elType": "shape-rect", "x": 60, "y": 688, "width": 1160, "height": 1, "fill": "#E5E1D8" },
         { "elType": "text", "text": "ESTUN AUTOMATION · 2026 半年度报告", "x": 60, "y": 696, "width": 500, "height": 18, "fontSize": 10, "fill": "#9AA0AF" },
-        { "elType": "text", "text": "04 / 10", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
+        { "elType": "text", "text": "04 / 11", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
       ]
     },
     {
@@ -204,7 +204,7 @@
         { "elType": "text", "text": "「Local for Global」全球化战略持续兑现，海外成为第二增长曲线", "x": 60, "y": 610, "width": 1160, "height": 50, "fontSize": 15, "fontStyle": "bold", "fill": "#FFFFFF", "align": "center", "verticalAlign": "middle" },
         { "elType": "shape-rect", "x": 60, "y": 688, "width": 1160, "height": 1, "fill": "#E5E1D8" },
         { "elType": "text", "text": "ESTUN AUTOMATION · 2026 半年度报告", "x": 60, "y": 696, "width": 500, "height": 18, "fontSize": 10, "fill": "#9AA0AF" },
-        { "elType": "text", "text": "05 / 10", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
+        { "elType": "text", "text": "05 / 11", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
       ]
     },
     {
@@ -244,7 +244,7 @@
         { "elType": "text", "text": "扣非净利润 7,017 万元（+498.64%）：主业盈利改善为真", "x": 60, "y": 610, "width": 1160, "height": 50, "fontSize": 15, "fontStyle": "bold", "fill": "#FFFFFF", "align": "center", "verticalAlign": "middle" },
         { "elType": "shape-rect", "x": 60, "y": 688, "width": 1160, "height": 1, "fill": "#E5E1D8" },
         { "elType": "text", "text": "ESTUN AUTOMATION · 2026 半年度报告", "x": 60, "y": 696, "width": 500, "height": 18, "fontSize": 10, "fill": "#9AA0AF" },
-        { "elType": "text", "text": "06 / 10", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
+        { "elType": "text", "text": "06 / 11", "x": 1120, "y": 696, "width": 100, "height": 18, "fontSize": 10, "fill": "#9AA0AF", "align": "right" }
       ]
     },
     {

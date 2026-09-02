@@ -15,7 +15,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const PptxGenJS = require('pptxgenjs');
 
-const { buildPresentation } = await import('../core/ppt-core.mjs');
+const { buildPresentation, sanitizePptxBuffer } = await import('../core/ppt-core.mjs');
 const { validateDeck, formatReport } = await import('../core/dsl-validate.mjs');
 
 function parseArgs(argv) {
@@ -59,7 +59,8 @@ if (args.validate) {
 
 try {
   const { pptx } = await buildPresentation(PptxGenJS, deck, { prefetch: args.prefetch, baseDir });
-  const data = await pptx.write({ outputType: 'nodebuffer' });
+  let data = await pptx.write({ outputType: 'nodebuffer' });
+  data = await sanitizePptxBuffer(data); // 修复 image-svg 在 Node 端的 PNG 回退槽
   await writeFile(outputPath, data);
   const slideCount = (deck.slides || []).length;
   console.log(`✅ 已生成 ${outputPath}（${slideCount} 页，${(data.length / 1024).toFixed(0)} KB）`);

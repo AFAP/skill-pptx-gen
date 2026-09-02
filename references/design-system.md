@@ -11,7 +11,7 @@
 | H2 | 24-28 | 副标题、区块标题 |
 | H3 | 20-26 | 卡片标题 |
 | Body | 14-18 | 正文 |
-| Caption | 11-13 | 注释、来源、页码（不低于 11） |
+| Caption | 10-13 | 注释、来源、页码（不低于 10） |
 
 英文小标签（如 "CONTENTS"）：12px + `letterSpacing: 3` + accent 色，是提升设计感的廉价手段。
 
@@ -156,24 +156,102 @@ N 段: 每段扫角 = (360 - N×缝隙角5°) / N，从 -90°(顶部) 起顺时�
 中心: shape-circle 150px $primary + 白色标题
 ```
 
-### D. 双圆对比（问题 vs 方案 / 现状 vs 目标）
+### D. 双圆环形对峙对比（问题 vs 方案 / 现状 vs 目标，原版精确参数）
 
 ```
-左圆: shape-circle 直径 360 (圆心 460,360) $accent系浅底+主色边
-右圆: shape-circle 直径 360 (圆心 820,360) 主色底
-左圆外/内 3 条问题项: 胶囊 shape-rect(160,y,220,44) + 文本列
-右圆外侧 3 条方案项: 镜像
-每侧圆后用同色系超大 shape-circle(opacity 0.08) 做光晕底
+圆心线 ORIGIN_Y = 420（标题区 120 之下居中）
+左主圆: shape-circle 圆心(540,420) r=88, fill=左色, stroke=左色+99, strokeWidth 15
+右主圆: 圆心(740,420) r=88, 右色同理
+背景光晕: 左右各一个 shape-circle r=250, fill=对应色, opacity 0.08（圆心与主圆同）
+外轮廓弧（开口装饰）: shape-path 开放弧 r=240 stroke 2px
+  左: 圆心(540,420) 角度 105°→255°；右: 圆心(740,420) 角度 285°→75°(跨0°)
+  pointArr=[{起点,moveTo:true},{终点,curve:{type:"arc",hR:240,wR:240,stAng:起点角,swAng:扫角}}], closePath:false
+主圆内: 图标 48px 白色 + 标题 21px bold 白色
+条目胶囊: 在圆环 r=290 上按角度均布（左半 150° 区间 / 右半镜像）
+  shape-rect (w=220,h=32) fill=对应色 cornerRadius 16 + 白字 18px bold
+  角度: childAngle = 90 + 10 + (150/(N+1))×(i+1)，位置 = 主圆圆心 + arcPoint(290, childAngle)
+  每条胶囊下挂说明文本 (w=320, 15px, $text2)
 ```
 
-### E. 四象限 + 中心环（多维平衡/SWOT 变体）
+### E. 四象限 + 中心环（多维平衡/SWOT 变体，原版精确参数）
 
 ```
-十字虚线: 两条 shape-line（横 y=360、竖 x=640，dashType:"dash", 1px $text2）
-四象限卡: (60,140,500,220) (720,140,500,220) (60,400,500,220) (720,400,500,220)
-  每卡: 标题(18 bold $3) + 🎯核心目标 + 🚫常见误区 两段
-中心: shape-circle 100px $primary (圆心 640,360) + 图标
-象限与中心之间: 可用 arc-segment(rOuter=120,rInner=90) 四分环贴中心做过渡
+原点 (640,420)；四象限卡（虚线框 + 顶部 6px 色条）:
+  boxW=580, boxH=270; 左上(50,140) 右上(650,140) 左下(50,430) 右下(650,430)
+  每卡: shape-rect 白底 stroke=$3 1px dashType:"dash" + 顶条(高6,fill=$3)
+  标题 24 bold（左卡左对齐/右卡右对齐）+ 2 段「标签 21 bold + 内容 15」
+中心环（4 段 90° 扇区，arc-segment 宏）:
+  arc-segment(cx=640, cy=420, rOuter=126, rInner=50, arrow:false, fill=$3):
+    i0 左上: 180°→270°   i1 右上: 270°→360°   i2 左下: 90°→180°   i3 右下: 0°→90°
+中心: shape-circle r=70 白色 + 其上 r=95 白色 opacity0.34 + 图标 60px
+注意：原版环上的弧形文字标签（收益平衡…）是 text-path——仅预览有效、PPT 导出会跳过；
+  需要出片时改为各象限内的直排标签。
+```
+
+### F. 金字塔（真三角分层，原版精确参数）
+
+```
+总高 H=500，左边距 x=50，塔顶 y=170（720 内居中于标题区下）
+局部坐标（相对塔身原点 x=50,y=170）：顶点(250,0) 左底(0,500) 右底(500,500)
+N 层: layerH = (510/N) - 10；层间距 10
+第 i 层（shape-path，pointArr 直角点，默认闭合）:
+  topW = (layerH+10)×i, botW = layerH + (layerH+10)×i
+  i=0 三角形: points [(botW/2,0),(0,layerH),(botW,layerH)]
+  i>0 梯形: points [((botW-topW)/2,0),(0,layerH),(botW,layerH),(topW+(botW-topW)/2,0)]
+  x = 300 - botW/2, y = 170 + (layerH+10)×i, fill=palette[i]
+  图标: 居中于该层, fontSize = layerH×0.4, 白色
+右侧说明卡（逐层阶梯右移）:
+  x = 层x + 层宽 + 32, w=500, 高=layerH
+  fill=palette[i] opacity 0.2 cornerRadius 8 + 标题 18 bold + 内容 15px
+```
+
+### G. SWOT 字母列
+
+```
+4 列等宽: colW = (1280-100)/4 = 295
+字母块: shape-rect (50+i×295, 180, 295, 150) fill=palette[i] opacity 0.3, 直角
+字母: S/W/O/T 80px bold 居中 $text
+内容: text (50+i×295, 330, 295, 余下高度) 18px $text2, 条目间空行
+```
+
+### H. 三环循环（中心 + 环绕三点）
+
+```
+中心: shape-circle r=80 fill=$primary (圆心 640,440) + 图标 42px + 标题 24px 白
+点状装饰环: image-svg（SVG 多层 stroke-dasharray:"0 25" 点线圈, 见 examples）
+环绕小圆 ×3: r=48, 圆心 = 中心 + arcPoint(198, -60°+120°×i), fill=palette[i]
+  图标 36px 白色居中
+标签胶囊: 小圆左侧或右侧（按 x 正负自适应）shape-rect (280,40) cornerRadius 30
+  fill=palette[i]+"11", stroke=palette[i], 标题 18 bold
+  胶囊下挂说明文本 15px
+```
+
+### I. 垂直流程（纵向步骤链）
+
+```
+节点圆: shape-circle d=56 圆心 x=88, 纵向 startY + i×76, fill=palette[i]
+  内编号/图标 22-28px 白色
+连接条: shape-rect (86, 节点底, 3, 20) fill=palette[i]+"88"（最后节点不画）
+右侧: 标题 24-28 bold (x=136) + 内容 18px $text2
+纵向居中: startY = 标题区底 + (可用高 - N×56 - (N-1)×20)/2
+```
+
+### J. 聚焦强调页（超大字 + 双装饰线）
+
+```
+图标(可选): 64px 居中 (0,240,1280,80)
+上装饰线: shape-rect (580,当前y-20, 120,4) $primary cornerRadius 2
+核心文字: Display 54px bold 居中 (60,当前y+10,1160,110)
+下装饰线: 同上位置镜像
+副文案(可选): H2 24px $text2 居中
+```
+
+### K. 数据仪表盘（大数字卡行）
+
+```
+卡片宽 = (1280 - 80 - 24×(N-1))/N，y 居中于标题区下
+每卡: shape-rect 高200 fill=palette[i]+"15" stroke=palette[i] 2px cornerRadius 16
+  大数字 48-72px bold palette[i] + 标签 16px + 趋势 14px（涨跌色）
 ```
 
 ---
@@ -216,7 +294,7 @@ N 段: 每段扫角 = (360 - N×缝隙角5°) / N，从 -90°(顶部) 起顺时�
 
 - 彩虹渐变、高饱和撞色堆砌
 - 一页超过 3 种主色
-- 正文小于 13px、行高小于 1.2
+- 正文小于 12px、注释/页码小于 10px、行高小于 1.2
 - 元素贴边（违反安全边距）
 - 大段文字（>120 字/页）
 - 无意义阴影（深色背景上的黑阴影）

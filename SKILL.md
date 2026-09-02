@@ -89,15 +89,15 @@ node tools/build_pptx.mjs path/to/deck.json -o out.pptx  # ③ 可编辑 PPTX
 
 | 路径 | 作用 |
 | --- | --- |
-| `core/ppt-core.mjs` | **转换核心（Node）**：DSL → PptxGenJS；主题令牌解析、图片预取为 base64、负尺寸归一化（flipH/flipV）、图表/表格/阴影/渐变 |
-| `core/ppt-preview-core.js` | **转换核心（浏览器）**：DSL → Konva；chart/table 原生绘制、双击文本编辑并回写 deck |
-| `core/connectors.mjs` | **连接线/弧形宏**（源自原项目脑图布局函数）：connector-s、connector-elbow、arc-segment，构建期展开为标准元素 |
-| `core/pptxgenjs-preview.js` | 备用核心：原生 PptxGenJS 对象 → HTML DOM 预览（不走 DSL 时） |
-| `core/dsl-validate.mjs` | 校验器：越界/溢出估算/对比度（按透明度逐层混合计算实际背景） |
+| `core/dsl-to-pptx.mjs` | **纯转换层（Node 与浏览器共用）**：DSL → PptxGenJS；主题令牌解析（颜色字段白名单）、负尺寸归一化、图片 sizing 默认 cover、closePath→`<a:close/>`、多点折线→customGeometry、图表/表格/阴影 |
+| `core/ppt-core.mjs` | Node 适配层：图片/背景预取为 base64（含 5MB 体积守卫）、构建编排（re-export 纯转换层） |
+| `core/ppt-preview-core.js` | **预览核心（浏览器）**：DSL → Konva；chart 标签/图例/radar/scatter 原生绘制、bgFill 垫底、双击文本编辑并回写原始 deck |
+| `core/connectors.mjs` | **连接线/弧形宏**（源自原项目脑图布局函数）：connector-s、connector-elbow、arc-segment（带箭头），构建期展开为标准元素 |
+| `core/dsl-validate.mjs` | 校验器：宏展开后查越界/溢出估算/对比度（按透明度逐层混合）/chart/table 形态/渐变提示 |
 | `tools/build_pptx.mjs` | deck.json → .pptx（先校验后构建） |
-| `tools/make_preview.mjs` | deck.json → 自包含预览 HTML（内嵌 Konva，可双击编辑、导出 deck.json / PPTX） |
+| `tools/make_preview.mjs` | deck.json → 自包含预览 HTML（内嵌 Konva + 共享转换层；可双击编辑、导出 deck.json / PPTX、缩放不重建） |
 | `tools/check_deck.mjs` | 只校验 |
-| `assets/` | konva.10.0.12.min.js、pptxgen.4.0.1.js（浏览器端运行时） |
+| `assets/` | konva.10.0.12.min.js、pptxgen.4.0.1.js（浏览器端运行时，与 npm 依赖同版本） |
 | `references/dsl-schema.md` | DSL 全量规范（元素属性、单位换算、令牌、连接线宏、陷阱） |
 | `references/builtin-template.md` | 内置 navy-brief 模版 + 从参考图/描述生成新风格的公式 |
 | `references/design-system.md` | 版式库与设计规范（字号层级/边距/节奏/装饰元素库） |
@@ -111,5 +111,8 @@ node tools/build_pptx.mjs path/to/deck.json -o out.pptx  # ③ 可编辑 PPTX
 - **导出文字"消失"（变成色块）**：text 的 `fill` 是字体色；框底色请用 `bgFill`。
 - **PPT 中文本偏小/偏大**：调 `theme.fontScale`（默认 0.667；0.75 为视觉等大）。
 - **emoji 变黑白**：平台渲染差异，正式场合用 `image-svg` 图标。
-- **headless 截图失败**（Windows 沙箱命名管道限制）：用真实浏览器打开预览页确认；也可用 PowerPoint COM 导出 PNG 验证（`Presentations.Open(file,ReadOnly,,WithWindow:false)` → `Slide.Export(path,"PNG",1280,720)`）。
+- **headless 截图失败**（Windows 沙箱命名管道限制）：用真实浏览器打开预览页确认；也可用 PowerPoint COM 导出 PNG 验证——注意 **COM 验证必须用有窗口模式**（`Presentations.Open(file, -1, 0, -1)`），无窗口模式（WithWindow:false）无法解码图片，含图片的 pptx 会误报"打不开"。
 - **连接线/弧段在导出的 PPTX 里不显示**：自定义几何必须用 `pptx.shapes.CUSTOM_GEOMETRY`——`pptx.ShapeType.customGeometry` 是 undefined（枚举键名是 `custGeom`），写错会产出不可见形状。两个导出路径均已用正确引用。
+- **渐变填充导出走样**：PPTX 导出压平为首色（可编辑性限制，校验器会提示）；预览页显示真渐变。要真渐变请用 `image-svg` 或图片。
+- **image-svg 在 Node 端**：pptxgenjs 的 SVG 支持是纯浏览器功能；Node 端由 `sharp` 预栅格化为 PNG（2x 分辨率，`npm i sharp`，未装则跳过并告警）。浏览器端导出由 pptxgenjs 自行栅格化。
+- **Node 版本**：需 ≥18（fetch/AbortSignal.timeout）。

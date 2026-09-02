@@ -2,16 +2,17 @@
  * ai-ppt-gen DSL 校验器
  *
  * 在渲染/导出前检查 deck JSON，输出 errors（必须修复）与 warnings（建议修复）。
- * 检查项：结构完整性、画布越界、文本溢出估算、颜色格式、图片源、对比度、元素重叠提示。
+ * 检查项：结构完整性、画布越界（宏先展开再查）、文本溢出估算、颜色格式、图片源、
+ * 对比度（按透明度逐层混合实际背景）、图表/表格数据形态、渐变压平提示。
  */
 
-import { PPT_WIDTH, PPT_HEIGHT, parseColor, resolveTheme, resolveTokens } from './ppt-core.mjs';
+import { PPT_WIDTH, PPT_HEIGHT, parseColor, resolveTheme, resolveTokens } from './dsl-to-pptx.mjs';
+import { expandConnectors, MACRO_TYPES } from './connectors.mjs';
 
 const EL_TYPES = new Set([
   'text', 'image', 'image-svg', 'shape-rect', 'shape-circle',
   'shape-line', 'shape-arrow', 'shape-path', 'curve-quadratic', 'chart', 'table', 'text-path',
-  // 构建期宏（connectors.mjs 展开为标准元素）
-  'connector-s', 'connector-elbow', 'arc-segment',
+  ...MACRO_TYPES,
 ]);
 
 const MACRO_REQUIRED = {
@@ -20,20 +21,10 @@ const MACRO_REQUIRED = {
   'arc-segment': ['cx', 'cy', 'rOuter', 'startAngle', 'endAngle'],
 };
 
-/** 估算文本渲染尺寸（与 Konva/PPT 近似）：中文按全宽、ASCII 按 0.55 宽 */
-export function estimateTextBox(text, fontSize, lineHeight = 1.2) {
-  const lines = String(text ?? '').split('\n');
-  let maxUnits = 0;
-  for (const ln of lines) {
-    let u = 0;
-    for (const ch of ln) u += ch.charCodeAt(0) > 255 ? 1 : 0.55;
-    maxUnits = Math.max(maxUnits, u);
-  }
-  return { width: maxUnits * fontSize, height: lines.length * fontSize * lineHeight, maxUnits, lines: lines.length };
-}
+const DEFAULT_LINE_HEIGHT = 1.25; // 与渲染端（Konva / PPT 导出）默认一致
 
-/** 文本在容器内自动换行后的估算高度 */
-export function estimateWrappedHeight(text, fontSize, boxWidth, lineHeight = 1.2) {
+/** 文本在容器内自动换行后的估算高度（中文全宽、ASCII 0.55 宽） */
+export function estimateWrappedHeight(text, fontSize, boxWidth, lineHeight = DEFAULT_LINE_HEIGHT) {
   const lines = String(text ?? '').split('\n');
   let total = 0;
   for (const ln of lines) {
@@ -43,6 +34,12 @@ export function estimateWrappedHeight(text, fontSize, boxWidth, lineHeight = 1.2
     total += Math.max(1, Math.ceil(lineUnits / Math.max(1, boxWidth)));
   }
   return total * fontSize * lineHeight;
+}
+
+function estTextWidth(text, fontSize) {
+  let u = 0;
+  for (const ch of String(text)) u += ch.charCodeAt(0) > 255 ? 1 : 0.55;
+  return u * fontSize;
 }
 
 function luminance(hex) {
@@ -78,6 +75,25 @@ export function validateDeck(deck, opts = {}) {
   }
   if (resolved.slides.length > 60) warnings.push(`页数 ${resolved.slides.length} 较多，建议控制在 30 页以内`);
 
+  // 第 0 遍（原始结构）：未知 elType + 宏必填字段
+  resolved.slides.forEach((slide, si) => {
+    const where = `第${si + 1}页`;
+    if (!Array.isArray(slide.elements)) return;
+    slide.elements.forEach((el, ei) => {
+      const at = `${where} 元素${ei + 1}${el?.elType ? `(${el.elType})` : ''}`;
+      if (!el || !el.elType) { errors.push(`${at}: 缺少 elType`); return; }
+      if (!EL_TYPES.has(el.elType)) { errors.push(`${at}: 未知 elType "${el.elType}"`); return; }
+      if (MACRO_REQUIRED[el.elType]) {
+        for (const k of MACRO_REQUIRED[el.elType]) {
+          if (typeof el[k] !== 'number') errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
+        }
+      }
+    });
+  });
+
+  // 连接线/弧形宏展开为标准元素后，再做几何与样式检查（rOuter 越界等不再漏网）
+  expandConnectors(resolved);
+
   resolved.slides.forEach((slide, si) => {
     const where = `第${si + 1}页`;
     if (!Array.isArray(slide.elements) || slide.elements.length === 0) {
@@ -100,7 +116,6 @@ export function validateDeck(deck, opts = {}) {
         if (f) bgHex = f; // 全屏矩形视为实际背景
       }
     });
-    const bgLum = luminance(bgHex);
 
     // 找出文本/元素的"实际背景"：从底到顶依次混合覆盖其中心点的形状（考虑填充透明度）
     const effectiveBg = (el, upto) => {
@@ -115,7 +130,7 @@ export function validateDeck(deck, opts = {}) {
         if (cx >= sx && cx <= sx + (s.width ?? 0) && cy >= sy && cy <= sy + (s.height ?? 0)) {
           const p = parseColor(fillOf(s.fill) || '');
           if (!p) continue;
-          const a = 1 - (p.transparency ?? 0) / 100;
+          const a = (1 - (p.transparency ?? 0) / 100) * (s.opacity ?? 1); // 元素级 opacity 也参与混合
           if (a <= 0.01) continue; // 全透明填充不影响背景
           bg = blendColor(bg, p.color, a);
         }
@@ -125,18 +140,8 @@ export function validateDeck(deck, opts = {}) {
 
     slide.elements.forEach((el, ei) => {
       const at = `${where} 元素${ei + 1}${el.elType ? `(${el.elType})` : ''}`;
-      if (!el.elType) { errors.push(`${at}: 缺少 elType`); return; }
-      if (!EL_TYPES.has(el.elType)) { errors.push(`${at}: 未知 elType "${el.elType}"`); return; }
 
-      // 宏元素字段检查（几何检查不适用：宏由 connectors.mjs 在构建期展开定位）
-      if (MACRO_REQUIRED[el.elType]) {
-        for (const k of MACRO_REQUIRED[el.elType]) {
-          if (typeof el[k] !== 'number') errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
-        }
-        return;
-      }
-
-      // 几何检查（line/arrow 用 pointArr，跳过）
+      // 几何检查（line/arrow/curve 用 pointArr，跳过矩形检查）
       if (!['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
         for (const k of ['x', 'y', 'width', 'height']) {
           if (el[k] != null && typeof el[k] !== 'number') errors.push(`${at}: ${k} 必须是数字`);
@@ -153,13 +158,18 @@ export function validateDeck(deck, opts = {}) {
         }
       }
 
+      // 渐变压平提示（预览显示真渐变，导出为可编辑首色）
+      if (el.fill && typeof el.fill === 'object' && el.fill.type === 'gradient' && Array.isArray(el.fill.stops) && el.fill.stops.length > 1) {
+        warnings.push(`${at}: 渐变填充导出 PPTX 时压平为首色（${el.fill.stops[0]?.color}），如需保留渐变请改用图片`);
+      }
+
       // 类型特定检查
       if (el.elType === 'text') {
         if (el.text == null || String(el.text) === '') warnings.push(`${at}: text 为空`);
         const fontSize = el.fontSize || 18;
         if (fontSize < 10) warnings.push(`${at}: fontSize ${fontSize}px 过小（<10px 在 PPT 中难以阅读）`);
         if (el.width > 0 && el.height > 0 && el.text) {
-          const needH = estimateWrappedHeight(el.text, fontSize, el.width, el.lineHeight || 1.25);
+          const needH = estimateWrappedHeight(el.text, fontSize, el.width, el.lineHeight || DEFAULT_LINE_HEIGHT);
           if (needH > el.height * 1.15) {
             warnings.push(`${at}: 文本可能溢出（估算高 ${Math.round(needH)}px > 容器 ${el.height}px），建议缩减文案或加高容器`);
           }
@@ -182,16 +192,36 @@ export function validateDeck(deck, opts = {}) {
       }
       if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
       if (el.elType === 'chart') {
-        if (!Array.isArray(el.data) || el.data.length === 0) errors.push(`${at}: chart 缺少 data 数组`);
-        else el.data.forEach((s, i2) => {
-          if (!Array.isArray(s.values) || s.values.length === 0) errors.push(`${at}: chart data[${i2}].values 为空`);
-        });
+        if (!Array.isArray(el.data) || el.data.length === 0) {
+          errors.push(`${at}: chart 缺少 data 数组`);
+        } else {
+          const labels = el.labels || el.data[0]?.labels || [];
+          if (!labels.length && el.chartType !== 'pie' && el.chartType !== 'doughnut') {
+            warnings.push(`${at}: chart 缺少 labels（分类轴标签）`);
+          }
+          el.data.forEach((s, i2) => {
+            if (!Array.isArray(s.values) || s.values.length === 0) {
+              errors.push(`${at}: chart data[${i2}].values 为空`);
+            } else if (labels.length && s.values.length !== labels.length) {
+              warnings.push(`${at}: chart data[${i2}] 数值数(${s.values.length})与标签数(${labels.length})不一致`);
+            }
+          });
+        }
       }
       if (el.elType === 'table') {
-        if (!Array.isArray(el.rows) || el.rows.length === 0) errors.push(`${at}: table 缺少 rows`);
-        else {
-          const cols = el.rows[0]?.length || 0;
-          el.rows.forEach((r, ri) => { if (r.length !== cols) warnings.push(`${at}: table 第${ri + 1}行列数(${r.length})与首行(${cols})不一致`); });
+        if (!Array.isArray(el.rows) || el.rows.length === 0) {
+          errors.push(`${at}: table 缺少 rows`);
+        } else {
+          const cols = Math.max(...el.rows.map(r => r.length));
+          el.rows.forEach((r, ri) => { if (r.length !== cols) warnings.push(`${at}: table 第${ri + 1}行列数(${r.length})与最多列(${cols})不一致`); });
+          // 单元格文本溢出估算
+          const cellW = (el.width || 600) / cols;
+          const fs = el.fontSize || 16;
+          el.rows.forEach((r, ri) => r.forEach((cell, ci) => {
+            if (estTextWidth(String(cell ?? ''), fs) > cellW - 16) {
+              warnings.push(`${at}: table 单元格[${ri + 1}][${ci + 1}] 文本可能超出列宽（"${String(cell).slice(0, 12)}…"）`);
+            }
+          }));
         }
       }
       // 颜色格式抽查

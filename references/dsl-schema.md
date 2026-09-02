@@ -49,7 +49,7 @@
 | `width` `height` | number(px) | 尺寸 |
 | `opacity` | 0-1 | 整体透明度 |
 | `rotation` | number(deg) | 旋转 |
-| `fill` | 颜色 / `{color, transparency}` / `{type:"gradient", stops:[{offset,color}], angle}` | 填充 |
+| `fill` | 颜色 / `{color, transparency}` / `{type:"gradient", stops:[{offset,color}], angle}` | 填充。**渐变仅预览显示真渐变；导出 PPTX 压平为首色**（可编辑性限制，校验器会提示），要真渐变用 `image-svg` 或图片 |
 | `stroke` / `strokeWidth` | 颜色 / px | 描边 |
 | `dashType` | `"dash"` | 虚线 |
 | `shadowColor` `shadowBlur` `shadowOffsetX/Y` `shadowOpacity` | 阴影（Konva 风格） | 自动转换为 PPT outer shadow |
@@ -106,6 +106,7 @@
 ```
 - `shape-arrow` 默认带 stealth 箭头。
 - `lineEndArrowType`: `arrow|triangle|stealth|diamond|oval|none`。
+- **多点折线**：pointArr 超过 2 点时，导出端自动走 customGeometry（全程折线，箭头尾端仍生效），与预览一致；两点时走原生 line。
 
 ### curve-quadratic — 二次贝塞尔曲线（连接线）
 ```json

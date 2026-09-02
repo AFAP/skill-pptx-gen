@@ -102,14 +102,9 @@ function expandConnectorElbow(el) {
  * arc-segment — 圆环扇段（弧形轨道流布局）
  * 外弧顺时针扫过 + 内弧逆时针返回，闭合为甜甜圈扇区。
  * 与原项目 handelArcOrbitalFlowOptions 的圆弧参数一致（角度制）。
- */
-/**
- * arc-segment — 圆环扇段（弧形轨道流布局）
- * 外弧顺时针扫过 + 内弧逆时针返回，闭合为甜甜圈扇区。
- * 与原项目 handelArcOrbitalFlowOptions 的圆弧参数一致（角度制）。
  *
- * arrow（默认 true）：段尾生成箭头缺口（外弧末端 → 中环箭头尖 → 内弧），
- * 箭头探入下一段的缝隙，指示流向——与原项目 handelArcOrbitalFlowOptions 一致。
+ * arrow（默认 true）：段尾前探箭头尖 + 段首内凹口（V 形），相邻段互相咬合
+ * 指示流向——与原项目 handelArcOrbitalFlowOptions 的路径结构一致。
  */
 function expandArcSegment(el) {
   const { cx, cy, rOuter, rInner = rOuter * 0.72, startAngle, endAngle } = el;
@@ -117,7 +112,7 @@ function expandArcSegment(el) {
   let sweep = endAngle - startAngle;
   while (sweep <= 0) sweep += 360;
   const arrow = el.arrow !== false;
-  const arrowAngle = el.arrowAngle ?? 6;   // 箭头前探角度
+  const arrowAngle = el.arrowAngle ?? 8;   // 箭头前探/凹口角度
   const rArrow = (rOuter + rInner) / 2;
   const p1 = arcPoint(cx, cy, rOuter, startAngle);
   const p2 = arcPoint(cx, cy, rOuter, endAngle);
@@ -130,11 +125,15 @@ function expandArcSegment(el) {
     { ...L(p2), curve: { type: 'arc', hR: rOuter, wR: rOuter, stAng: startAngle, swAng: sweep } },
   ];
   if (arrow) {
-    const tip = arcPoint(cx, cy, rArrow, endAngle + arrowAngle); // 箭头尖：中环半径、前探 arrowAngle
+    const tip = arcPoint(cx, cy, rArrow, endAngle + arrowAngle); // 段尾箭头尖：中环半径、前探 arrowAngle
     pointArr.push(L(tip));
   }
   pointArr.push(L(p3));
   pointArr.push({ ...L(p4), curve: { type: 'arc', hR: rInner, wR: rInner, stAng: endAngle, swAng: -sweep } });
+  if (arrow) {
+    const notch = arcPoint(cx, cy, rArrow, startAngle + arrowAngle); // 段首凹口：闭合时形成 V 形缺口接收上一段箭头
+    pointArr.push(L(notch));
+  }
   return {
     elType: 'shape-path',
     x, y, width: rOuter * 2, height: rOuter * 2, pointArr, closePath: true,
@@ -172,10 +171,12 @@ export function expandConnectors(deck) {
 export function pointsToSvgPath(pointArr) {
   if (!Array.isArray(pointArr) || !pointArr.length) return '';
   let d = '';
+  let cur = null; // 当前点（弧转贝塞尔需要起点反推圆心）
   for (let i = 0; i < pointArr.length; i++) {
     const p = pointArr[i];
     if (i === 0 || p.moveTo) {
       d += `M ${p.x} ${p.y} `;
+      cur = { x: p.x, y: p.y };
       continue;
     }
     if (p.controlPoint && p.controlPoint.type === 'quadratic') {
@@ -184,13 +185,42 @@ export function pointsToSvgPath(pointArr) {
       d += `C ${p.curve.x1} ${p.curve.y1} ${p.curve.x2} ${p.curve.y2} ${p.x} ${p.y} `;
     } else if (p.curve && p.curve.type === 'quadratic') {
       d += `Q ${p.curve.x1} ${p.curve.y1} ${p.x} ${p.y} `;
-    } else if (p.curve && p.curve.type === 'arc') {
-      const largeArc = Math.abs(p.curve.swAng) > 180 ? 1 : 0;
-      const sweepFlag = p.curve.swAng >= 0 ? 1 : 0;
-      d += `A ${p.curve.wR} ${p.curve.hR} 0 ${largeArc} ${sweepFlag} ${p.x} ${p.y} `;
+    } else if (p.curve && p.curve.type === 'arc' && cur) {
+      // Konva 对 SVG A 命令解析不可靠：把圆弧转为三次贝塞尔逼近（C 命令处处可靠）
+      // 圆心 = 起点 - (半径×cos/stAng, 半径×sin/stAng)（y 向下顺时针为正）
+      const { hR, wR, stAng, swAng } = p.curve;
+      const r0 = stAng * Math.PI / 180;
+      const cx = cur.x - wR * Math.cos(r0);
+      const cy = cur.y - hR * Math.sin(r0);
+      d += arcToCubics(cx, cy, wR, hR, stAng, stAng + swAng);
     } else {
       d += `L ${p.x} ${p.y} `;
     }
+    cur = { x: p.x, y: p.y };
   }
   return d.trim();
+}
+
+/** 椭圆弧（角度制，y 向下顺时针）→ 三次贝塞尔段（每段 ≤90°） */
+function arcToCubics(cx, cy, rx, ry, a0Deg, a1Deg) {
+  const sweep = a1Deg - a0Deg;
+  const segs = Math.max(1, Math.ceil(Math.abs(sweep) / 90));
+  const stepDeg = sweep / segs;
+  let out = '';
+  let a = a0Deg;
+  for (let i = 0; i < segs; i++) {
+    const a2 = a + stepDeg;
+    const r0 = a * Math.PI / 180, r1 = a2 * Math.PI / 180;
+    const p0 = [cx + rx * Math.cos(r0), cy + ry * Math.sin(r0)];
+    const p1 = [cx + rx * Math.cos(r1), cy + ry * Math.sin(r1)];
+    const k = 4 / 3 * Math.tan((r1 - r0) / 4);
+    const d0 = [-rx * Math.sin(r0), ry * Math.cos(r0)];
+    const d1 = [-rx * Math.sin(r1), ry * Math.cos(r1)];
+    const c1 = [p0[0] + k * d0[0], p0[1] + k * d0[1]];
+    const c2 = [p1[0] - k * d1[0], p1[1] - k * d1[1]];
+    const f = v => Math.round(v * 100) / 100;
+    out += `C ${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(p1[0])} ${f(p1[1])} `;
+    a = a2;
+  }
+  return out;
 }
