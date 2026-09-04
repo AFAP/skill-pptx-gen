@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ai-ppt-gen 构建工具：deck.json → 可编辑 .pptx
+ * ppt-gen 构建工具：deck.json → 可编辑 .pptx
  *
  * 用法：
  *   node tools/build_pptx.mjs deck.json [-o output.pptx] [--report output.report.json]

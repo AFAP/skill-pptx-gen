@@ -1,18 +1,19 @@
-# ai-ppt-gen
+# ppt-gen
 
-把受约束网页或紧凑语义 JSON 转成可检查的网页预览和可编辑 PPTX。项目重点是转换完整性、一致性与低 token 输入，不负责替代模型的视觉设计判断，也不承诺任意网页/CSS 的像素级无损转换。
+让 AI 用受约束网页或 Creative/Compact DSL 自由创作页面，再转成可检查的 Konva 网页预览和可编辑 PPTX。项目重点是让模型拥有构图自由，同时用统一 primitive scene 保证转换完整性与一致性；不承诺任意网页/CSS 的像素级无损转换。
 
 ## 管线
 
 ```text
-语义 deck.json ─┐
-                ├─> primitive PPT-DSL ─> Konva 预览
-WebSlide HTML ──┘                     └─> PptxGenJS ─> PPTX + 转换报告
+Creative DSL ───┐
+Compact DSL ────┼─> canonical primitive scene ─> Konva 预览
+WebSlide HTML ──┘                           └─> PptxGenJS ─> PPTX + 转换报告
 ```
 
-- 语义版式适合普通汇报：只写页面角色和内容，减少绝对坐标与重复样式。
+- Creative DSL 是重要页面的默认创作方式；`styleClass/group/repeat/anchor` 让自由构图保持低 token。
 - WebSlide 适合网页式构图：Flex/Grid 负责布局，只有带 `data-ppt` 的节点进入 PPTX。
-- primitive DSL 是两端共用的稳定中间层，可作为语义版式的局部覆盖层。
+- Compact 语义版式适合目录、章节、普通列表和快速交付，不再承担整套 deck 的创作上限。
+- primitive scene 是两端共用的唯一稳定中间层。
 - 默认严格构建；不支持的元素、缺失图片和转换异常不会被静默丢弃。
 - 文本、形状、图表、表格保持可编辑；图片与 SVG 会在报告中标为 `rasterized`。
 
@@ -23,27 +24,40 @@ WebSlide HTML ──┘                     └─> PptxGenJS ─> PPTX + 转换
 ```bash
 npm ci
 
-# 低 token 语义示例：校验、预览、PPTX、报告一次生成
-node tools/build_all.mjs examples/deck-compact.json -o output
+# 23 页 AI 创意示例：校验、预览、PPTX、报告一次生成
+node tools/build_all.mjs examples/南京埃斯顿深度研究报告-AI创意版.deck.json -o output
 
 # 受约束网页先提取为 deck，再构建
-node tools/html_to_deck.mjs examples/webslide-basic.html -o output/webslide.json
+node tools/html_to_deck.mjs examples/埃斯顿2026中期报.html -o output/webslide.json
 node tools/build_all.mjs output/webslide.json -o output
 ```
 
 生成物包括 `*.preview.html`、`*.pptx` 和 `*.report.json`。最终交付要求报告的 `failed`、`skipped` 均为 0。
 
-预览页默认支持双击文字修改，可下载保留主题令牌和语义结构的新 `deck.json`，也可直接在浏览器导出 PPTX。浏览器不会自动覆盖原始源文件；纯审阅可给 `make_preview` 传 `--no-edit`。
+预览页默认支持双击有明确源路径的文字修改，可下载保留主题令牌和语义结构的新 `deck.json`，也可直接在浏览器导出 PPTX。循环序号、混合插值等派生文字为只读，避免错误回写；浏览器不会自动覆盖原始源文件。纯审阅可给 `make_preview` 传 `--no-edit`。
+
+## 完整展示示例
+
+[南京埃斯顿深度研究报告-AI创意版.deck.json](examples/南京埃斯顿深度研究报告-AI创意版.deck.json) 把同目录研究报告重构为 23 页内容驱动叙事。它不从固定模板出发，而是按每页的信息关系分别使用断裂曲线、竞争坐标、能力主轴、波形时间线、盈利桥、环形验证、激励阶梯、证据塔、情景扇面和风险树等构图；`styleClass/group/repeat/anchor` 负责压缩重复描述，最终仍统一编译为可编辑 primitive。
+
+- [网页预览](examples/南京埃斯顿深度研究报告-AI创意版.html)：双击即可修改文字，也可下载修改后的 JSON。
+- [可编辑 PPTX](examples/南京埃斯顿深度研究报告-AI创意版.pptx)：297 个可编辑对象、1 张说明性图片、失败 0。
+- [23 页总览图](examples/南京埃斯顿深度研究报告-AI创意版-总览.png)：查看整套页面轮廓、节奏和布局变化。
+- [转换报告](examples/南京埃斯顿深度研究报告-AI创意版.report.json)：逐元素记录 editable/rasterized/failed 状态。
 
 ## 输入方式
 
-长文档、研究报告或多章节材料不要直接逐段塞进幻灯片。先按 [长文档拆页工作流](references/content-to-deck.md) 形成页面计划，再选择语义版式或 WebSlide。
+长文档、研究报告或多章节材料不要直接逐段塞进幻灯片。先按 [长文档拆页工作流](references/content-to-deck.md) 形成页面计划，再按 [AI 自由创作工作流](references/creative-authoring.md) 逐页选择 Creative DSL、WebSlide、Compact 或 Hybrid。
+
+### Creative DSL
+
+Creative DSL 直接组合可编辑 primitive，并在源文件中支持样式类、相对分组、数据重复器和锚点定位。它们在构建前统一展开，不会让 Konva 与 PPTX 产生两套实现。完整语法见 [PPT-DSL primitive 规范](references/dsl-schema.md)。
 
 ### 紧凑语义版式
 
 ```json
 {
-  "dslVersion": 2,
+  "dslVersion": 3,
   "style": "clean-minimal",
   "slides": [
     {
@@ -99,15 +113,13 @@ npm test
 
 ## 目录
 
-- `core/compile-deck.mjs`：语义版式、主题令牌和连接宏编译。
+- `core/compile-deck.mjs`：所有创作入口到统一 primitive scene 的编译入口。
+- `core/creative-expand.mjs`：样式类、分组、重复器与锚点展开。
 - `core/layouts.mjs`：紧凑语义版式。
 - `core/webslide-extract.js`：浏览器计算后的 HTML/CSS 提取。
 - `core/dsl-to-pptx.mjs`：primitive DSL 到 PptxGenJS。
 - `core/ppt-preview-core.js`：primitive DSL 到 Konva。
 - `core/pptx-sanitize.mjs`：Node/浏览器共用 OOXML 修复。
 - `tools/build_all.mjs`：推荐的一键管线。
-- `examples/`：两种输入模式的示例。
-- `screenshot/`：人工检查网页预览与 PPTX 实际效果的截图。
-- `对比/`：历史修复前后产物，仅用于回归对照，不作为新 deck 的输入模板。
-
-本目录本身也是 Codex skill；入口与 agent 工作流见 [SKILL.md](SKILL.md)。
+- `examples/`：WebSlide 输入、原始研究报告、23 页创意案例、29 页工程覆盖案例及其交付物。
+- `screenshot/`：历史实测截图，用于确认网页改字和 PowerPoint/WPS 对象可编辑。

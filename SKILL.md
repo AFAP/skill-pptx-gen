@@ -10,48 +10,55 @@ description_zh: "AI PPT 生成管线：生成 PPT-DSL → 网页预览（可双�
 description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview with JSON export → editable PPTX. Supports reference-image style replication and text-described styling; defaults to navy-report."
 ---
 
-# AI PPT 生成管线
+# 可编辑 PPT 创作与编译管线
 
-本技能解决转换与一致性问题。底层 PPT-DSL 是稳定中间表示；优先让模型生成更短的语义版式或受约束网页，不直接重复书写大量绝对坐标。
+本技能的核心不是模板填充，而是给 AI 一个自由创作页面、又能可靠落地为 PPTX 的通道。AI 负责叙事、视觉隐喻、信息层级和构图；编译器负责把页面收敛为统一 primitive scene，再交给 Konva 与 PptxGenJS。两个渲染器不得各自维护一套页面逻辑。
 
-## 选择输入模式
+## 选择创作模式
 
-根据任务只读取对应参考：
+先读取 [references/creative-authoring.md](references/creative-authoring.md) 判断每页应使用哪种方式。整套 deck 可以混用：
 
-- 输入是长文档、研究报告或多章节材料：先读取 [references/content-to-deck.md](references/content-to-deck.md)，只生成页面计划后再写 deck，避免边读边堆页。
-- 普通汇报、报告、培训或数据演示：使用紧凑语义版式，读取 [references/layout-dsl.md](references/layout-dsl.md)。这是默认模式，token 最少。
-- 用户给网页、要求发挥 HTML/CSS 布局能力，或参考截图更适合网页复刻：使用 WebSlide，读取 [references/webslide.md](references/webslide.md)。
-- 需要自由路径、精确坐标或语义版式无法表达的局部：读取 [references/dsl-schema.md](references/dsl-schema.md)，用 primitive `elements` 作为覆盖层。
-- 需要脑图、弧形轨道、四象限、金字塔、SWOT、循环图等复杂构图：额外读取 [references/design-system.md](references/design-system.md)，只取与当前页面有关的配方，不加载整套版式。
-- 用户提供参考截图：额外读取 [references/reference-image-analysis.md](references/reference-image-analysis.md)。复杂背景可生图，但文字、数字和图表默认保持可编辑。
-- 需要选择默认视觉：读取 [references/styles.md](references/styles.md)。样式与版式分开选择；要了解默认 `navy-report` 的细节与令牌职责，再读取 [references/builtin-template.md](references/builtin-template.md)。
-- 遇到预览与 PPTX 差异或降级：读取 [references/parity-contract.md](references/parity-contract.md)。
-- 构建失败、环境缺失或出现转换告警：读取 [references/troubleshooting.md](references/troubleshooting.md)。
+- **Creative DSL（默认）**：重要结论页、机制图、关系图、数据故事和需要独特构图的页面。读取 [references/dsl-schema.md](references/dsl-schema.md)；用 `styleClass`、`group`、`repeat`、`anchor` 和路径宏降低自由构图的 token 成本。
+- **Creative WebSlide**：用户给网页、参考图，或 HTML/CSS 更适合表达页面结构时使用。读取 [references/webslide.md](references/webslide.md)。Flex/Grid 只负责帮助 AI 排版，提取后的 primitive scene 才是最终视觉契约。
+- **Compact**：目录、章节、普通列表、低价值过渡页，或用户明确要求快速、低 token 时使用。读取 [references/layout-dsl.md](references/layout-dsl.md)。不要让同一语义版式主导整套 deck。
+- **Hybrid**：摄影、3D、纹理和复杂渐变可以局部转为图片；标题、正文、数据、图表、表格和关键关系默认保持可编辑。
+
+按输入再读取对应参考：
+
+- 长文档、研究报告或多章节材料：[references/content-to-deck.md](references/content-to-deck.md)。
+- 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。提取视觉语法后重新创作，不把单张截图当作整套母版。
+- 配色、字体、曲线和空间节奏：[references/styles.md](references/styles.md)。样式是视觉语法，不是整页布局。
+- 脑图、弧形轨道、四象限、金字塔、SWOT 等几何配方：[references/design-system.md](references/design-system.md)，只读取当前页面所需部分。
+- 转换边界与降级：[references/parity-contract.md](references/parity-contract.md)。
+- 构建故障：[references/troubleshooting.md](references/troubleshooting.md)。
 
 ## 标准工作流
 
-1. 先形成页面计划：每页写清页面角色、单一结论、证据和表达形式；单页超载时分页，不靠缩小字号硬塞。
-2. 选择输入模式并生成源文件：优先 `deck.json` 语义版式，网页任务生成带 `data-ppt` 标记的 HTML。
-3. 若是 HTML，先提取为 deck：
+1. 先做页面计划。每页写清 `message`、证据、视觉隐喻、信息层级和导出策略；先完成整套叙事，再开始排版。
+2. 逐页决定 Creative DSL、WebSlide、Compact 或 Hybrid。关键页面优先自由构图，普通页面才使用语义版式。
+3. 先建立全局主题、`styleClasses` 或共享 CSS；复用视觉语言，不复制整页几何。
+4. 若使用 HTML，先提取为 deck：
 
    ```bash
    cd <本 SKILL.md 所在目录>
    node tools/html_to_deck.mjs path/to/slides.html -o path/to/deck.json
    ```
 
-4. 用单一命令完成严格校验、离线预览、PPTX 和报告：
+5. 用单一命令完成严格校验、离线预览、PPTX 和报告：
 
    ```bash
    node tools/build_all.mjs path/to/deck.json -o path/to/output-dir
    ```
 
-5. 检查三个交付物：`*.preview.html`、`*.pptx`、`*.report.json`。最终交付的 `failed` 和 `skipped` 必须同时为 0；warning 要逐条处理或明确证明属于预期行为。
+6. 检查 `*.preview.html`、`*.pptx`、`*.report.json`。最终交付的 `failed` 和 `skipped` 必须同时为 0；warning 要逐条处理或证明属于预期行为。
+7. 先看整套缩略图判断节奏，再逐页全尺寸检查。不要因为校验通过就认定页面内容或构图已经合格。
 
 首次使用缺依赖时在技能目录执行 `npm ci`。Node.js 需 ≥18。
 
 ## 转换契约
 
 - 默认严格构建：未知类型、无法导出的路径、未生成的图片 prompt、图片读取失败都会中止，不允许“成功但缺元素”。
+- `styleClass`、`group`、`repeat`、`anchor` 仅存在于源文件；构建前统一展开为 primitive，不进入两个渲染器的分支逻辑。
 - 网页预览与 PPTX 共用编译后的 primitive DSL，但文字排版和原生图表仍受浏览器、PowerPoint/WPS 字体度量影响；不要声称像素级完全相同。
 - HTML 仅转换带 `data-ppt` 的叶子元素。Flex/Grid 可用于计算位置；滤镜、遮罩、混合模式、复杂渐变等必须报告或局部栅格化。
 - 不把含中文文字的整页生图当作默认降级。优先生成无文字背景/插画，再叠加可编辑文字。
@@ -59,14 +66,24 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 - primitive DSL 画布固定 1280×720；`shape-circle` 的 x/y 是圆心，其余几何通常以左上角为原点。
 - 浅色表面上的强调文字使用 `$accentText`；`$accent` 用于装饰、描边和填充；accent 色块上的文字使用 `$onAccent`。
 
+## 创作质量底线
+
+- 视觉来自内容关系。先寻找冲突、因果、层级、流向、尺度、时间或不确定性，再选择图形语言。
+- 每页保留一个明确主角，并同时交代结论、证据和意义；不要把所有信息压成同权重卡片。
+- 连续页面避免重复同一几何骨架。复用色彩、字号、线条和留白节奏，而不是复制布局。
+- 不为“看起来丰富”编造事实。推断、情景和假设必须与已知事实分开。
+- 参考图提供视觉语法；除非用户要求逐页复刻，否则继续让 AI 根据新内容创造构图。
+
 ## 预览改字闭环
 
 `make_preview` 和 `build_all` 生成的预览默认可编辑：
 
-1. 浏览器打开 `*.preview.html`，双击文字修改。
+1. 浏览器打开 `*.preview.html`，双击有明确 `sourcePath` 的文字修改。
 2. 直接导出 PPTX，或下载修改后的 `deck.json`；下载稿保留原始主题令牌、语义版式和宏。
 3. 浏览器不会静默覆盖磁盘上的原文件；若要继续迭代，用下载稿替换或另存为新的源文件。
 4. 只需审阅时可用 `--no-edit` 关闭编辑。
+
+`repeat` 中直接绑定 `{{field}}` 或 `{{value}}` 的文本可回写；序号、固定模板文字和混合插值是派生结果，只读以防写错源数据。
 
 ## 常用命令
 
@@ -82,10 +99,13 @@ npm test
 ## 关键文件
 
 - `core/compile-deck.mjs`：语义版式、主题令牌和宏统一编译。
+- `core/creative-expand.mjs`：Creative DSL 的样式类、分组、重复器与锚点展开。
 - `core/layouts.mjs`：低 token 语义版式展开器。
 - `core/webslide-extract.js`：浏览器计算后的 HTML/CSS → primitive DSL。
 - `core/dsl-to-pptx.mjs`：primitive DSL → PptxGenJS。
 - `core/ppt-preview-core.js`：primitive DSL → Konva 预览。
 - `core/pptx-sanitize.mjs`：Node 与浏览器共用的 OOXML 修复。
 - `tools/build_all.mjs`：推荐的一键严格管线。
-- `examples/deck-compact.json`、`examples/webslide-basic.html`：两种输入模式的最小示例。
+- `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
+- `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。
+- `examples/埃斯顿2026中期报.html`：受约束 WebSlide 输入示例。

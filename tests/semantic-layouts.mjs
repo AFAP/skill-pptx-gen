@@ -1,4 +1,4 @@
-/** Validate every semantic layout against every v2 style preset. */
+/** Validate every semantic layout against every current style preset. */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { compileDeck } from '../core/compile-deck.mjs';
@@ -21,7 +21,7 @@ const slides = [
 ];
 
 for (const style of ['navy-report', 'clean-minimal', 'tech-dark', 'warm-editorial', 'data-dashboard']) {
-  const deck = { dslVersion: 2, style, slides };
+  const deck = { dslVersion: 3, style, slides };
   const result = validateDeck(deck);
   assert.equal(result.ok, true, `${style}: ${result.errors.join('; ')}`);
   assert.deepEqual(result.warnings, [], `${style}: ${result.warnings.join('; ')}`);
@@ -30,14 +30,10 @@ for (const style of ['navy-report', 'clean-minimal', 'tech-dark', 'warm-editoria
   assert.ok(compiled.deck.slides.every(slide => slide.elements.length > 0));
 }
 
-// 正式示例是文档的一部分：允许故意失败的 deck-edge.json 继续作为负向夹具，其他示例必须 0 告警。
+// 正式示例是文档的一部分，必须保持 0 错误、0 告警。
 const goldenExamples = [
-  'deck-compact.json',
-  'deck-layouts.json',
-  'deck-mindmap.json',
-  'deck-report.json',
-  'deck-estun-layouts.json',
-  '南京埃斯顿深度研究报告-示例.deck.json',
+  '南京埃斯顿深度研究报告-29页展示版.deck.json',
+  '南京埃斯顿深度研究报告-AI创意版.deck.json',
 ];
 for (const name of goldenExamples) {
   const file = new URL(`../examples/${name}`, import.meta.url);

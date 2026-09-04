@@ -1,6 +1,6 @@
 # PPT-DSL primitive 规范
 
-这是编译后的底层 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。普通页面优先使用 [紧凑语义版式](layout-dsl.md)，只有精确定位或局部覆盖时才直接写本规范，以减少 token 和重复坐标。
+这是编译后的底层 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。重要结论页可直接使用本规范和 Creative DSL 自由构图；目录、章节、普通清单等低价值页面再使用 [紧凑语义版式](layout-dsl.md) 节省 token。
 
 机器可读基础约束见 [deck.schema.json](deck.schema.json)；能力、资源和几何的严格检查以 `tools/check_deck.mjs` 为准。
 
@@ -8,10 +8,11 @@
 
 ```json
 {
-  "dslVersion": 2,
+  "dslVersion": 3,
   "meta":  { "title": "演示标题", "author": "作者" },
   "style": "clean-minimal",
   "theme": "可选，字符串或主题对象；存在时覆盖 style",
+  "styleClasses": "可选，Creative DSL 的复用样式对象",
   "slides": [
     {
       "background": "#FFFFFF",            // 可选，默认取 theme.background
@@ -34,6 +35,87 @@
 > fontScale 说明：视觉等大是 0.75（1280px 画布 = 960pt 宽）。默认 0.667 是经验值，
 > 为 PowerPoint 中文字体的更大行高预留约 11% 余量，防止导出后文字溢出。
 > 发现导出文字整体偏小，把 `theme.fontScale` 调到 0.72-0.75。
+
+## Creative DSL 组合层
+
+`styleClass`、`group`、`repeat` 和 `anchor` 只存在于源 deck。`compile-deck` 会先把它们展开成普通 primitive，再执行颜色解析、Konva 预览和 PPTX 导出。两个渲染器不会分别解释这些宏。
+
+### styleClass — 复用视觉属性
+
+```json
+{
+  "styleClasses": {
+    "node": { "fill": "$surface", "stroke": "$border", "strokeWidth": 1, "cornerRadius": 12 },
+    "nodeTitle": { "fontSize": 20, "fontStyle": "bold", "fill": "$text" }
+  },
+  "slides": [{
+    "elements": [
+      { "elType": "shape-rect", "styleClass": "node", "x": 80, "y": 160, "width": 280, "height": 140 },
+      { "elType": "text", "styleClass": ["nodeTitle"], "text": "核心能力", "x": 108, "y": 190, "width": 220, "height": 36 }
+    ]
+  }]
+}
+```
+
+类按书写顺序合并，元素自身字段最后覆盖。未知类在严格校验中报错。样式类可以保存常用尺寸，但优先用它复用视觉属性，不要借此把整页布局隐藏成不可读模板。
+
+### group — 相对坐标分组
+
+```json
+{
+  "elType": "group", "id": "product", "x": 120, "y": 180, "scale": 1,
+  "defaults": { "fontFamily": "Microsoft YaHei" },
+  "elements": [
+    { "elType": "shape-circle", "id": "core", "x": 80, "y": 80, "width": 120, "height": 120, "fill": "$primary" },
+    { "elType": "text", "id": "label", "text": "控制器", "x": 30, "y": 55, "width": 100, "height": 50, "fill": "$white", "align": "center" }
+  ]
+}
+```
+
+子元素坐标相对 group 原点。`scale` 会同时缩放位置、尺寸、字号和描边；`opacity` 乘到所有子元素；`defaults` 为子元素提供公共字段。编译后 ID 变为 `product-core`、`product-label`，便于锚点引用。
+
+### repeat — 数据驱动重复
+
+```json
+{
+  "elType": "repeat", "id": "milestones",
+  "x": 120, "y": 220, "stepX": 220,
+  "items": [
+    { "year": "2024", "label": "验证" },
+    { "year": "2025", "label": "放量" }
+  ],
+  "template": [
+    { "elType": "shape-circle", "id": "dot", "x": 20, "y": 20, "width": 40, "height": 40, "fill": "$accent" },
+    { "elType": "text", "id": "year", "text": "{{year}}", "x": 0, "y": 55, "width": 100, "height": 30 },
+    { "elType": "text", "id": "label", "text": "{{label}}", "x": 0, "y": 92, "width": 150, "height": 36 }
+  ]
+}
+```
+
+- `{{field}}` 读取当前 item；`{{index}}` 从 0 开始，`{{number}}` 从 1 开始。
+- `columns` 配合 `stepX/stepY` 可生成网格；没有 `columns` 时两个 step 都按索引累加。
+- 模板中的 ID 自动变为 `milestones-0-dot` 等。
+- 文本完全等于 `{{field}}`、`{{item}}`，或 primitive item 对应的 `{{value}}` 时，会保留到 `items[n]` 对应字段的编辑回写路径。
+- `{{index}}`、`{{number}}`、固定模板文字和混合插值（如 `第 {{number}} 项`）都是派生结果，没有唯一源字段，因此在网页预览中只读；这样不会把改字错误写进模板或展开后的虚假路径。
+
+### anchor — 相对定位
+
+```json
+{
+  "elType": "text", "id": "detail", "text": "下一层说明",
+  "width": 240, "height": 50,
+  "anchor": { "to": "hero", "edge": "bottom", "align": "left", "gap": 20 }
+}
+```
+
+`to` 必须引用本页前面已经出现且具有边界的元素。`edge` 为 `left/right/top/bottom/center`，`align` 控制另一轴的 `left/right/top/bottom/center`，还可用 `dx/dy` 微调。group 内默认引用同组 ID；以 `#` 开头可引用本页的绝对 ID，例如 `"to":"#hero"`。
+
+### 使用边界
+
+- 组合宏只减少重复，不替 AI 决定页面构图。
+- 元素数组仍决定最终叠放顺序；需要在节点后面的连接线应在展开前安排好层级。
+- group 不支持旋转整个子树；需要旋转时对具体 primitive 设置 `rotation`。
+- anchor 不做通用约束求解，目标必须先出现，避免循环依赖和两端实现差异。
 
 ## 颜色与主题令牌
 
@@ -133,7 +215,7 @@
 - **脑图/hub 布局的连线不用手写 pointArr，用下面的连接线宏。**
 
 ### shape-path — 自由路径
-- `pointArr`（同上，可含 `curve:{type:"arc",hR,wR,stAng,swAng}` 圆弧；hR/wR 单位 px，构建时自动换算）→ 导出自定义几何。
+- `pointArr`（同上，可含 `curve:{type:"arc",hR,wR,stAng,swAng}` 圆弧；hR/wR 单位 px）→ 构建层先统一转换为 cubic，再导出自定义几何，避免 Konva 与 PowerPoint 对圆弧指令的解释差异。
 - `data`/`svgPath`（SVG path 字符串）只有预览支持，严格校验会报错；要导出 PPTX 必须改用 `pointArr` 或完整 `image-svg`。
 
 ## 连接线与弧形宏（构建期展开，源自原项目脑图布局函数）
@@ -166,7 +248,7 @@ Konva 预览与 PPTX 导出自动一致：
 {"elType":"arc-segment","cx":640,"cy":400,"rOuter":240,"rInner":175,
  "startAngle":-30,"endAngle":90,"fill":"$2","opacity":0.9}
 ```
-- 角度制：0°=正右，顺时针为正。外弧顺时针扫过、内弧返回，闭合为甜甜圈扇区。
+- 角度制：0°=正右，顺时针为正。外弧顺时针扫过、内弧返回，闭合为甜甜圈扇区；宏会在共同编译层展开为三次贝塞尔点列，两端使用同一几何。
 - 扫角自动归一化到 (0,360]：跨 0° 写法（如 startAngle:270, endAngle:25）自动按 +115° 处理；>360° 会取模。
 - `arrow`（默认 true）在段尾生成箭头尖并在段首留 V 形缺口；`arrowAngle` 默认 6°。
 - N 段轨道：startAngle 按 `i×(360/N)+缝隙角`、endAngle 按 `(i+1)×(360/N)-缝隙角` 分配，palette 循环填色。

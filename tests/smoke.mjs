@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen 冒烟测试：覆盖转换核心/宏展开/校验器的高风险回归点。
+ * ppt-gen 冒烟测试：覆盖转换核心/宏展开/校验器的高风险回归点。
  * 用法：node tests/smoke.mjs
  */
 import assert from 'node:assert/strict';
@@ -42,10 +42,20 @@ applyElement(mockPptx, mockSlide, {
 assert.ok(captured[0].opt.data.startsWith('data:image/png;base64,'));
 
 // 5. arc-segment 归一化：跨 0° 取正向、>360° 取模
-const deckArc = { slides: [{ elements: [{ elType: 'arc-segment', cx: 640, cy: 360, rOuter: 100, startAngle: 270, endAngle: 25, fill: '$1' }] }] };
+const deckArc = { slides: [{ elements: [{ id: 'orbit', elType: 'arc-segment', cx: 640, cy: 360, rOuter: 100, startAngle: 270, endAngle: 25, fill: '$1', allowOverflow: true }] }] };
 const resolvedArc = resolveTokens(structuredClone(deckArc), resolveTheme('navy-brief'));
 expandConnectors(resolvedArc);
-assert.equal(resolvedArc.slides[0].elements[0].pointArr[1].curve.swAng, 115);
+assert.equal(resolvedArc.slides[0].elements[0].pointArr[1].curve.type, 'cubic');
+assert.ok(resolvedArc.slides[0].elements[0].pointArr.filter(p => p.curve?.type === 'cubic').length >= 4);
+assert.equal(resolvedArc.slides[0].elements[0].id, 'orbit');
+assert.equal(resolvedArc.slides[0].elements[0].allowOverflow, true);
+const rawArcPath = { slides: [{ elements: [{ elType: 'shape-path', x: 0, y: 0, width: 100, height: 100, pointArr: [
+  { x: 100, y: 50, moveTo: true },
+  { x: 50, y: 100, curve: { type: 'arc', hR: 50, wR: 50, stAng: 0, swAng: 90 } },
+] }] }] };
+expandConnectors(rawArcPath);
+assert.equal(rawArcPath.slides[0].elements[0].pointArr[1].curve.type, 'cubic');
+assert.ok(!rawArcPath.slides[0].elements[0].pointArr.some(p => p.curve?.type === 'arc'));
 
 // 6. 校验器：null deck 友好失败、未知 chartType 必须报错、未解析令牌告警
 assert.equal(validateDeck(null).ok, false);
@@ -92,13 +102,56 @@ assert.equal(primitive.theme.name, 'navy-report');
 assert.equal(primitive.deck.slides[0].elements[0].id, 's0-raw-0');
 assert.equal(primitive.deck.slides[0].elements[0].sourcePath, '/slides/0/elements/0/text');
 assert.throws(() => compileDeck({ style: 'does-not-exist', slides: [{ elements: [] }] }), /未知样式/);
+
+// 10. Creative DSL：styleClass、group、repeat 与 anchor 在两个渲染器之前统一展开。
+const creative = compileDeck({
+  dslVersion: 3,
+  style: 'clean-minimal',
+  styleClasses: {
+    node: { fill: '$surfaceAlt', stroke: '$primary', strokeWidth: 2, cornerRadius: 8 },
+    label: { fontSize: 18, fill: '$text' },
+  },
+  slides: [{ elements: [
+    { elType: 'group', id: 'g', x: 100, y: 80, scale: 2, elements: [
+      { elType: 'shape-rect', id: 'box', styleClass: 'node', x: 0, y: 0, width: 50, height: 40 },
+      { elType: 'text', id: 'label', styleClass: 'label', text: '组内文字', x: 5, y: 5, width: 40, height: 20 },
+      { elType: 'shape-path', id: 'path', width: 20, height: 20, fill: '$primary', pointArr: [{ x: 0, y: 0, moveTo: true }, { x: 20, y: 20 }] },
+    ] },
+    { elType: 'repeat', id: 'row', x: 300, y: 100, stepX: 120, items: [{ label: '甲' }, { label: '乙' }], template: [
+      { elType: 'shape-rect', id: 'box', styleClass: 'node', x: 0, y: 0, width: 100, height: 50 },
+      { elType: 'text', id: 'label', styleClass: 'label', text: '{{label}}', x: 10, y: 10, width: 80, height: 30 },
+    ] },
+    { elType: 'shape-rect', id: 'after', styleClass: 'node', width: 50, height: 20, anchor: { to: 'g-box', edge: 'right', align: 'top', gap: 10 } },
+  ] }],
+});
+const creativeElements = creative.deck.slides[0].elements;
+assert.equal(creativeElements.length, 8);
+assert.deepEqual({ x: creativeElements[0].x, y: creativeElements[0].y, width: creativeElements[0].width, height: creativeElements[0].height }, { x: 100, y: 80, width: 100, height: 80 });
+assert.equal(creativeElements[0].fill, '#F8FAFC');
+assert.deepEqual({ x: creativeElements.find(el => el.id === 'g-path').x, y: creativeElements.find(el => el.id === 'g-path').y }, { x: 100, y: 80 });
+assert.equal(creativeElements.find(el => el.id === 'row-1-label').text, '乙');
+assert.equal(creativeElements.find(el => el.id === 'row-1-label').sourcePath, '/slides/0/elements/1/items/1/label');
+assert.equal(creativeElements.find(el => el.id === 'after').x, 210);
+assert.ok(creativeElements.every(el => !['group', 'repeat'].includes(el.elType) && !el.styleClass && !el.anchor));
+const primitiveRepeat = compileDeck({ slides: [{ elements: [{ elType: 'repeat', id: 'words', items: ['甲', '乙'], template: {
+  elType: 'text', text: '{{value}}', x: 0, y: 0, width: 80, height: 30,
+} }] }] });
+assert.equal(primitiveRepeat.deck.slides[0].elements[1].sourcePath, '/slides/0/elements/0/items/1');
+const derivedRepeat = compileDeck({ slides: [{ elements: [{ elType: 'repeat', id: 'steps', items: [{ label: '验证' }], template: [
+  { elType: 'text', id: 'number', text: '{{number}}', x: 0, y: 0, width: 40, height: 30 },
+  { elType: 'text', id: 'mixed', text: '阶段 {{number}}：{{label}}', x: 50, y: 0, width: 180, height: 30 },
+] }] }] });
+assert.equal(derivedRepeat.deck.slides[0].elements[0].sourcePath, undefined);
+assert.equal(derivedRepeat.deck.slides[0].elements[1].sourcePath, undefined);
+assert.ok(derivedRepeat.deck.slides[0].elements.every(el => !('_sourcePathDerived' in el)));
+assert.ok(validateDeck({ styleClasses: { ok: {} }, slides: [{ elements: [{ elType: 'shape-rect', styleClass: 'missing', x: 0, y: 0, width: 10, height: 10 }] }] }).errors.some(e => e.includes('未知 styleClass')));
 for (const style of ['navy-report', 'clean-minimal', 'tech-dark', 'warm-editorial', 'data-dashboard']) {
   const styled = validateDeck({ style, slides: [{ layout: 'timeline', title: '样式验证', items: [{ date: '01', title: '节点', body: '正文' }, { date: '02', title: '节点', body: '正文' }] }] });
   assert.equal(styled.ok, true, `${style}: ${styled.errors.join('; ')}`);
   assert.deepEqual(styled.warnings, [], `${style}: ${styled.warnings.join('; ')}`);
 }
 
-// 10. 图片 cornerRadius 不得误映射为椭圆 rounding；图表两端缺省都隐藏图例
+// 11. 图片 cornerRadius 不得误映射为椭圆 rounding；图表两端缺省都隐藏图例
 captured.length = 0;
 mockSlide.addImage = opt => captured.push({ type: 'image', opt });
 applyElement(mockPptx, mockSlide, { elType: 'image', x: 0, y: 0, width: 100, height: 60, data: 'data:image/png;base64,AA==', cornerRadius: 12 }, resolveTheme('clean-minimal'));

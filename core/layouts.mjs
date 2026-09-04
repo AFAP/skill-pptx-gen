@@ -169,6 +169,7 @@ function cards(slide, si, pageCount, theme) {
   const p = theme.pagePadding;
   const cols = slide.columns || (items.length <= 2 ? 2 : items.length === 4 ? 2 : 3);
   const rows = Math.ceil(items.length / cols);
+  const compact = rows > 1;
   const gap = 20, top = 150, bottom = 660;
   const w = (1280 - p * 2 - gap * (cols - 1)) / cols;
   const h = (bottom - top - gap * Math.max(0, rows - 1)) / Math.max(1, rows);
@@ -176,9 +177,15 @@ function cards(slide, si, pageCount, theme) {
     const r = Math.floor(i / cols), c = i % cols, x = p + c * (w + gap), y = top + r * (h + gap);
     out.push(rect(`s${si}-card-${i}-box`, 'card', { x, y, width: w, height: h }, { fill: surface(theme), stroke: border(theme), strokeWidth: 1, cornerRadius: theme.radius }));
     out.push(rect(`s${si}-card-${i}-cap`, 'decoration', { x, y, width: w, height: 4 }, { fill: i % 2 ? '$accent' : '$primary', cornerRadius: 2 }));
-    if (item.icon) out.push(text(`s${si}-card-${i}-icon`, 'icon', item.icon, { x: x + 24, y: y + 24, width: 48, height: 48 }, { fontSize: 28, align: 'center', verticalAlign: 'middle' }, ptr('slides', si, 'items', i, 'icon')));
-    out.push(text(`s${si}-card-${i}-title`, 'item-title', item.title, { x: x + 28, y: y + 34 + (item.icon ? 54 : 0), width: w - 56, height: 42 }, { fontSize: 21, fontStyle: 'bold', verticalAlign: 'middle' }, ptr('slides', si, 'items', i, 'title')));
-    if (item.body) out.push(text(`s${si}-card-${i}-body`, 'item-body', item.body, { x: x + 28, y: y + 90 + (item.icon ? 54 : 0), width: w - 56, height: Math.max(54, h - 145 - (item.icon ? 54 : 0)) }, { fontSize: 14, fill: '$text2', lineHeight: 1.55 }, ptr('slides', si, 'items', i, 'body')));
+    if (item.icon) out.push(text(`s${si}-card-${i}-icon`, 'icon', item.icon, { x: x + 24, y: y + (compact ? 20 : 24), width: compact ? 58 : 48, height: compact ? 44 : 48 }, { fontSize: compact ? 18 : 28, align: 'center', verticalAlign: 'middle' }, ptr('slides', si, 'items', i, 'icon')));
+    const titleX = x + (compact && item.icon ? 96 : 28);
+    out.push(text(`s${si}-card-${i}-title`, 'item-title', item.title, { x: titleX, y: y + (compact ? 22 : 34 + (item.icon ? 54 : 0)), width: w - (titleX - x) - 28, height: compact ? 44 : 42 }, { fontSize: compact ? 19 : 21, fontStyle: 'bold', verticalAlign: 'middle' }, ptr('slides', si, 'items', i, 'title')));
+    if (item.body) {
+      const bodyY = y + (compact ? 82 : 90 + (item.icon ? 54 : 0));
+      const valueY = item.value ? y + h - 58 : y + h - 24;
+      const bodyH = Math.max(36, valueY - bodyY - 12);
+      out.push(text(`s${si}-card-${i}-body`, 'item-body', item.body, { x: x + 28, y: bodyY, width: w - 56, height: bodyH }, { fontSize: 14, fill: '$text2', lineHeight: 1.55 }, ptr('slides', si, 'items', i, 'body')));
+    }
     if (item.value) out.push(text(`s${si}-card-${i}-value`, 'metric-value', item.value, { x: x + 28, y: y + h - 58, width: w - 56, height: 34 }, { fontSize: 22, fontStyle: 'bold', fill: '$accentText', verticalAlign: 'middle' }, ptr('slides', si, 'items', i, 'value')));
   });
   return { background: slide.background || '$bg', elements: [...out, ...footer(slide, si, pageCount, theme)] };

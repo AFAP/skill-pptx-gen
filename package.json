@@ -1,7 +1,7 @@
 {
-  "name": "ai-ppt-gen",
-  "version": "2.0.0",
-  "description": "WebSlide/语义版式 → PPT-DSL → 网页预览与严格可编辑 PPTX 导出",
+  "name": "ppt-gen",
+  "version": "2.1.0",
+  "description": "AI Creative DSL/WebSlide/Compact → 统一 PPT-DSL → Konva 预览与可编辑 PPTX",
   "type": "module",
   "private": true,
   "engines": {

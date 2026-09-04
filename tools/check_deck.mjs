@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ai-ppt-gen 校验工具：只检查 deck.json，不构建
+ * ppt-gen 校验工具：只检查 deck.json，不构建
  *
  * 用法：node tools/check_deck.mjs deck.json [--json]
  */

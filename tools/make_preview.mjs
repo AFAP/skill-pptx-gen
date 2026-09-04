@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * ai-ppt-gen 预览生成工具：deck.json → 自包含 preview.html（双击即可打开）
+ * ppt-gen 预览生成工具：deck.json → 自包含 preview.html（双击即可打开）
  *
  * 生成的 HTML 内嵌：Konva + 预览核心 + pptxgenjs + **共享转换层**（core/dsl-to-pptx.mjs
  * 与 Node 端 build_pptx.mjs 是同一份实现，内联进页面——从根上消除"预览导出 ≠ CLI 导出"）。
  *
- * 预览页能力：缩放（不重建 Stage）、双击文本就地编辑（回写原始 deck）、
+ * 预览页能力：缩放（不重建 Stage）、双击有明确源路径的文本就地编辑（回写原始 deck）、
  * 导出修改后的 deck.json（保留主题令牌）、浏览器端导出 PPTX。
  *
  * 用法：node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--embed-images]
@@ -116,7 +116,7 @@ const html = `<!DOCTYPE html>
 <body>
 <div class="toolbar">
   <span class="title">${title}</span>
-  <span class="hint">${(deck.slides || []).length} 页${args.editable ? ' · 双击文本可编辑' : ''}</span>
+  <span class="hint">${(deck.slides || []).length} 页${args.editable ? ' · 双击可回写文本进行编辑' : ''}</span>
   <button onclick="zoomOut()">−</button>
   <button onclick="zoomIn()">＋</button>
   <button onclick="zoomFit()">适应宽度</button>

@@ -68,7 +68,7 @@
 
 ## 从参考图 / 风格描述生成新模版
 
-- **参考图**：`read_image` 查看 → 按 `reference-image-analysis.md` 协议提取（colorSystem / typography / cardStyle / decorationElements / pageArchetypes / renderStrategy）→ 转成 theme 对象 + 布局决策
+- **参考图**：使用当前环境可用的图像查看工具检查 → 按 `reference-image-analysis.md` 协议提取（colorSystem / typography / cardStyle / decorationElements / pageArchetypes / renderStrategy）→ 转成 theme 对象 + 布局决策
 - **文字描述**：直接按下方速配公式生成 theme 对象：
 
 ```

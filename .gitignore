@@ -2,6 +2,8 @@ node_modules/
 .npm-cache/
 *.preview.html
 *.report.json
+!examples/南京埃斯顿深度研究报告-29页展示版.report.json
+!examples/南京埃斯顿深度研究报告-AI创意版.report.json
 output/
 .tmp/
 .DS_Store

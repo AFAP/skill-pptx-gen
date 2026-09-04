@@ -1,19 +1,19 @@
 # 紧凑语义版式
 
-普通 PPT 默认使用这一层。它只描述页面角色和内容，`core/layouts.mjs` 会把它展开为 1280×720 primitive DSL。
+这是低 token 的 Compact 层，适合目录、章节、普通列表、低价值过渡页和快速交付。重要结论页与内容关系复杂的页面优先使用 `creative-authoring.md` 中的 Creative DSL 或 WebSlide。`core/layouts.mjs` 会把本层展开为 1280×720 primitive DSL。
 
 ## 顶层
 
 ```json
 {
-  "dslVersion": 2,
+  "dslVersion": 3,
   "meta": { "title": "演示标题", "author": "作者" },
   "style": "navy-report",
   "slides": []
 }
 ```
 
-`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整示例见 `examples/deck-compact.json`。
+`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整示例见 `examples/南京埃斯顿深度研究报告-29页展示版.deck.json`。
 
 编辑器需要机器可读约束时，可使用 [deck.schema.json](deck.schema.json)；命令行仍以 `tools/check_deck.mjs` 的严格检查为准。
 

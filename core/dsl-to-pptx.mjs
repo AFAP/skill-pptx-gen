@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen 纯转换层：PPT-DSL → PptxGenJS 调用（无任何 Node/浏览器专有 API）
+ * ppt-gen 纯转换层：PPT-DSL → PptxGenJS 调用（无任何 Node/浏览器专有 API）
  *
  * Node 端（tools/build_pptx.mjs）与浏览器端（预览页的"导出 PPTX"按钮）共用同一份实现，
  * 保证两端使用同一转换语义；字体度量与原生图表外观仍可能因渲染器不同而有小幅差异。

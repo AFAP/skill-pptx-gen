@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen 连接线与弧形宏（构建期展开）
+ * ppt-gen 连接线与弧形宏（构建期展开）
  *
  * 源自 aippt 项目 utils.js 中脑图/hub 布局的连接线生成逻辑（S 型曲线、
  * getArcPoints、弧形轨道流 path 构造），升级为三个 DSL 宏。
@@ -21,6 +21,45 @@ export function arcPoint(cx, cy, r, angleDeg) {
     x: Math.round((cx + r * Math.cos(rad)) * 100) / 100,
     y: Math.round((cy + r * Math.sin(rad)) * 100) / 100,
   };
+}
+
+// 宏只负责几何降级；对象身份、校验豁免和来源信息必须继续随图元流转。
+// 否则预览端可定位的元素在导出前会丢失 id，越界装饰也无法显式声明。
+function inheritMacroMetadata(el) {
+  const out = {};
+  for (const key of ['id', 'name', 'role', 'sourcePath', 'allowOverflow', 'allowOverlap']) {
+    if (el[key] != null) out[key] = el[key];
+  }
+  return out;
+}
+
+/** 椭圆弧转为可被 Konva 与 PptxGenJS customGeometry 同时消费的 cubic 点列。 */
+function arcToCubicPoints(cx, cy, rx, ry, a0Deg, a1Deg) {
+  const sweep = a1Deg - a0Deg;
+  const segs = Math.max(1, Math.ceil(Math.abs(sweep) / 90));
+  const stepDeg = sweep / segs;
+  const points = [];
+  let a = a0Deg;
+  const f = value => Math.round(value * 100) / 100;
+  for (let i = 0; i < segs; i++) {
+    const a2 = a + stepDeg;
+    const r0 = a * Math.PI / 180, r1 = a2 * Math.PI / 180;
+    const p0 = [cx + rx * Math.cos(r0), cy + ry * Math.sin(r0)];
+    const p1 = [cx + rx * Math.cos(r1), cy + ry * Math.sin(r1)];
+    const k = 4 / 3 * Math.tan((r1 - r0) / 4);
+    const d0 = [-rx * Math.sin(r0), ry * Math.cos(r0)];
+    const d1 = [-rx * Math.sin(r1), ry * Math.cos(r1)];
+    points.push({
+      x: f(p1[0]), y: f(p1[1]),
+      curve: {
+        type: 'cubic',
+        x1: f(p0[0] + k * d0[0]), y1: f(p0[1] + k * d0[1]),
+        x2: f(p1[0] - k * d1[0]), y2: f(p1[1] - k * d1[1]),
+      },
+    });
+    a = a2;
+  }
+  return points;
 }
 
 /**
@@ -62,6 +101,7 @@ function expandConnectorS(el) {
     { x: x2 - x, y: y2 - y, curve: { type: 'cubic', x1: c1.x - x, y1: c1.y - y, x2: c2.x - x, y2: c2.y - y } },
   ];
   return {
+    ...inheritMacroMetadata(el),
     elType: 'shape-path',
     x, y, width: w, height: h, pointArr, closePath: false,
     stroke: el.stroke || '#666666',
@@ -88,6 +128,7 @@ function expandConnectorElbow(el) {
     { x: x2 - x, y: y2 - y },
   ];
   return {
+    ...inheritMacroMetadata(el),
     elType: 'shape-path',
     x, y, width: w, height: h, pointArr, closePath: false,
     stroke: el.stroke || '#666666',
@@ -119,21 +160,30 @@ function expandArcSegment(el) {
   const p4 = arcPoint(cx, cy, rInner, startAngle);
   const x = cx - rOuter, y = cy - rOuter; // 元素原点 = 外接正方形左上
   const L = p => ({ x: +(p.x - x).toFixed(2), y: +(p.y - y).toFixed(2) });
+  const localCubic = p => ({
+    x: +(p.x - x).toFixed(2), y: +(p.y - y).toFixed(2),
+    curve: {
+      ...p.curve,
+      x1: +(p.curve.x1 - x).toFixed(2), y1: +(p.curve.y1 - y).toFixed(2),
+      x2: +(p.curve.x2 - x).toFixed(2), y2: +(p.curve.y2 - y).toFixed(2),
+    },
+  });
   const pointArr = [
     { ...L(p1), moveTo: true },
-    { ...L(p2), curve: { type: 'arc', hR: rOuter, wR: rOuter, stAng: startAngle, swAng: sweep } },
+    ...arcToCubicPoints(cx, cy, rOuter, rOuter, startAngle, startAngle + sweep).map(localCubic),
   ];
   if (arrow) {
     const tip = arcPoint(cx, cy, rArrow, endAngle + arrowAngle); // 段尾箭头尖：中环半径、前探 arrowAngle
     pointArr.push(L(tip));
   }
   pointArr.push(L(p3));
-  pointArr.push({ ...L(p4), curve: { type: 'arc', hR: rInner, wR: rInner, stAng: endAngle, swAng: -sweep } });
+  pointArr.push(...arcToCubicPoints(cx, cy, rInner, rInner, startAngle + sweep, startAngle).map(localCubic));
   if (arrow) {
     const notch = arcPoint(cx, cy, rArrow, startAngle + arrowAngle); // 段首凹口：闭合时形成 V 形缺口接收上一段箭头
     pointArr.push(L(notch));
   }
   return {
+    ...inheritMacroMetadata(el),
     elType: 'shape-path',
     x, y, width: rOuter * 2, height: rOuter * 2, pointArr, closePath: true,
     fill: el.fill || '#4A90E2',
@@ -150,10 +200,32 @@ const EXPANDERS = {
 
 export const MACRO_TYPES = Object.keys(EXPANDERS);
 
+function normalizePathArcCurves(el) {
+  if (!Array.isArray(el?.pointArr) || !el.pointArr.some(p => p?.curve?.type === 'arc')) return el;
+  const pointArr = [];
+  let cur = null;
+  for (const p of el.pointArr) {
+    if (p?.curve?.type === 'arc' && cur) {
+      const { hR, wR, stAng, swAng } = p.curve;
+      const r0 = stAng * Math.PI / 180;
+      const cx = cur.x - wR * Math.cos(r0);
+      const cy = cur.y - hR * Math.sin(r0);
+      pointArr.push(...arcToCubicPoints(cx, cy, wR, hR, stAng, stAng + swAng));
+    } else {
+      pointArr.push(p);
+    }
+    cur = { x: p.x, y: p.y };
+  }
+  return { ...el, pointArr };
+}
+
 /** 展开单个元素；非宏类型原样返回 */
 export function expandElement(el) {
   const fn = EXPANDERS[el?.elType];
-  return fn ? fn(el) : el;
+  const expanded = fn ? fn(el) : el;
+  return (expanded?.elType === 'shape-path' || expanded?.elType === 'curve-quadratic')
+    ? normalizePathArcCurves(expanded)
+    : expanded;
 }
 
 /** 原地展开 deck 中所有宏元素（在 resolveTokens 之后调用，颜色令牌已解析） */

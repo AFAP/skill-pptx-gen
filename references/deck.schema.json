@@ -1,13 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/ai-ppt-gen/deck.schema.json",
-  "title": "ai-ppt-gen deck",
+  "$id": "https://example.invalid/ppt-gen/deck.schema.json",
+  "title": "ppt-gen deck",
   "type": "object",
   "required": ["slides"],
   "properties": {
-    "dslVersion": { "type": "integer", "minimum": 1, "default": 2 },
+    "dslVersion": { "type": "integer", "minimum": 1, "default": 3 },
     "meta": { "type": "object", "additionalProperties": true },
     "style": { "type": "string" },
+    "styleClasses": {
+      "type": "object",
+      "additionalProperties": { "type": "object" }
+    },
     "theme": {
       "oneOf": [
         { "type": "string" },
@@ -86,19 +90,51 @@
       "required": ["elType"],
       "properties": {
         "elType": {
-          "enum": ["text", "image", "image-svg", "shape-rect", "shape-circle", "shape-line", "shape-arrow", "shape-path", "curve-quadratic", "chart", "table", "connector-s", "connector-elbow", "arc-segment", "text-path"]
+          "enum": ["text", "image", "image-svg", "shape-rect", "shape-circle", "shape-line", "shape-arrow", "shape-path", "curve-quadratic", "chart", "table", "connector-s", "connector-elbow", "arc-segment", "group", "repeat", "text-path"]
         },
         "id": { "type": "string" },
+        "styleClass": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
+        },
         "role": { "type": "string" },
         "sourcePath": { "type": "string" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "width": { "type": "number", "exclusiveMinimum": 0 },
-        "height": { "type": "number", "exclusiveMinimum": 0 },
-        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
-        "rotation": { "type": "number" },
+        "x": { "$ref": "#/$defs/numberOrBinding" },
+        "y": { "$ref": "#/$defs/numberOrBinding" },
+        "width": { "$ref": "#/$defs/positiveNumberOrBinding" },
+        "height": { "$ref": "#/$defs/positiveNumberOrBinding" },
+        "opacity": { "$ref": "#/$defs/unitNumberOrBinding" },
+        "rotation": { "$ref": "#/$defs/numberOrBinding" },
         "allowOverflow": { "type": "boolean" },
         "allowOverlap": { "type": "boolean" },
+        "scale": { "$ref": "#/$defs/positiveNumberOrBinding" },
+        "stepX": { "$ref": "#/$defs/numberOrBinding" },
+        "stepY": { "$ref": "#/$defs/numberOrBinding" },
+        "columns": { "type": "integer", "minimum": 1 },
+        "defaults": { "type": "object" },
+        "anchor": {
+          "type": "object",
+          "required": ["to"],
+          "properties": {
+            "to": { "type": "string", "minLength": 1 },
+            "edge": { "enum": ["left", "right", "top", "bottom", "center"] },
+            "align": { "enum": ["left", "right", "top", "bottom", "center"] },
+            "gap": { "type": "number" },
+            "dx": { "type": "number" },
+            "dy": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "elements": { "type": "array", "items": { "$ref": "#/$defs/element" }, "minItems": 1 },
+        "items": { "type": "array", "minItems": 1 },
+        "template": {
+          "oneOf": [
+            { "$ref": "#/$defs/element" },
+            { "type": "array", "items": { "$ref": "#/$defs/element" }, "minItems": 1 }
+          ]
+        },
         "text": { "type": ["string", "number"] },
         "path": { "type": "string" },
         "url": { "type": "string" },
@@ -113,14 +149,36 @@
       "type": "object",
       "required": ["x", "y"],
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" }
+        "x": { "$ref": "#/$defs/numberOrBinding" },
+        "y": { "$ref": "#/$defs/numberOrBinding" }
       },
       "additionalProperties": true
     },
     "color": {
       "type": "string",
       "description": "HEX, rgb()/rgba(), or a theme token such as $primary"
+    },
+    "numberOrBinding": {
+      "oneOf": [
+        { "type": "number" },
+        { "$ref": "#/$defs/binding" }
+      ]
+    },
+    "positiveNumberOrBinding": {
+      "oneOf": [
+        { "type": "number", "exclusiveMinimum": 0 },
+        { "$ref": "#/$defs/binding" }
+      ]
+    },
+    "unitNumberOrBinding": {
+      "oneOf": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "$ref": "#/$defs/binding" }
+      ]
+    },
+    "binding": {
+      "type": "string",
+      "pattern": "^\\{\\{\\s*[A-Za-z_][\\w.]*\\s*\\}\\}$"
     }
   }
 }

@@ -218,7 +218,7 @@
       };
     });
     return {
-      dslVersion: 2,
+      dslVersion: 3,
       meta: { title: opts.title || document.title || 'WebSlide', author: opts.author || '' },
       theme: opts.theme || document.documentElement.dataset.pptTheme || 'clean-minimal',
       slides,

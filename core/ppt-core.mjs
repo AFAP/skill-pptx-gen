@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen Node 适配层：纯转换逻辑在 core/dsl-to-pptx.mjs（浏览器端预览页共用同一份）。
+ * ppt-gen Node 适配层：纯转换逻辑在 core/dsl-to-pptx.mjs（浏览器端预览页共用同一份）。
  * 本文件只包含 Node 专有能力：图片/背景预取（fs/fetch → base64 data URI）、体积守卫、构建编排。
  */
 

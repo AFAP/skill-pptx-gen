@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen DSL 校验器
+ * ppt-gen DSL 校验器
  *
  * 在渲染/导出前检查 deck JSON，输出 errors（必须修复）与 warnings（建议修复）。
  * 检查项：结构完整性、画布越界（宏先展开再查）、文本溢出估算、颜色格式、图片源、
@@ -8,13 +8,14 @@
 
 import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme } from './dsl-to-pptx.mjs';
 import { MACRO_TYPES } from './connectors.mjs';
+import { COMPOSITION_TYPES } from './creative-expand.mjs';
 import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
 import { LAYOUT_TYPES, normalizeLayoutName } from './layouts.mjs';
 
 const EL_TYPES = new Set([
   'text', 'image', 'image-svg', 'shape-rect', 'shape-circle',
   'shape-line', 'shape-arrow', 'shape-path', 'curve-quadratic', 'chart', 'table', 'text-path',
-  ...MACRO_TYPES,
+  ...MACRO_TYPES, ...COMPOSITION_TYPES,
 ]);
 
 const MACRO_REQUIRED = {
@@ -77,6 +78,11 @@ export function validateDeck(deck, opts = {}) {
   if (typeof selectedTheme === 'string' && !BUILTIN_THEMES[selectedTheme]) errors.push(`未知样式/主题 "${selectedTheme}"`);
   if (deck.theme != null && typeof deck.theme !== 'string' && (typeof deck.theme !== 'object' || Array.isArray(deck.theme))) errors.push('theme 必须是内置名称或主题对象');
   if (deck.theme && typeof deck.theme === 'object' && deck.theme.extends && !BUILTIN_THEMES[deck.theme.extends]) errors.push(`theme.extends 引用了未知样式 "${deck.theme.extends}"`);
+  if (deck.styleClasses != null && (!deck.styleClasses || typeof deck.styleClasses !== 'object' || Array.isArray(deck.styleClasses))) errors.push('styleClasses 必须是对象');
+  const styleClasses = deck.styleClasses && typeof deck.styleClasses === 'object' && !Array.isArray(deck.styleClasses) ? deck.styleClasses : {};
+  for (const [name, spec] of Object.entries(styleClasses)) {
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) errors.push(`styleClasses.${name} 必须是对象`);
+  }
   const theme = resolveTheme(deck.theme || deck.style);
   if (deck.theme && typeof deck.theme === 'object' && deck.theme.accent && !deck.theme.accentText) {
     const accentLum = luminance(deck.theme.accent);
@@ -120,10 +126,40 @@ export function validateDeck(deck, opts = {}) {
       if (layout === 'raw' && (!Array.isArray(slide.elements) || !slide.elements.length)) errors.push(`${where}: layout raw 需要非空 elements`);
     }
     if (!Array.isArray(slide.elements)) return;
-    slide.elements.forEach((el, ei) => {
-      const at = `${where} 元素${ei + 1}${el?.elType ? `(${el.elType})` : ''}`;
+    const validateSourceElement = (el, at) => {
       if (!el || !el.elType) { errors.push(`${at}: 缺少 elType`); return; }
       if (!EL_TYPES.has(el.elType)) { errors.push(`${at}: 未知 elType "${el.elType}"`); return; }
+      if (el.styleClass != null) {
+        const names = Array.isArray(el.styleClass) ? el.styleClass : (typeof el.styleClass === 'string' ? el.styleClass.split(/\s+/).filter(Boolean) : []);
+        if (!names.length || names.some(name => typeof name !== 'string')) errors.push(`${at}: styleClass 必须是字符串或字符串数组`);
+        names.forEach(name => { if (!styleClasses[name]) errors.push(`${at}: 未知 styleClass "${name}"`); });
+      }
+      if (el.anchor != null) {
+        if (!el.anchor || typeof el.anchor !== 'object' || Array.isArray(el.anchor)) errors.push(`${at}: anchor 必须是对象`);
+        else {
+          if (typeof el.anchor.to !== 'string' || !el.anchor.to) errors.push(`${at}: anchor.to 必须是非空字符串`);
+          if (el.anchor.edge != null && !['left', 'right', 'top', 'bottom', 'center'].includes(el.anchor.edge)) errors.push(`${at}: anchor.edge "${el.anchor.edge}" 无法识别`);
+          for (const key of ['gap', 'dx', 'dy']) if (el.anchor[key] != null && typeof el.anchor[key] !== 'number') errors.push(`${at}: anchor.${key} 必须是数字`);
+        }
+      }
+      if (el.elType === 'group') {
+        if (!Array.isArray(el.elements) || !el.elements.length) errors.push(`${at}: group 需要非空 elements`);
+        if (el.scale != null && (typeof el.scale !== 'number' || el.scale <= 0)) errors.push(`${at}: group.scale 必须 > 0`);
+        if (el.defaults != null && (!el.defaults || typeof el.defaults !== 'object' || Array.isArray(el.defaults))) errors.push(`${at}: group.defaults 必须是对象`);
+        (el.elements || []).forEach((child, ci) => validateSourceElement(child, `${at}.elements[${ci}]`));
+        return;
+      }
+      if (el.elType === 'repeat') {
+        const template = Array.isArray(el.template) ? el.template : (el.template ? [el.template] : []);
+        if (!Array.isArray(el.items) || !el.items.length) errors.push(`${at}: repeat 需要非空 items`);
+        if (!template.length) errors.push(`${at}: repeat 需要 template`);
+        if (el.columns != null && (!Number.isInteger(el.columns) || el.columns < 1)) errors.push(`${at}: repeat.columns 必须是正整数`);
+        if (el.scale != null && (typeof el.scale !== 'number' || el.scale <= 0)) errors.push(`${at}: repeat.scale 必须 > 0`);
+        for (const key of ['x', 'y', 'stepX', 'stepY']) if (el[key] != null && typeof el[key] !== 'number') errors.push(`${at}: repeat.${key} 必须是数字`);
+        if (el.defaults != null && (!el.defaults || typeof el.defaults !== 'object' || Array.isArray(el.defaults))) errors.push(`${at}: repeat.defaults 必须是对象`);
+        template.forEach((child, ci) => validateSourceElement(child, `${at}.template[${ci}]`));
+        return;
+      }
       if (MACRO_REQUIRED[el.elType]) {
         for (const k of MACRO_REQUIRED[el.elType]) {
           if (typeof el[k] !== 'number') errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
@@ -137,7 +173,8 @@ export function validateDeck(deck, opts = {}) {
           warnings.push(`${at}: ${el.elType} orientation "${el.orientation}" 无法识别（将使用默认值）`);
         }
       }
-    });
+    };
+    slide.elements.forEach((el, ei) => validateSourceElement(el, `${where} 元素${ei + 1}${el?.elType ? `(${el.elType})` : ''}`));
   });
 
   if (errors.length) return { ok: false, errors, warnings, theme };
@@ -221,7 +258,7 @@ export function validateDeck(deck, opts = {}) {
           const ys = pa.map(p => typeof p.y === 'number' ? p.y + oy : p.y).filter(v => typeof v === 'number');
           if (xs.length && ys.length) {
             const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-            if (minX < -1 || minY < -1 || maxX > PPT_WIDTH + 1 || maxY > PPT_HEIGHT + 1) {
+            if (!el.allowOverflow && (minX < -1 || minY < -1 || maxX > PPT_WIDTH + 1 || maxY > PPT_HEIGHT + 1)) {
               warnings.push(`${at}: ${label} 点列越界（${Math.round(minX)},${Math.round(minY)} → ${Math.round(maxX)},${Math.round(maxY)}）`);
             }
           }

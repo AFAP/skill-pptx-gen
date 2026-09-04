@@ -1,5 +1,5 @@
 /**
- * ai-ppt-gen 预览核心（浏览器端）：PPT-DSL → Konva 渲染
+ * ppt-gen 预览核心（浏览器端）：PPT-DSL → Konva 渲染
  *
  * 与 Node 导出（core/dsl-to-pptx.mjs）保持 WYSIWYG 一致：
  * - 图片默认 cover 裁满（contain 完整容纳居中），与导出 sizing 一致
@@ -217,7 +217,8 @@
       node._editPath = { s: opts._slideIndex, e: opts._elementIndex }; // 原始 deck 回写路径
     }
     group.add(node);
-    if (opts.editable) attachTextEditor(node, layer, opts);
+    // 只有能安全回写原始 deck 的文本才开放编辑；repeat 的派生文本无 sourcePath。
+    if (opts.editable && elop.sourcePath) attachTextEditor(node, layer, opts);
     return node;
   }
 

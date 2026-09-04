@@ -1,0 +1,495 @@
+{
+  "dslVersion": 3,
+  "meta": {
+    "title": "南京埃斯顿深度研究报告 AI 创意版",
+    "author": "ppt-gen"
+  },
+  "theme": {
+    "extends": "navy-report",
+    "background": "#F6F4EF",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#EAEFF3",
+    "border": "#D9DEE4",
+    "primary": "#09192C",
+    "accent": "#F26322",
+    "accentText": "#B63A06",
+    "onAccent": "#FFFFFF",
+    "text": "#132238",
+    "textSecondary": "#5B6879",
+    "palette": ["#09192C", "#F26322", "#3B6F91", "#8CA6B8", "#C7D1D9", "#5B6879"]
+  },
+  "styleClasses": {
+    "kicker": { "fontSize": 11, "fontStyle": "bold", "letterSpacing": 2.8, "fill": "$accentText" },
+    "title": { "fontSize": 34, "fontStyle": "bold", "fill": "$text", "lineHeight": 1.12 },
+    "titleDark": { "fontSize": 34, "fontStyle": "bold", "fill": "$white", "lineHeight": 1.12 },
+    "body": { "fontSize": 17, "fill": "$text2", "lineHeight": 1.5 },
+    "bodyDark": { "fontSize": 17, "fill": "#C7D1D9", "lineHeight": 1.5 },
+    "small": { "fontSize": 13, "fill": "$text2", "lineHeight": 1.4 },
+    "smallDark": { "fontSize": 13, "fill": "#AEBBC8", "lineHeight": 1.4 },
+    "metric": { "fontSize": 58, "fontStyle": "bold", "fill": "$accentText", "lineHeight": 1 },
+    "metricDark": { "fontSize": 58, "fontStyle": "bold", "fill": "$accent", "lineHeight": 1 },
+    "panel": { "fill": "$surface", "stroke": "$border", "strokeWidth": 1, "cornerRadius": 14 },
+    "darkPanel": { "fill": "$primary", "stroke": "$primary", "strokeWidth": 1, "cornerRadius": 14 },
+    "hairline": { "lineColor": "$border", "lineWidth": 2 },
+    "accentLine": { "lineColor": "$accent", "lineWidth": 3 },
+    "label": { "fontSize": 15, "fontStyle": "bold", "fill": "$text" },
+    "labelDark": { "fontSize": 15, "fontStyle": "bold", "fill": "$white" }
+  },
+  "slides": [
+    {
+      "id": "cover",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：核心结论\n[/Sources]",
+      "elements": [
+        { "elType": "arc-segment", "cx": 1030, "cy": 360, "rOuter": 250, "rInner": 195, "startAngle": 205, "endAngle": 336, "fill": "$accent", "opacity": 0.9 },
+        { "elType": "arc-segment", "cx": 1030, "cy": 360, "rOuter": 205, "rInner": 199, "startAngle": 20, "endAngle": 170, "fill": "$3", "arrow": false, "opacity": 0.8 },
+        { "elType": "text", "styleClass": "kicker", "text": "ESTUN AUTOMATION  DEEP RESEARCH", "x": 78, "y": 92, "width": 540, "height": 26, "fill": "#C7D1D9" },
+        { "elType": "text", "id": "hero", "text": "埃斯顿\n规模之后", "x": 78, "y": 190, "width": 650, "height": 154, "fontSize": 68, "fontStyle": "bold", "fill": "$white", "lineHeight": 1.04 },
+        { "elType": "text", "text": "盈利修复与估值验证", "width": 620, "height": 44, "fontSize": 24, "fill": "#C7D1D9", "anchor": { "to": "hero", "edge": "bottom", "align": "left", "gap": 24 } },
+        { "elType": "text", "text": "10.6%", "x": 800, "y": 250, "width": 400, "height": 105, "fontSize": 82, "fontStyle": "bold", "fill": "$accent", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "text": "2025年中国工业机器人市场份额\n首次超过四大家族", "x": 835, "y": 375, "width": 330, "height": 74, "fontSize": 17, "fill": "$white", "align": "center", "lineHeight": 1.45 },
+        { "elType": "shape-line", "pointArr": [{ "x": 78, "y": 620 }, { "x": 560, "y": 620 }], "lineColor": "$accent", "lineWidth": 3 },
+        { "elType": "text", "styleClass": "smallDark", "text": "研究日期  2026年9月3日", "x": 78, "y": 638, "width": 320, "height": 26 }
+      ]
+    },
+    {
+      "id": "thesis",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：核心结论\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "INVESTMENT THESIS", "x": 70, "y": 52, "width": 320, "height": 24 },
+        { "elType": "text", "text": "规模已经证明，\n利润和估值仍在等待证据", "x": 70, "y": 118, "width": 1040, "height": 150, "fontSize": 48, "fontStyle": "bold", "fill": "$text", "lineHeight": 1.12 },
+        { "elType": "shape-line", "pointArr": [{ "x": 70, "y": 286 }, { "x": 1210, "y": 286 }], "lineColor": "$primary", "lineWidth": 4 },
+        { "elType": "repeat", "id": "proof", "x": 70, "y": 330, "stepX": 390, "items": [
+          { "number": "01", "title": "规模领先", "body": "2025年中国市场份额10.6%，连续八年位居国产品牌第一。", "color": "$primary" },
+          { "number": "02", "title": "利润修复", "body": "2026H1扣非净利润0.70亿元，主业净利率仍约2.7%。", "color": "$accentText" },
+          { "number": "03", "title": "估值前置", "body": "按一致预期计算，2026年动态PE约137倍。", "color": "$3" }
+        ], "template": [
+          { "elType": "shape-line", "pointArr": [{ "x": 0, "y": 0 }, { "x": 330, "y": 0 }], "lineColor": "{{color}}", "lineWidth": 5 },
+          { "elType": "text", "text": "{{number}}", "x": 0, "y": 25, "width": 70, "height": 42, "fontSize": 24, "fontStyle": "bold", "fill": "{{color}}" },
+          { "elType": "text", "text": "{{title}}", "x": 0, "y": 88, "width": 320, "height": 42, "fontSize": 24, "fontStyle": "bold", "fill": "$text" },
+          { "elType": "text", "text": "{{body}}", "x": 0, "y": 150, "width": 320, "height": 100, "fontSize": 16, "fill": "$text2", "lineHeight": 1.5 }
+        ] }
+      ]
+    },
+    {
+      "id": "tension",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：核心结论、估值测算\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "THE CENTRAL TENSION", "x": 70, "y": 52, "width": 360, "height": 24, "fill": "$accent" },
+        { "elType": "text", "styleClass": "titleDark", "text": "产业位置与盈利能力尚未处在同一高度", "x": 70, "y": 86, "width": 1020, "height": 54 },
+        { "elType": "shape-line", "pointArr": [{ "x": 130, "y": 540 }, { "x": 520, "y": 220 }], "lineColor": "$3", "lineWidth": 10 },
+        { "elType": "shape-line", "pointArr": [{ "x": 760, "y": 510 }, { "x": 1150, "y": 395 }], "lineColor": "$accent", "lineWidth": 10 },
+        { "elType": "connector-s", "x1": 520, "y1": 220, "x2": 760, "y2": 510, "orientation": "h", "stroke": "#8CA6B8", "strokeWidth": 3, "dashType": "dash" },
+        { "elType": "text", "styleClass": "metricDark", "text": "10.6%", "x": 120, "y": 260, "width": 360, "height": 90 },
+        { "elType": "text", "styleClass": "bodyDark", "text": "中国市场份额\n出货量口径已经登顶", "x": 124, "y": 362, "width": 340, "height": 72 },
+        { "elType": "text", "text": "约137×", "x": 810, "y": 315, "width": 340, "height": 90, "fontSize": 58, "fontStyle": "bold", "fill": "$white" },
+        { "elType": "text", "styleClass": "bodyDark", "text": "2026E一致预期PE\n需要未来利润兑现", "x": 814, "y": 420, "width": 330, "height": 72 },
+        { "elType": "text", "text": "价值兑现距离", "x": 505, "y": 570, "width": 270, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$accent", "align": "center" }
+      ]
+    },
+    {
+      "id": "global-demand",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：行业分析2.1\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "DEMAND CURVE", "x": 70, "y": 48, "width": 260, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "全球需求继续扩张，增长重心转向亚洲", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "text", "text": "70", "x": 1000, "y": 56, "width": 210, "height": 82, "fontSize": 64, "fontStyle": "bold", "fill": "$accentText", "align": "right" },
+        { "elType": "text", "styleClass": "small", "text": "2028E全球安装量\n约70万台", "x": 1020, "y": 142, "width": 190, "height": 52, "align": "right" },
+        { "elType": "chart", "chartType": "line", "x": 72, "y": 195, "width": 1136, "height": 390, "labels": ["2024", "2025E", "2028E"], "data": [{ "name": "全球安装量（万台）", "values": [54.2, 57.5, 70] }], "chartColors": ["#F26322"], "showLegend": false, "showValue": true },
+        { "elType": "shape-rect", "x": 70, "y": 610, "width": 1140, "height": 54, "fill": "$primary", "cornerRadius": 27 },
+        { "elType": "text", "text": "中国、东南亚和印度贡献主要增量，高端汽车与半导体仍决定价值量", "x": 110, "y": 620, "width": 1060, "height": 34, "fontSize": 16, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" }
+      ]
+    },
+    {
+      "id": "localization",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：行业分析2.1、2.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "LOCALIZATION INFLECTION", "x": 70, "y": 48, "width": 340, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "国产份额已经越过临界线", "x": 70, "y": 82, "width": 760, "height": 54 },
+        { "elType": "text", "styleClass": "metric", "text": "57%", "x": 70, "y": 180, "width": 320, "height": 92 },
+        { "elType": "text", "styleClass": "body", "text": "2024年本土厂商销量份额首次超过外资。\n量的拐点已经发生，价值量提升仍依赖高端场景突破。", "x": 72, "y": 292, "width": 430, "height": 112 },
+        { "elType": "shape-line", "pointArr": [{ "x": 560, "y": 575 }, { "x": 1180, "y": 575 }], "lineColor": "$border", "lineWidth": 3 },
+        { "elType": "repeat", "id": "bars", "items": [
+          { "x": 0, "y": 250, "h": 180, "value": "63.5万套", "label": "2026年1至7月产量", "color": "$3" },
+          { "x": 205, "y": 200, "h": 230, "value": "+28.5%", "label": "同期产量增速", "color": "$accent" },
+          { "x": 410, "y": 145, "h": 285, "value": "62.9亿元", "label": "2026H1出口额", "color": "$primary" }
+        ], "template": [
+          { "elType": "shape-rect", "x": "{{x}}", "y": "{{y}}", "width": 150, "height": "{{h}}", "fill": "{{color}}", "cornerRadius": 10 },
+          { "elType": "text", "text": "{{value}}", "x": "{{x}}", "y": "{{y}}", "width": 150, "height": 62, "fontSize": 24, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle", "bgFill": "{{color}}" },
+          { "elType": "text", "text": "{{label}}", "x": "{{x}}", "y": 455, "width": 150, "height": 62, "fontSize": 13, "fill": "$text2", "align": "center", "lineHeight": 1.35 }
+        ], "x": 585, "y": 145 }
+      ]
+    },
+    {
+      "id": "competitive-frontier",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：竞争格局2.2、市场地位3.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "COMPETITIVE FRONTIER", "x": 70, "y": 48, "width": 340, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "国产龙头进入高端场景攻坚区", "x": 70, "y": 82, "width": 820, "height": 54 },
+        { "elType": "shape-line", "pointArr": [{ "x": 170, "y": 580 }, { "x": 1130, "y": 580 }], "lineColor": "$primary", "lineWidth": 3, "lineEndArrowType": "triangle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 170, "y": 580 }, { "x": 170, "y": 180 }], "lineColor": "$primary", "lineWidth": 3, "lineEndArrowType": "triangle" },
+        { "elType": "text", "styleClass": "small", "text": "高端工艺与可靠性", "x": 55, "y": 142, "width": 230, "height": 34 },
+        { "elType": "text", "styleClass": "small", "text": "规模与本土份额", "x": 1020, "y": 582, "width": 180, "height": 30, "align": "right" },
+        { "elType": "shape-rect", "x": 170, "y": 180, "width": 960, "height": 400, "fill": "#FFFFFF80", "stroke": "$border", "strokeWidth": 1 },
+        { "elType": "shape-line", "pointArr": [{ "x": 650, "y": 180 }, { "x": 650, "y": 580 }], "lineColor": "$border", "lineWidth": 2, "dashType": "dash" },
+        { "elType": "shape-line", "pointArr": [{ "x": 170, "y": 380 }, { "x": 1130, "y": 380 }], "lineColor": "$border", "lineWidth": 2, "dashType": "dash" },
+        { "elType": "repeat", "id": "companies", "items": [
+          { "x": 850, "y": 235, "name": "四大家族", "color": "$primary" },
+          { "x": 805, "y": 355, "name": "埃斯顿", "color": "$accent" },
+          { "x": 700, "y": 425, "name": "汇川", "color": "$3" },
+          { "x": 455, "y": 485, "name": "国产第二梯队", "color": "$4" },
+          { "x": 360, "y": 525, "name": "协作与新锐", "color": "$5" }
+        ], "template": [
+          { "elType": "shape-circle", "id": "dot", "x": "{{x}}", "y": "{{y}}", "width": 30, "height": 30, "fill": "{{color}}", "stroke": "$white", "strokeWidth": 3 },
+          { "elType": "text", "id": "name", "text": "{{name}}", "width": 190, "height": 34, "fontSize": 15, "fontStyle": "bold", "fill": "$text", "verticalAlign": "middle", "anchor": { "to": "dot", "edge": "right", "align": "center", "gap": 12 } }
+        ] },
+        { "elType": "text", "text": "高端仍由工艺数据库和可靠性定义门槛", "x": 700, "y": 620, "width": 430, "height": 34, "fontSize": 15, "fontStyle": "bold", "fill": "$accentText", "align": "right" }
+      ]
+    },
+    {
+      "id": "shipment-value-gap",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：市场地位3.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "SCALE VERSUS VALUE", "x": 70, "y": 48, "width": 340, "height": 24, "fill": "$accent" },
+        { "elType": "text", "styleClass": "titleDark", "text": "出货登顶与收入第六可以同时成立", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "shape-rect", "x": 105, "y": 190, "width": 420, "height": 360, "fill": "#FFFFFF0D", "stroke": "#FFFFFF24", "strokeWidth": 1, "cornerRadius": 26 },
+        { "elType": "text", "text": "中国出货", "x": 150, "y": 230, "width": 330, "height": 38, "fontSize": 19, "fill": "#C7D1D9", "align": "center" },
+        { "elType": "text", "text": "第 1", "x": 150, "y": 310, "width": 330, "height": 110, "fontSize": 82, "fontStyle": "bold", "fill": "$accent", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "smallDark", "text": "2025年市场份额10.6%\n规模优势已经得到验证", "x": 160, "y": 455, "width": 310, "height": 62, "align": "center" },
+        { "elType": "shape-rect", "x": 755, "y": 250, "width": 420, "height": 300, "fill": "#FFFFFF0D", "stroke": "#FFFFFF24", "strokeWidth": 1, "cornerRadius": 26 },
+        { "elType": "text", "text": "全球收入", "x": 800, "y": 285, "width": 330, "height": 38, "fontSize": 19, "fill": "#C7D1D9", "align": "center" },
+        { "elType": "text", "text": "第 6", "x": 800, "y": 350, "width": 330, "height": 100, "fontSize": 72, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "smallDark", "text": "2024年收入口径\n全球份额约1.7%", "x": 810, "y": 465, "width": 310, "height": 58, "align": "center" },
+        { "elType": "shape-arrow", "pointArr": [{ "x": 535, "y": 360 }, { "x": 745, "y": 400 }], "lineColor": "$accent", "lineWidth": 5 },
+        { "elType": "text", "text": "高端化决定均价和利润", "x": 500, "y": 575, "width": 280, "height": 36, "fontSize": 17, "fontStyle": "bold", "fill": "$accent", "align": "center" }
+      ]
+    },
+    {
+      "id": "capability-spine",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：公司概况、业务分析\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "CAPABILITY SPINE", "x": 70, "y": 48, "width": 300, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "一条技术主轴连接部件、机器人与场景", "x": 70, "y": 82, "width": 930, "height": 54 },
+        { "elType": "shape-arrow", "pointArr": [{ "x": 120, "y": 350 }, { "x": 1160, "y": 350 }], "lineColor": "$primary", "lineWidth": 7 },
+        { "elType": "repeat", "id": "chain", "x": 120, "y": 250, "stepX": 270, "items": [
+          { "no": "01", "title": "核心部件", "body": "伺服系统\n控制器\n运动控制", "color": "$primary" },
+          { "no": "02", "title": "工业机器人", "body": "6kg至1200kg\n覆盖焊接搬运", "color": "$accent" },
+          { "no": "03", "title": "智能制造", "body": "系统集成\n汽车与锂电场景", "color": "$3" },
+          { "no": "04", "title": "具身智能", "body": "协作、人形\n工业场景智能体", "color": "$6" }
+        ], "template": [
+          { "elType": "shape-circle", "x": 70, "y": 100, "width": 78, "height": 78, "fill": "{{color}}", "stroke": "$white", "strokeWidth": 5 },
+          { "elType": "text", "text": "{{no}}", "x": 31, "y": 61, "width": 78, "height": 78, "fontSize": 22, "fontStyle": "bold", "fill": "$white", "bgFill": "{{color}}", "align": "center", "verticalAlign": "middle" },
+          { "elType": "text", "text": "{{title}}", "x": 0, "y": 165, "width": 150, "height": 42, "fontSize": 22, "fontStyle": "bold", "fill": "$text", "align": "center" },
+          { "elType": "text", "text": "{{body}}", "x": 0, "y": 225, "width": 150, "height": 100, "fontSize": 15, "fill": "$text2", "align": "center", "lineHeight": 1.45 }
+        ] },
+        { "elType": "text", "text": "全产业链的价值不在“品类多”，而在关键环节可以共同迭代", "x": 300, "y": 610, "width": 680, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$accentText", "align": "center" }
+      ]
+    },
+    {
+      "id": "history-wave",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：发展历程\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "THREE DECADES", "x": 70, "y": 48, "width": 280, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "三次能力跃迁把公司推向全场景平台", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "shape-path", "x": 110, "y": 255, "width": 1060, "height": 180, "fill": "#00000000", "stroke": "$3", "strokeWidth": 5, "closePath": false, "pointArr": [
+          { "x": 0, "y": 145, "moveTo": true },
+          { "x": 280, "y": 70, "curve": { "type": "cubic", "x1": 90, "y1": 145, "x2": 170, "y2": 82 } },
+          { "x": 550, "y": 125, "curve": { "type": "cubic", "x1": 370, "y1": 58, "x2": 455, "y2": 125 } },
+          { "x": 780, "y": 40, "curve": { "type": "cubic", "x1": 630, "y1": 125, "x2": 690, "y2": 42 } },
+          { "x": 1060, "y": 0, "curve": { "type": "cubic", "x1": 880, "y1": 38, "x2": 970, "y2": 0 } }
+        ] },
+        { "elType": "repeat", "id": "history", "items": [
+          { "x": 110, "y": 400, "date": "1993", "title": "运动控制起步", "body": "交流伺服电机" },
+          { "x": 390, "y": 325, "date": "2011", "title": "机器人本体", "body": "推出自有品牌" },
+          { "x": 660, "y": 380, "date": "2017—2020", "title": "全球并购", "body": "TRIO、M.A.i、Cloos" },
+          { "x": 890, "y": 295, "date": "2026", "title": "A+H与具身智能", "body": "港股上市并拟收购酷卓" }
+        ], "template": [
+          { "elType": "shape-circle", "id": "dot", "x": "{{x}}", "y": "{{y}}", "width": 38, "height": 38, "fill": "$accent", "stroke": "$white", "strokeWidth": 4 },
+          { "elType": "text", "text": "{{date}}", "x": "{{x}}", "y": "{{y}}", "width": 190, "height": 32, "fontSize": 16, "fontStyle": "bold", "fill": "$accentText", "anchor": { "to": "#history-{{index}}-dot", "edge": "top", "align": "center", "gap": 24 } },
+          { "elType": "text", "id": "title", "text": "{{title}}", "x": "{{x}}", "y": "{{y}}", "width": 210, "height": 36, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "anchor": { "to": "#history-{{index}}-dot", "edge": "bottom", "align": "center", "gap": 26 } },
+          { "elType": "text", "text": "{{body}}", "x": "{{x}}", "y": "{{y}}", "width": 220, "height": 38, "fontSize": 14, "fill": "$text2", "anchor": { "to": "#history-{{index}}-title", "edge": "bottom", "align": "center", "gap": 4 } }
+        ] }
+      ]
+    },
+    {
+      "id": "financial-divergence",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：五年财务全景4.1\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "FINANCIAL DIVERGENCE", "x": 70, "y": 48, "width": 340, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "收入向上，利润仍在寻找稳定斜率", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "text", "text": "收入", "x": 74, "y": 165, "width": 120, "height": 34, "fontSize": 18, "fontStyle": "bold", "fill": "$primary" },
+        { "elType": "chart", "chartType": "bar", "x": 70, "y": 200, "width": 620, "height": 390, "labels": ["2021", "2022", "2023", "2024", "2025", "2026H1"], "data": [{ "name": "营业收入（亿元）", "values": [30.2, 38.81, 46.52, 40.09, 48.88, 25.78] }], "chartColors": ["#09192C"], "showLegend": false, "showValue": true },
+        { "elType": "text", "text": "利润", "x": 720, "y": 165, "width": 120, "height": 34, "fontSize": 18, "fontStyle": "bold", "fill": "$accentText" },
+        { "elType": "chart", "chartType": "bar", "x": 710, "y": 200, "width": 500, "height": 390, "labels": ["2021", "2022", "2023", "2024", "2025", "2026H1"], "data": [{ "name": "归母净利润（亿元）", "values": [1.22, 1.66, 1.35, -8.1, 0.45, 1.61] }], "chartColors": ["#F26322"], "showLegend": false, "showValue": true },
+        { "elType": "shape-line", "pointArr": [{ "x": 690, "y": 185 }, { "x": 690, "y": 610 }], "lineColor": "$border", "lineWidth": 2 },
+        { "elType": "text", "text": "估值依赖正常化利润，而不是收入规模本身", "x": 70, "y": 625, "width": 1140, "height": 34, "fontSize": 18, "fontStyle": "bold", "fill": "$accentText", "align": "center" }
+      ]
+    },
+    {
+      "id": "loss-crater",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：2024年巨亏解剖4.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "THE 2024 CRATER", "x": 70, "y": 48, "width": 300, "height": 24, "fill": "$accent" },
+        { "elType": "text", "styleClass": "titleDark", "text": "四股压力在同一年汇合", "x": 70, "y": 82, "width": 760, "height": 54 },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 230, "rInner": 148, "startAngle": 185, "endAngle": 260, "fill": "$accent", "arrow": false },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 230, "rInner": 148, "startAngle": 275, "endAngle": 350, "fill": "$3", "arrow": false },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 230, "rInner": 148, "startAngle": 5, "endAngle": 80, "fill": "$4", "arrow": false },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 230, "rInner": 148, "startAngle": 95, "endAngle": 170, "fill": "$5", "arrow": false },
+        { "elType": "shape-circle", "x": 640, "y": 390, "width": 248, "height": 248, "fill": "$primary", "stroke": "#FFFFFF30", "strokeWidth": 2 },
+        { "elType": "text", "text": "-8.10亿", "x": 516, "y": 350, "width": 248, "height": 80, "fontSize": 52, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "smallDark", "text": "2024年归母净利润", "x": 540, "y": 440, "width": 200, "height": 30, "align": "center" },
+        { "elType": "text", "styleClass": "labelDark", "text": "收入下降13.8%\n毛利率降至28.3%", "x": 90, "y": 260, "width": 300, "height": 74 },
+        { "elType": "text", "styleClass": "labelDark", "text": "商誉减值3.45亿元\n其他资产减值约1.2亿元", "x": 885, "y": 260, "width": 310, "height": 74, "align": "right" },
+        { "elType": "text", "styleClass": "labelDark", "text": "研发、销售与管理费用刚性", "x": 95, "y": 525, "width": 300, "height": 54 },
+        { "elType": "text", "styleClass": "labelDark", "text": "递延所得税资产减计\n放大亏损", "x": 900, "y": 515, "width": 295, "height": 74, "align": "right" },
+        { "elType": "text", "text": "2026H1商誉仍有9.75亿元，出清并不彻底", "x": 340, "y": 635, "width": 600, "height": 34, "fontSize": 17, "fontStyle": "bold", "fill": "$accent", "align": "center" }
+      ]
+    },
+    {
+      "id": "earnings-quality",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：盈利质量4.3\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "EARNINGS QUALITY", "x": 70, "y": 48, "width": 300, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "报表利润与主业利润之间还有一道桥", "x": 70, "y": 82, "width": 920, "height": 54 },
+        { "elType": "shape-rect", "x": 90, "y": 220, "width": 300, "height": 250, "fill": "$primary", "cornerRadius": 20 },
+        { "elType": "text", "text": "1.61亿", "x": 125, "y": 270, "width": 230, "height": 86, "fontSize": 54, "fontStyle": "bold", "fill": "$white", "align": "center" },
+        { "elType": "text", "text": "归母净利润", "x": 135, "y": 370, "width": 210, "height": 40, "fontSize": 18, "fill": "#C7D1D9", "align": "center" },
+        { "elType": "shape-arrow", "pointArr": [{ "x": 400, "y": 345 }, { "x": 650, "y": 345 }], "lineColor": "$accent", "lineWidth": 6 },
+        { "elType": "text", "text": "-0.91亿", "x": 435, "y": 270, "width": 180, "height": 54, "fontSize": 30, "fontStyle": "bold", "fill": "$accentText", "align": "center" },
+        { "elType": "text", "styleClass": "small", "text": "非经常性损益\n含约0.995亿元公允价值变动收益", "x": 420, "y": 380, "width": 210, "height": 68, "align": "center" },
+        { "elType": "shape-rect", "x": 680, "y": 245, "width": 260, "height": 200, "fill": "$accent", "cornerRadius": 20 },
+        { "elType": "text", "text": "0.70亿", "x": 710, "y": 285, "width": 200, "height": 76, "fontSize": 48, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
+        { "elType": "text", "text": "扣非净利润", "x": 720, "y": 370, "width": 180, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
+        { "elType": "shape-arrow", "pointArr": [{ "x": 950, "y": 345 }, { "x": 1160, "y": 345 }], "lineColor": "$primary", "lineWidth": 5 },
+        { "elType": "text", "text": "约2.7%", "x": 980, "y": 270, "width": 170, "height": 54, "fontSize": 34, "fontStyle": "bold", "fill": "$primary", "align": "center" },
+        { "elType": "text", "styleClass": "small", "text": "主业净利率\n持续性仍需季度验证", "x": 980, "y": 380, "width": 170, "height": 62, "align": "center" },
+        { "elType": "text", "text": "方向已经改善，但利润含金量不能只看同比增速", "x": 190, "y": 570, "width": 900, "height": 44, "fontSize": 22, "fontStyle": "bold", "fill": "$accentText", "align": "center" }
+      ]
+    },
+    {
+      "id": "overseas-margin",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：分区域业务4.1\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "GEOGRAPHIC MIX", "x": 70, "y": 48, "width": 300, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "海外收入占比不高，却贡献更厚的毛利", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "chart", "chartType": "doughnut", "x": 70, "y": 180, "width": 520, "height": 420, "labels": ["境内收入", "境外收入"], "data": [{ "name": "2025年收入（亿元）", "values": [34.25, 14.63] }], "chartColors": ["#C7D1D9", "#F26322"], "showLegend": true, "showValue": true },
+        { "elType": "shape-line", "pointArr": [{ "x": 650, "y": 180 }, { "x": 650, "y": 610 }], "lineColor": "$border", "lineWidth": 2 },
+        { "elType": "text", "text": "境外", "x": 735, "y": 205, "width": 150, "height": 36, "fontSize": 18, "fontStyle": "bold", "fill": "$accentText" },
+        { "elType": "text", "text": "14.63亿", "x": 730, "y": 250, "width": 360, "height": 90, "fontSize": 58, "fontStyle": "bold", "fill": "$accentText" },
+        { "elType": "text", "styleClass": "body", "text": "德国Cloos带来的海外业务具有更高毛利率。\n海外改善会直接抬升综合盈利能力，但同时保留商誉和经营波动风险。", "x": 735, "y": 370, "width": 430, "height": 140 },
+        { "elType": "text", "text": "结构比规模更重要", "x": 735, "y": 545, "width": 400, "height": 42, "fontSize": 22, "fontStyle": "bold", "fill": "$primary" }
+      ]
+    },
+    {
+      "id": "balance-sheet",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：资产负债与现金流4.4\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "BALANCE SHEET RESET", "x": 70, "y": 48, "width": 340, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "H股募资把杠杆拉回更可控区间", "x": 70, "y": 82, "width": 850, "height": 54 },
+        { "elType": "chart", "chartType": "line", "x": 70, "y": 185, "width": 700, "height": 420, "labels": ["2023", "2024", "2025", "2026H1"], "data": [{ "name": "资产负债率（%）", "values": [72, 81.3, 78.6, 68.2] }], "chartColors": ["#09192C"], "showLegend": false, "showValue": true },
+        { "elType": "shape-rect", "x": 820, "y": 205, "width": 340, "height": 250, "fill": "$accent", "cornerRadius": 28 },
+        { "elType": "text", "text": "14.12亿港元", "x": 855, "y": 255, "width": 270, "height": 78, "fontSize": 42, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
+        { "elType": "text", "text": "2026年3月H股净募资", "x": 860, "y": 352, "width": 260, "height": 44, "fontSize": 17, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
+        { "elType": "shape-arrow", "pointArr": [{ "x": 990, "y": 465 }, { "x": 770, "y": 560 }], "lineColor": "$accent", "lineWidth": 5 },
+        { "elType": "text", "styleClass": "body", "text": "2026H1资产负债率降至68.2%，货币资金升至10.89亿元。财务费用随借款规模下降。", "x": 825, "y": 510, "width": 340, "height": 112 }
+      ]
+    },
+    {
+      "id": "customer-concentration",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：客户集中度4.5\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "CUSTOMER CONCENTRATION", "x": 70, "y": 48, "width": 390, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "大客户带来规模，也放大订单波动", "x": 70, "y": 82, "width": 850, "height": 54 },
+        { "elType": "chart", "chartType": "line", "x": 70, "y": 185, "width": 720, "height": 410, "labels": ["2022", "2025年前三季度"], "data": [
+          { "name": "前五大客户占比（%）", "values": [16.4, 37.2] },
+          { "name": "最大客户占比（%）", "values": [5.5, 18] }
+        ], "chartColors": ["#09192C", "#F26322"], "showLegend": true, "showValue": true },
+        { "elType": "text", "text": "37.2%", "x": 875, "y": 205, "width": 280, "height": 90, "fontSize": 58, "fontStyle": "bold", "fill": "$accentText", "align": "right" },
+        { "elType": "text", "styleClass": "small", "text": "2025年前三季度\n前五大客户占比", "x": 920, "y": 305, "width": 235, "height": 62, "align": "right" },
+        { "elType": "shape-line", "pointArr": [{ "x": 900, "y": 395 }, { "x": 1160, "y": 395 }], "lineColor": "$primary", "lineWidth": 3 },
+        { "elType": "text", "styleClass": "body", "text": "新能源龙头扩产可以快速放量；客户资本开支变化也会更快传导到收入和回款。", "x": 875, "y": 430, "width": 285, "height": 130, "align": "right" }
+      ]
+    },
+    {
+      "id": "ma-spectrum",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：收购酷卓5.1\n- examples/assets/industrial-robot-editorial.png：AI生成示意视觉，不代表真实工厂或产品\n[/Sources]",
+      "elements": [
+        { "elType": "image", "path": "assets/industrial-robot-editorial.png", "x": 720, "y": 0, "width": 560, "height": 720, "sizing": { "type": "cover" } },
+        { "elType": "shape-rect", "x": 680, "y": 0, "width": 130, "height": 720, "fill": "#F6F4EFDD" },
+        { "elType": "text", "styleClass": "kicker", "text": "M&A PRODUCT SPECTRUM", "x": 70, "y": 52, "width": 360, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "酷卓把产品边界推向协作与人形", "x": 70, "y": 86, "width": 600, "height": 88 },
+        { "elType": "text", "styleClass": "body", "text": "拟以4.87亿元收购酷卓100%股权。标的拥有协作机器人、复合移动机器人和两代人形机器人，但仍处投入期。", "x": 70, "y": 196, "width": 560, "height": 116 },
+        { "elType": "repeat", "id": "spectrum", "x": 70, "y": 352, "stepY": 76, "items": [
+          { "label": "工业机器人", "w": 320, "color": "$primary" },
+          { "label": "协作机器人", "w": 420, "color": "$accent" },
+          { "label": "具身智能", "w": 520, "color": "$3" }
+        ], "template": [
+          { "elType": "shape-rect", "x": 0, "y": 0, "width": "{{w}}", "height": 52, "fill": "{{color}}", "cornerRadius": 8 },
+          { "elType": "text", "text": "{{label}}", "x": 18, "y": 8, "width": 230, "height": 36, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "bgFill": "{{color}}", "verticalAlign": "middle" }
+        ] },
+        { "elType": "text", "text": "2025年收入5017万元，净亏损5300万元", "x": 70, "y": 605, "width": 560, "height": 38, "fontSize": 17, "fontStyle": "bold", "fill": "$accentText" }
+      ]
+    },
+    {
+      "id": "commercial-loop",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：人形机器人2.3、收购酷卓5.1\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "COMMERCIAL LOOP", "x": 70, "y": 48, "width": 300, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "人形机器人需要完成四次验证", "x": 70, "y": 82, "width": 780, "height": 54 },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 220, "rInner": 150, "startAngle": -86, "endAngle": -4, "fill": "$primary" },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 220, "rInner": 150, "startAngle": 4, "endAngle": 86, "fill": "$accent" },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 220, "rInner": 150, "startAngle": 94, "endAngle": 176, "fill": "$3" },
+        { "elType": "arc-segment", "cx": 640, "cy": 390, "rOuter": 220, "rInner": 150, "startAngle": 184, "endAngle": 266, "fill": "$4" },
+        { "elType": "shape-circle", "x": 640, "y": 390, "width": 250, "height": 250, "fill": "$primary" },
+        { "elType": "text", "text": "工业场景\n闭环验证", "x": 515, "y": 345, "width": 250, "height": 90, "fontSize": 28, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle", "lineHeight": 1.25 },
+        { "elType": "text", "text": "技术底座", "x": 520, "y": 150, "width": 240, "height": 38, "fontSize": 20, "fontStyle": "bold", "fill": "$primary", "align": "center" },
+        { "elType": "text", "text": "产品订单", "x": 890, "y": 370, "width": 230, "height": 38, "fontSize": 20, "fontStyle": "bold", "fill": "$accentText", "align": "center" },
+        { "elType": "text", "text": "客户复购", "x": 520, "y": 610, "width": 240, "height": 38, "fontSize": 20, "fontStyle": "bold", "fill": "$3", "align": "center" },
+        { "elType": "text", "text": "规模盈利", "x": 155, "y": 370, "width": 230, "height": 38, "fontSize": 20, "fontStyle": "bold", "fill": "$3", "align": "center" },
+        { "elType": "text", "styleClass": "small", "text": "已有产品与首批订单并不等于商业模式已经成立", "x": 850, "y": 565, "width": 350, "height": 56, "align": "right" }
+      ]
+    },
+    {
+      "id": "incentive-ladder",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：股权激励5.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "INCENTIVE FLOOR", "x": 70, "y": 48, "width": 300, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "股权激励给出利润修复的最低台阶", "x": 70, "y": 82, "width": 900, "height": 54 },
+        { "elType": "repeat", "id": "ladder", "items": [
+          { "x": 90, "y": 510, "w": 420, "label": "2024基期  收入40.09亿元", "color": "$6" },
+          { "x": 190, "y": 405, "w": 470, "label": "2025第一期  收入增长21.93%", "color": "$3" },
+          { "x": 310, "y": 300, "w": 520, "label": "2026两年累计净利润  2.2亿元", "color": "$primary" },
+          { "x": 450, "y": 195, "w": 570, "label": "2027三年累计净利润  3.6亿元", "color": "$accent" }
+        ], "template": [
+          { "elType": "shape-rect", "x": "{{x}}", "y": "{{y}}", "width": "{{w}}", "height": 76, "fill": "{{color}}", "cornerRadius": 10 },
+          { "elType": "text", "text": "{{label}}", "x": "{{x}}", "y": "{{y}}", "width": "{{w}}", "height": 76, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "bgFill": "{{color}}", "align": "center", "verticalAlign": "middle" }
+        ] },
+        { "elType": "text", "styleClass": "body", "text": "第一期收入目标已经完成。后两期真正约束的是累计利润，而不是单纯扩大收入。", "x": 865, "y": 350, "width": 320, "height": 130 },
+        { "elType": "shape-line", "pointArr": [{ "x": 865, "y": 505 }, { "x": 1185, "y": 505 }], "lineColor": "$accent", "lineWidth": 4 },
+        { "elType": "text", "text": "考核线不是估值上限", "x": 865, "y": 525, "width": 320, "height": 42, "fontSize": 21, "fontStyle": "bold", "fill": "$accentText" }
+      ]
+    },
+    {
+      "id": "forecast",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：机构一致预期6.1\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "EARNINGS FORECAST", "x": 70, "y": 48, "width": 320, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "一致预期要求利润连续四年抬升", "x": 70, "y": 82, "width": 820, "height": 54 },
+        { "elType": "chart", "chartType": "area", "x": 70, "y": 180, "width": 780, "height": 430, "labels": ["2025A", "2026E", "2027E", "2028E"], "data": [{ "name": "归母净利润（亿元）", "values": [0.45, 2.15, 2.89, 3.79] }], "chartColors": ["#F26322"], "showLegend": false, "showValue": true },
+        { "elType": "text", "text": "4.8%", "x": 915, "y": 200, "width": 250, "height": 90, "fontSize": 58, "fontStyle": "bold", "fill": "$accentText", "align": "right" },
+        { "elType": "text", "styleClass": "small", "text": "2028E隐含净利率", "x": 930, "y": 300, "width": 235, "height": 32, "align": "right" },
+        { "elType": "repeat", "id": "assumptions", "x": 900, "y": 385, "stepY": 58, "items": ["毛利率维持31%以上", "费用率继续下降", "不再发生大额减值"], "template": [
+          { "elType": "shape-circle", "x": 12, "y": 12, "width": 12, "height": 12, "fill": "$accent" },
+          { "elType": "text", "text": "{{value}}", "x": 34, "y": 0, "width": 260, "height": 38, "fontSize": 15, "fill": "$text", "verticalAlign": "middle" }
+        ] }
+      ]
+    },
+    {
+      "id": "valuation-tower",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：估值测算6.2\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "VALUATION PROOF TOWER", "x": 70, "y": 48, "width": 380, "height": 24, "fill": "$accent" },
+        { "elType": "text", "styleClass": "titleDark", "text": "294亿元市值需要四层证据同时成立", "x": 70, "y": 82, "width": 930, "height": 54 },
+        { "elType": "shape-path", "x": 100, "y": 500, "width": 500, "height": 105, "fill": "#C7D1D9", "pointArr": [{ "x": 55, "y": 0, "moveTo": true }, { "x": 0, "y": 105 }, { "x": 500, "y": 105 }, { "x": 445, "y": 0 }] },
+        { "elType": "text", "text": "工业机器人主业与财务修复", "x": 150, "y": 535, "width": 400, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$primary", "bgFill": "#C7D1D9", "align": "center" },
+        { "elType": "shape-path", "x": 150, "y": 385, "width": 400, "height": 95, "fill": "$3", "pointArr": [{ "x": 45, "y": 0, "moveTo": true }, { "x": 0, "y": 95 }, { "x": 400, "y": 95 }, { "x": 355, "y": 0 }] },
+        { "elType": "text", "text": "人形机器人规模订单", "x": 190, "y": 415, "width": 320, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "bgFill": "$3", "align": "center" },
+        { "elType": "shape-path", "x": 200, "y": 275, "width": 300, "height": 90, "fill": "#3B6F91", "pointArr": [{ "x": 40, "y": 0, "moveTo": true }, { "x": 0, "y": 90 }, { "x": 300, "y": 90 }, { "x": 260, "y": 0 }] },
+        { "elType": "text", "text": "净利率8%至10%", "x": 235, "y": 302, "width": 230, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "bgFill": "#3B6F91", "align": "center" },
+        { "elType": "shape-path", "x": 250, "y": 165, "width": 200, "height": 90, "fill": "$accent", "pointArr": [{ "x": 100, "y": 0, "moveTo": true }, { "x": 0, "y": 90 }, { "x": 200, "y": 90 }] },
+        { "elType": "text", "text": "约10亿利润", "x": 270, "y": 200, "width": 160, "height": 34, "fontSize": 17, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
+        { "elType": "shape-line", "pointArr": [{ "x": 670, "y": 165 }, { "x": 670, "y": 610 }], "lineColor": "#FFFFFF30", "lineWidth": 2 },
+        { "elType": "text", "text": "已验证", "x": 730, "y": 185, "width": 180, "height": 34, "fontSize": 16, "fontStyle": "bold", "fill": "$accent" },
+        { "elType": "text", "styleClass": "bodyDark", "text": "出货第一\n毛利率回升\n现金流改善\n杠杆下降", "x": 730, "y": 235, "width": 200, "height": 150 },
+        { "elType": "text", "text": "待验证", "x": 970, "y": 185, "width": 180, "height": 34, "fontSize": 16, "fontStyle": "bold", "fill": "$accent" },
+        { "elType": "text", "styleClass": "bodyDark", "text": "利润率正常化\n人形规模订单\nCloos稳定经营\n估值逐步消化", "x": 970, "y": 235, "width": 210, "height": 150 }
+      ]
+    },
+    {
+      "id": "scenario-fan",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：情景分析6.3\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "SCENARIO FAN", "x": 70, "y": 48, "width": 280, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "估值将沿三条路径消化", "x": 70, "y": 82, "width": 760, "height": 54 },
+        { "elType": "shape-circle", "x": 640, "y": 610, "width": 90, "height": 90, "fill": "$primary" },
+        { "elType": "text", "text": "当前", "x": 595, "y": 580, "width": 90, "height": 60, "fontSize": 18, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-path", "x": 120, "y": 170, "width": 520, "height": 420, "fill": "#3B6F9130", "stroke": "$3", "strokeWidth": 2, "pointArr": [{ "x": 0, "y": 0, "moveTo": true }, { "x": 300, "y": 0 }, { "x": 520, "y": 420 }] },
+        { "elType": "shape-path", "x": 520, "y": 170, "width": 240, "height": 420, "fill": "#F2632240", "stroke": "$accent", "strokeWidth": 2, "pointArr": [{ "x": 0, "y": 0, "moveTo": true }, { "x": 240, "y": 0 }, { "x": 120, "y": 420 }] },
+        { "elType": "shape-path", "x": 640, "y": 170, "width": 520, "height": 420, "fill": "#C7D1D940", "stroke": "$5", "strokeWidth": 2, "pointArr": [{ "x": 220, "y": 0, "moveTo": true }, { "x": 520, "y": 0 }, { "x": 0, "y": 420 }] },
+        { "elType": "text", "text": "25%", "x": 185, "y": 205, "width": 150, "height": 60, "fontSize": 38, "fontStyle": "bold", "fill": "$3", "align": "center" },
+        { "elType": "text", "text": "乐观\n60倍PE锚", "x": 170, "y": 280, "width": 180, "height": 84, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "align": "center", "lineHeight": 1.45 },
+        { "elType": "text", "text": "50%", "x": 565, "y": 205, "width": 150, "height": 60, "fontSize": 38, "fontStyle": "bold", "fill": "$accentText", "align": "center" },
+        { "elType": "text", "text": "中性\n145至175亿元", "x": 540, "y": 280, "width": 200, "height": 84, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "align": "center", "lineHeight": 1.45 },
+        { "elType": "text", "text": "25%", "x": 945, "y": 205, "width": 150, "height": 60, "fontSize": 38, "fontStyle": "bold", "fill": "$primary", "align": "center" },
+        { "elType": "text", "text": "悲观\n80亿元以下", "x": 930, "y": 280, "width": 180, "height": 84, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "align": "center", "lineHeight": 1.45 },
+        { "elType": "text", "styleClass": "small", "text": "概率与估值来自报告情景假设，不是承诺或预测保证", "x": 390, "y": 650, "width": 500, "height": 28, "align": "center" }
+      ]
+    },
+    {
+      "id": "risk-tree",
+      "background": "$bg",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：风险提示\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "RISK TRANSMISSION", "x": 70, "y": 48, "width": 340, "height": 24 },
+        { "elType": "text", "styleClass": "title", "text": "四类风险最终汇聚为估值回撤", "x": 70, "y": 82, "width": 820, "height": 54 },
+        { "elType": "connector-s", "x1": 640, "y1": 250, "x2": 200, "y2": 420, "orientation": "v", "stroke": "$3", "strokeWidth": 2, "dashType": "dash" },
+        { "elType": "connector-s", "x1": 640, "y1": 250, "x2": 490, "y2": 420, "orientation": "v", "stroke": "$3", "strokeWidth": 2, "dashType": "dash" },
+        { "elType": "connector-s", "x1": 640, "y1": 250, "x2": 790, "y2": 420, "orientation": "v", "stroke": "$3", "strokeWidth": 2, "dashType": "dash" },
+        { "elType": "connector-s", "x1": 640, "y1": 250, "x2": 1080, "y2": 420, "orientation": "v", "stroke": "$3", "strokeWidth": 2, "dashType": "dash" },
+        { "elType": "shape-rect", "x": 455, "y": 170, "width": 370, "height": 90, "fill": "$primary", "cornerRadius": 20 },
+        { "elType": "text", "text": "估值快速收缩", "x": 490, "y": 192, "width": 300, "height": 48, "fontSize": 27, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "repeat", "id": "risks", "items": [
+          { "x": 70, "title": "价格战", "body": "机器人均价继续下探\n毛利率再次承压", "color": "$accent" },
+          { "x": 360, "title": "Cloos减值", "body": "海外经营不及预期\n商誉余额9.75亿元", "color": "$3" },
+          { "x": 660, "title": "人形订单", "body": "商业化和复购不及预期\n投入拖累短期利润", "color": "$4" },
+          { "x": 950, "title": "客户集中", "body": "大客户资本开支变化\n收入与回款波动", "color": "$5" }
+        ], "template": [
+          { "elType": "shape-line", "pointArr": [{ "x": "{{x}}", "y": 420 }, { "x": "{{x}}", "y": 610 }], "lineColor": "{{color}}", "lineWidth": 6 },
+          { "elType": "text", "text": "{{title}}", "x": "{{x}}", "y": 442, "width": 220, "height": 42, "fontSize": 22, "fontStyle": "bold", "fill": "$text" },
+          { "elType": "text", "text": "{{body}}", "x": "{{x}}", "y": 505, "width": 220, "height": 82, "fontSize": 15, "fill": "$text2", "lineHeight": 1.45 }
+        ] }
+      ]
+    },
+    {
+      "id": "decision",
+      "background": "$primary",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：结论、操作建议框架\n[/Sources]",
+      "elements": [
+        { "elType": "text", "styleClass": "kicker", "text": "DECISION FRAME", "x": 70, "y": 52, "width": 300, "height": 24, "fill": "$accent" },
+        { "elType": "text", "text": "产业地位已经确立", "x": 70, "y": 130, "width": 900, "height": 74, "fontSize": 50, "fontStyle": "bold", "fill": "$white" },
+        { "elType": "text", "text": "盈利能力仍在验证，价格决定安全边际", "x": 70, "y": 220, "width": 1050, "height": 64, "fontSize": 32, "fill": "#C7D1D9" },
+        { "elType": "shape-line", "pointArr": [{ "x": 70, "y": 320 }, { "x": 1210, "y": 320 }], "lineColor": "$accent", "lineWidth": 4 },
+        { "elType": "repeat", "id": "watch", "x": 70, "y": 380, "stepX": 380, "items": [
+          { "no": "01", "title": "扣非净利率", "body": "连续季度改善，证明主业盈利可持续" },
+          { "no": "02", "title": "人形订单", "body": "从首批订单走向复购和规模交付" },
+          { "no": "03", "title": "Cloos经营", "body": "海外毛利贡献与商誉风险同时验证" }
+        ], "template": [
+          { "elType": "text", "text": "{{no}}", "x": 0, "y": 0, "width": 70, "height": 42, "fontSize": 20, "fontStyle": "bold", "fill": "$accent" },
+          { "elType": "text", "text": "{{title}}", "x": 0, "y": 62, "width": 300, "height": 42, "fontSize": 23, "fontStyle": "bold", "fill": "$white" },
+          { "elType": "text", "text": "{{body}}", "x": 0, "y": 120, "width": 300, "height": 78, "fontSize": 15, "fill": "#AEBBC8", "lineHeight": 1.45 }
+        ] },
+        { "elType": "text", "styleClass": "smallDark", "text": "仅供一般信息参考，不构成投资建议。证券市场有风险，投资者应独立判断。", "x": 70, "y": 650, "width": 900, "height": 28 }
+      ]
+    }
+  ]
+}
