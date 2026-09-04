@@ -3,11 +3,13 @@
  *
  * 在渲染/导出前检查 deck JSON，输出 errors（必须修复）与 warnings（建议修复）。
  * 检查项：结构完整性、画布越界（宏先展开再查）、文本溢出估算、颜色格式、图片源、
- * 对比度（按透明度逐层混合实际背景）、图表/表格数据形态、渐变压平提示。
+ * 对比度（按透明度逐层混合实际背景）、文本框疑似重叠、图表/表格数据形态、渐变压平提示。
  */
 
-import { PPT_WIDTH, PPT_HEIGHT, parseColor, resolveTheme, resolveTokens } from './dsl-to-pptx.mjs';
-import { expandConnectors, MACRO_TYPES } from './connectors.mjs';
+import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme } from './dsl-to-pptx.mjs';
+import { MACRO_TYPES } from './connectors.mjs';
+import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
+import { LAYOUT_TYPES, normalizeLayoutName } from './layouts.mjs';
 
 const EL_TYPES = new Set([
   'text', 'image', 'image-svg', 'shape-rect', 'shape-circle',
@@ -68,21 +70,55 @@ export function validateDeck(deck, opts = {}) {
   if (!deck || typeof deck !== 'object' || Array.isArray(deck)) {
     return { ok: false, errors: ['deck 必须是 JSON 对象'], warnings };
   }
-  const theme = resolveTheme(deck.theme);
-  const resolved = resolveTokens(deck, theme);
-
-  if (!resolved || typeof resolved !== 'object') {
-    return { ok: false, errors: ['deck 必须是 JSON 对象'], warnings };
+  if (deck.dslVersion != null && (!Number.isInteger(deck.dslVersion) || deck.dslVersion < 1)) errors.push('dslVersion 必须是正整数');
+  if (Number.isInteger(deck.dslVersion) && deck.dslVersion > CURRENT_DSL_VERSION) errors.push(`dslVersion ${deck.dslVersion} 高于当前支持版本 ${CURRENT_DSL_VERSION}`);
+  if (deck.style != null && typeof deck.style !== 'string') errors.push('style 必须是内置样式名称字符串');
+  const selectedTheme = deck.theme ?? deck.style;
+  if (typeof selectedTheme === 'string' && !BUILTIN_THEMES[selectedTheme]) errors.push(`未知样式/主题 "${selectedTheme}"`);
+  if (deck.theme != null && typeof deck.theme !== 'string' && (typeof deck.theme !== 'object' || Array.isArray(deck.theme))) errors.push('theme 必须是内置名称或主题对象');
+  if (deck.theme && typeof deck.theme === 'object' && deck.theme.extends && !BUILTIN_THEMES[deck.theme.extends]) errors.push(`theme.extends 引用了未知样式 "${deck.theme.extends}"`);
+  const theme = resolveTheme(deck.theme || deck.style);
+  if (deck.theme && typeof deck.theme === 'object' && deck.theme.accent && !deck.theme.accentText) {
+    const accentLum = luminance(deck.theme.accent);
+    const backgrounds = [deck.theme.background || theme.background, deck.theme.surface || theme.surface];
+    const minRatio = Math.min(...backgrounds.map(bg => {
+      const bgLum = luminance(bg);
+      return (Math.max(accentLum, bgLum) + 0.05) / (Math.min(accentLum, bgLum) + 0.05);
+    }));
+    if (minRatio < 4.5) warnings.push(`自定义 theme.accent 的最小文字对比度为 ${minRatio.toFixed(2)}；请显式提供 accentText`);
   }
-  if (!Array.isArray(resolved.slides) || resolved.slides.length === 0) {
+  if (!Array.isArray(deck.slides) || deck.slides.length === 0) {
     errors.push('deck.slides 必须是非空数组');
     return { ok: false, errors, warnings };
   }
-  if (resolved.slides.length > 60) warnings.push(`页数 ${resolved.slides.length} 较多，建议控制在 30 页以内`);
+  if (deck.slides.length > 60) warnings.push(`页数 ${deck.slides.length} 较多，建议控制在 30 页以内`);
 
-  // 第 0 遍（原始结构）：未知 elType + 宏必填字段
-  resolved.slides.forEach((slide, si) => {
+  // 第 0 遍（原始结构）：语义 layout、未知 elType、宏必填字段。
+  const slideIds = new Set();
+  deck.slides.forEach((slide, si) => {
     const where = `第${si + 1}页`;
+    if (!slide || typeof slide !== 'object') { errors.push(`${where}: slide 必须是对象`); return; }
+    if (slide.id) {
+      if (slideIds.has(slide.id)) errors.push(`${where}: slide id "${slide.id}" 重复`);
+      slideIds.add(slide.id);
+    }
+    if (slide.layout) {
+      const layout = normalizeLayoutName(slide.layout);
+      if (!LAYOUT_TYPES.includes(layout)) errors.push(`${where}: 未知 layout "${slide.layout}"`);
+      if (!['quote', 'raw'].includes(layout) && !slide.title) errors.push(`${where}: layout ${layout} 缺少 title`);
+      for (const key of ['title', 'subtitle', 'eyebrow', 'notes', 'speakerNotes', 'footerLabel', 'brand', 'contentTitle', 'heading', 'centerLabel']) {
+        if (slide[key] != null && typeof slide[key] !== 'string') errors.push(`${where}: ${key} 必须是字符串`);
+      }
+      if (slide.footer != null && typeof slide.footer !== 'boolean') errors.push(`${where}: footer 必须是布尔值`);
+      if (slide.columns != null && (!Number.isInteger(slide.columns) || slide.columns < 1 || slide.columns > 6)) errors.push(`${where}: columns 必须是 1–6 的整数`);
+      for (const key of ['items', 'metrics', 'bullets', 'insights']) {
+        if (slide[key] != null && !Array.isArray(slide[key])) errors.push(`${where}: ${key} 必须是数组`);
+      }
+      if (['agenda', 'cards', 'metrics', 'timeline'].includes(layout) && (!Array.isArray(slide.items) || !slide.items.length)) errors.push(`${where}: layout ${layout} 需要非空 items`);
+      if (layout === 'quote' && !slide.quote && !slide.text) errors.push(`${where}: layout quote 需要 quote 或 text`);
+      if (layout === 'comparison' && (!slide.left || !slide.right)) errors.push(`${where}: layout comparison 需要 left 和 right`);
+      if (layout === 'raw' && (!Array.isArray(slide.elements) || !slide.elements.length)) errors.push(`${where}: layout raw 需要非空 elements`);
+    }
     if (!Array.isArray(slide.elements)) return;
     slide.elements.forEach((el, ei) => {
       const at = `${where} 元素${ei + 1}${el?.elType ? `(${el.elType})` : ''}`;
@@ -104,11 +140,19 @@ export function validateDeck(deck, opts = {}) {
     });
   });
 
-  // 连接线/弧形宏展开为标准元素后，再做几何与样式检查（rOuter 越界等不再漏网）
-  expandConnectors(resolved);
+  if (errors.length) return { ok: false, errors, warnings, theme };
+
+  let resolved;
+  try {
+    resolved = compileDeck(deck).deck;
+  } catch (err) {
+    errors.push(`编译失败: ${err.message}`);
+    return { ok: false, errors, warnings, theme };
+  }
 
   resolved.slides.forEach((slide, si) => {
     const where = `第${si + 1}页`;
+    if (Array.isArray(slide.webUnsupported) && slide.webUnsupported.length) warnings.push(`${where}: HTML 页面使用了 PPTX 无等价实现的 CSS：${slide.webUnsupported.join(', ')}`);
     if (!Array.isArray(slide.elements) || slide.elements.length === 0) {
       errors.push(`${where}: elements 缺失或为空`);
       return;
@@ -153,11 +197,16 @@ export function validateDeck(deck, opts = {}) {
       return bg;
     };
 
+    const elementIds = new Set();
     slide.elements.forEach((el, ei) => {
       const at = `${where} 元素${ei + 1}${el.elType ? `(${el.elType})` : ''}`;
+        if (el.id) {
+          if (elementIds.has(el.id)) errors.push(`${at}: 元素 id "${el.id}" 重复`);
+          elementIds.add(el.id);
+        }
 
-        // 路径类元素必须有合法 pointArr（shape-path 也允许预合成的 data）
-        const validatePointArr = (pa, label) => {
+        // 路径类元素必须有合法 pointArr；SVG path data 只有预览支持。
+        const validatePointArr = (pa, label, local = false) => {
           if (!Array.isArray(pa) || pa.length < 2) {
             errors.push(`${at}: ${label} 缺少 pointArr（至少 2 个点）`);
             return;
@@ -167,8 +216,9 @@ export function validateDeck(deck, opts = {}) {
               errors.push(`${at}: ${label} pointArr[${pi}] 的 x/y 必须是数字`);
             }
           });
-          const xs = pa.map(p => p.x).filter(v => typeof v === 'number');
-          const ys = pa.map(p => p.y).filter(v => typeof v === 'number');
+          const ox = local ? (el.x || 0) : 0, oy = local ? (el.y || 0) : 0;
+          const xs = pa.map(p => typeof p.x === 'number' ? p.x + ox : p.x).filter(v => typeof v === 'number');
+          const ys = pa.map(p => typeof p.y === 'number' ? p.y + oy : p.y).filter(v => typeof v === 'number');
           if (xs.length && ys.length) {
             const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
             if (minX < -1 || minY < -1 || maxX > PPT_WIDTH + 1 || maxY > PPT_HEIGHT + 1) {
@@ -177,15 +227,16 @@ export function validateDeck(deck, opts = {}) {
           }
         };
         if (['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
-          validatePointArr(el.pointArr, el.elType);
+          validatePointArr(el.pointArr, el.elType, el.elType === 'curve-quadratic');
         }
         if (el.elType === 'shape-path') {
-          if (Array.isArray(el.pointArr)) validatePointArr(el.pointArr, 'shape-path');
-          else if (!el.data && !el.svgPath) errors.push(`${at}: shape-path 缺少 pointArr/data`);
+          if (Array.isArray(el.pointArr)) validatePointArr(el.pointArr, 'shape-path', true);
+          else if (el.data || el.svgPath) errors.push(`${at}: shape-path 的 SVG data 仅预览可用，PPTX 导出要求 pointArr`);
+          else errors.push(`${at}: shape-path 缺少 pointArr`);
         }
 
       // 几何检查（line/arrow/curve 用 pointArr，跳过矩形检查）
-      if (!['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
+      if (!el.allowOverflow && !['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
         for (const k of ['x', 'y', 'width', 'height']) {
           if (el[k] != null && typeof el[k] !== 'number') errors.push(`${at}: ${k} 必须是数字`);
         }
@@ -206,6 +257,9 @@ export function validateDeck(deck, opts = {}) {
       // 渐变压平提示（预览显示真渐变，导出为可编辑首色）
       if (el.fill && typeof el.fill === 'object' && el.fill.type === 'gradient' && Array.isArray(el.fill.stops) && el.fill.stops.length > 1) {
         warnings.push(`${at}: 渐变填充导出 PPTX 时压平为首色（${el.fill.stops[0]?.color}），如需保留渐变请改用图片`);
+      }
+      if (Array.isArray(el.webUnsupported) && el.webUnsupported.length) {
+        warnings.push(`${at}: HTML 使用了 PPTX 无等价实现的 CSS：${el.webUnsupported.join(', ')}`);
       }
 
       // 类型特定检查
@@ -233,23 +287,28 @@ export function validateDeck(deck, opts = {}) {
             const tLum = luminance(tColor);
             const uLum = luminance(under);
             const contrast = (Math.max(tLum, uLum) + 0.05) / (Math.min(tLum, uLum) + 0.05);
-            if (contrast < 1.6) warnings.push(`${at}: 文字色 ${fill} 与背景对比度过低（${contrast.toFixed(2)}）`);
+            const isUtilityText = ['footer', 'page-number', 'eyebrow', 'decoration'].includes(el.role) || fontSize <= 11;
+            const isBold = el.bold || String(el.fontStyle || '').includes('bold');
+            const minContrast = fontSize >= 24 || (isBold && fontSize >= 16) ? 3 : 4.5;
+            if (!isUtilityText && contrast < minContrast) warnings.push(`${at}: 文字色 ${fill} 与背景对比度 ${contrast.toFixed(2)} 低于建议值 ${minContrast}`);
           }
         }
         if (el.elType === 'text-path') {
-          warnings.push(`${at}: text-path 仅预览渲染，PPTX 导出会跳过；需要出片请改用普通 text`);
+          errors.push(`${at}: text-path 不能导出为可编辑 PPTX；请改用 text 或 image-svg`);
         }
         if (el.elType === 'image') {
           if (!el.path && !el.url && !el._data && !el.data && !el.prompt) {
             errors.push(`${at}: image 缺少 path/url/data（或用于 AI 生图的 prompt）`);
           }
+          if (el.prompt && !el.path && !el.url && !el._data && !el.data) errors.push(`${at}: image 仍只有 prompt，构建前必须生成并填写 path/data`);
+          if (el.cornerRadius && !el.rounding) warnings.push(`${at}: 可编辑 PPTX 不支持普通图片圆角；将按直角图片导出，或先把圆角栅格化到图片本身`);
           if ((el.width || 0) < 20 || (el.height || 0) < 20) warnings.push(`${at}: 图片尺寸过小`);
         }
         if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
         if (el.elType === 'chart') {
           const chartType = el.chartType || 'bar';
           if (!CHART_TYPES.has(chartType)) {
-            warnings.push(`${at}: chartType "${chartType}" 无法识别（导出将退化为 bar）`);
+            errors.push(`${at}: chartType "${chartType}" 无法识别；禁止静默退化为 bar`);
           }
           if (!Array.isArray(el.data) || el.data.length === 0) {
             errors.push(`${at}: chart 缺少 data 数组`);
@@ -289,6 +348,13 @@ export function validateDeck(deck, opts = {}) {
           }));
         }
       }
+        const needsBox = ['text', 'image', 'image-svg', 'shape-rect', 'chart', 'table'].includes(el.elType);
+        if (needsBox) {
+          for (const key of ['x', 'y', 'width', 'height']) {
+            if (typeof el[key] !== 'number') errors.push(`${at}: ${key} 为必填数字`);
+          }
+          if ((el.width || 0) <= 0 || (el.height || 0) <= 0) errors.push(`${at}: width/height 必须 > 0`);
+        }
         // 颜色格式抽查（令牌已在前面解析，残留的 $xxx 视为未解析令牌）
         for (const key of ['fill', 'stroke', 'lineColor', 'shadowColor']) {
           const v = el[key];
@@ -297,6 +363,33 @@ export function validateDeck(deck, opts = {}) {
           else warnings.push(`${at}: ${key} 颜色值无法识别 "${v}"`);
         }
     });
+
+    // 先只检查文本框之间的明显碰撞；背景卡、图标覆盖和连接线不参与，避免大量误报。
+    if (opts.checkOverlap !== false) {
+      const utilityRoles = new Set(['footer', 'page-number', 'eyebrow', 'decoration']);
+      const textBoxes = slide.elements
+        .map((el, index) => ({ el, index }))
+        .filter(({ el }) => el.elType === 'text'
+          && String(el.text ?? '').trim()
+          && !el.allowOverlap
+          && el.opacity !== 0
+          && !utilityRoles.has(el.role)
+          && (el.fontSize || 18) > 11
+          && [el.x, el.y, el.width, el.height].every(Number.isFinite));
+      for (let i = 0; i < textBoxes.length; i++) {
+        for (let j = i + 1; j < textBoxes.length; j++) {
+          const a = textBoxes[i], b = textBoxes[j];
+          const overlapW = Math.min(a.el.x + a.el.width, b.el.x + b.el.width) - Math.max(a.el.x, b.el.x);
+          const overlapH = Math.min(a.el.y + a.el.height, b.el.y + b.el.height) - Math.max(a.el.y, b.el.y);
+          if (overlapW <= 6 || overlapH <= 6) continue;
+          const overlapArea = overlapW * overlapH;
+          const smallerArea = Math.min(a.el.width * a.el.height, b.el.width * b.el.height);
+          if (smallerArea > 0 && overlapArea / smallerArea >= 0.2) {
+            warnings.push(`${where}: 文本框疑似重叠（元素${a.index + 1} 与元素${b.index + 1}）；若为有意叠放请设置 allowOverlap:true`);
+          }
+        }
+      }
+    }
   });
 
   return { ok: errors.length === 0, errors, warnings, theme };

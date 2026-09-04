@@ -7,59 +7,27 @@ export * from './dsl-to-pptx.mjs';
 
 import { readFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import {
-  resolveTheme, resolveTokens, parseColor, applyElement, slideBackground,
+  parseColor, applyElement, slideBackground,
   INCH_W, INCH_H,
 } from './dsl-to-pptx.mjs';
-import { expandConnectors } from './connectors.mjs';
+import { compileDeck } from './compile-deck.mjs';
+import { sanitizePptxData } from './pptx-sanitize.mjs';
 
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const MAX_IMAGE_MB = 5; // 单图体积守卫：超出告警（防止 pptx 静默膨胀到几十 MB）
 
-/** 1×1 透明 PNG（合法占位图） */
-const BLANK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
 /**
- * 修复 pptxgenjs Node 端产出的 OOXML 不合规点（浏览器端无此问题）：
+ * 修复 pptxgenjs 产出的已知 OOXML 不合规点；同一修复器也嵌入浏览器导出：
  * 1. image-svg 的 PNG 回退槽：Node 无法栅格化 SVG 时会塞入 SVG 文本（现由 sharp 预栅格化，此为兜底）
  * 2. 图片 sizing cover/contain 生成空的 <a:stretch/>——OOXML 要求必须有 <a:fillRect/> 子元素，
  *    否则 PowerPoint 直接拒绝打开整个文件
  * 3. <p:pic> 元素内部带缩进空白文本节点——OOXML 严格序列不允许，PowerPoint 拒绝加载
  */
 export async function sanitizePptxBuffer(buffer, logger = console) {
-  const zip = await JSZip.loadAsync(buffer);
-  let fixedMedia = 0, fixedStretch = 0, fixedPicWs = 0;
-  for (const [path, file] of Object.entries(zip.files)) {
-    if (file.dir) continue;
-    // 1) 伪 PNG（SVG 文本误入 .png 槽）→ 合法占位 PNG
-    if (/ppt\/media\/.*\.png$/i.test(path)) {
-      const bytes = await file.async('uint8array');
-      const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47; // PNG 魔数
-      if (!isPng) {
-        zip.file(path, BLANK_PNG_B64, { base64: true });
-        fixedMedia++;
-      }
-    }
-    if (/ppt\/slides\/slide\d+\.xml$/i.test(path)) {
-      let xml = await file.async('string');
-      // 2) 空 <a:stretch/> → <a:stretch><a:fillRect/></a:stretch>
-      if (xml.includes('<a:stretch/>')) {
-        xml = xml.replaceAll('<a:stretch/>', '<a:stretch><a:fillRect/></a:stretch>');
-        fixedStretch++;
-      }
-      // 3) <p:pic> 内部的缩进空白文本节点全部剥掉（p:pic 内容模型为纯元素序列）
-      if (/<p:pic>\s/.test(xml)) {
-        xml = xml.replace(/<p:pic>[\s\S]*?<\/p:pic>/g, m => m.replace(/>\s+</g, '><'));
-        fixedPicWs++;
-      }
-      if (fixedStretch + fixedPicWs > 0) zip.file(path, xml);
-    }
-  }
-  if (fixedMedia) logger.warn(`[sanitize] ${fixedMedia} 处伪 PNG 媒体槽已替换为占位图`);
-  if (fixedStretch) logger.warn(`[sanitize] ${fixedStretch} 页的空 <a:stretch/> 已补 <a:fillRect/>（pptxgenjs sizing 已知缺陷）`);
-  if (fixedPicWs) logger.warn(`[sanitize] ${fixedPicWs} 页的 <p:pic> 空白节点已剥离（pptxgenjs 图片模板缩进缺陷）`);
-  return zip.generateAsync({ type: 'nodebuffer' });
+  return (await sanitizePptxData(JSZip, buffer, { outputType: 'nodebuffer', logger })).data;
 }
 
 async function fetchAsDataUri(src, baseDir) {
@@ -70,7 +38,7 @@ async function fetchAsDataUri(src, baseDir) {
     buf = Buffer.from(await res.arrayBuffer());
     mime = res.headers.get('content-type')?.split(';')[0] || 'image/png';
   } else {
-    const filePath = baseDir ? resolve(baseDir, src) : src;
+    const filePath = src.startsWith('file:') ? fileURLToPath(src) : (baseDir ? resolve(baseDir, src) : src);
     buf = await readFile(filePath);
     mime = MIME[extname(filePath).toLowerCase()] || 'image/png';
   }
@@ -94,7 +62,7 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
       }
       el._data = `data:${mime};base64,${buf.toString('base64')}`;
     } catch (err) {
-      logger.warn(`[image] ${src.slice(0, 80)} → ${err.message}（该图将被跳过）`);
+      logger.warn(`[image] ${src.slice(0, 80)} → ${err.message}（已记录为转换失败）`);
       el._error = err.message;
     }
   };
@@ -111,7 +79,7 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
       return 'data:image/png;base64,' + png.toString('base64');
     };
   } catch {
-    logger.warn('[image-svg] 未安装 sharp，Node 端 SVG 元素将被跳过（浏览器端导出不受影响）。安装：npm i sharp');
+    logger.warn('[image-svg] 未安装 sharp，Node 端 SVG 元素会记录为转换失败（浏览器端导出不受影响）。安装：npm i sharp');
   }
 
   for (const slide of deck.slides || []) {
@@ -122,7 +90,7 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
         tasks.push(
           rasterizeSvg(el.svgXml, el.width, el.height)
             .then(data => { el._data = data; })
-            .catch(err => { logger.warn(`[image-svg] 栅格化失败: ${err.message}（该元素将被跳过）`); el._error = err.message; })
+            .catch(err => { logger.warn(`[image-svg] 栅格化失败: ${err.message}（已记录为转换失败）`); el._error = err.message; })
         );
       } else if (el.elType === 'image-svg' && el.svgXml && !rasterizeSvg) {
         el._error = 'sharp 未安装';
@@ -131,8 +99,10 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
     // 图片背景（字符串且不是颜色）：包一层载体对象以复用 attach
     if (typeof slide.background === 'string' && !parseColor(slide.background)) {
       const carrier = { path: slide.background };
+      slide._backgroundMedia = true;
       tasks.push(attach(carrier, slide.background).then(() => {
         if (carrier._data) slide.background = carrier._data;
+        if (carrier._error) slide._backgroundError = carrier._error;
       }));
     }
   }
@@ -147,10 +117,15 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
  */
 export async function buildPresentation(PptxGenJS, deck, opts = {}) {
   const logger = opts.logger || console;
-  const theme = resolveTheme(deck.theme);
-  const resolved = resolveTokens(deck, theme);
-  expandConnectors(resolved); // 连接线/弧形宏 → 标准元素
+  const strict = opts.strict !== false;
+  const { deck: resolved, theme } = compileDeck(deck);
   if (opts.prefetch !== false) await prefetchImages(resolved, { baseDir: opts.baseDir, logger });
+
+  const report = {
+    mode: strict ? 'strict' : 'allow-partial',
+    slides: [],
+    summary: { total: 0, editable: 0, rasterized: 0, skipped: 0, failed: 0 },
+  };
 
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: 'WIDE_1280', width: INCH_W, height: INCH_H });
@@ -158,19 +133,64 @@ export async function buildPresentation(PptxGenJS, deck, opts = {}) {
   if (deck.meta?.title) pptx.title = deck.meta.title;
   if (deck.meta?.author) pptx.author = deck.meta.author;
 
-  for (const slideSpec of resolved.slides || []) {
+  for (let si = 0; si < (resolved.slides || []).length; si++) {
+    const slideSpec = resolved.slides[si];
     const slide = pptx.addSlide();
+    const slideReport = { slide: si + 1, id: slideSpec.id, elements: [] };
+    report.slides.push(slideReport);
+    if (slideSpec._backgroundMedia) {
+      report.summary.total++;
+      slideReport.background = { type: 'image-background', status: slideSpec._backgroundError ? 'failed' : 'rasterized' };
+      if (slideSpec._backgroundError) {
+        slideReport.background.message = slideSpec._backgroundError;
+        report.summary.failed++;
+        if (strict) {
+          const error = new Error(`第${si + 1}页图片背景: ${slideSpec._backgroundError}`);
+          error.report = report;
+          throw error;
+        }
+        slideSpec.background = '#' + theme.background;
+      } else report.summary.rasterized++;
+    }
     const bg = slideBackground(slideSpec.background, theme);
     if (bg) slide.background = bg;
     for (const elop of slideSpec.elements || []) {
-      if (elop._error) continue;
+      report.summary.total++;
+      const item = { id: elop.id, type: elop.elType, sourcePath: elop.sourcePath, status: 'editable' };
+      slideReport.elements.push(item);
+      if (elop.elType === 'image' && !elop._data && !elop.data && !elop.path && !elop.url) {
+        elop._error = elop.prompt ? '图片仍只有 prompt，尚未生成实际资源' : '图片缺少 path/url/data';
+      }
+      if (elop._error) {
+        item.status = 'failed';
+        item.message = elop._error;
+        report.summary.failed++;
+        if (strict) {
+          const error = new Error(`第${si + 1}页元素 ${elop.id || elop.elType}: ${elop._error}`);
+          error.report = report;
+          throw error;
+        }
+        continue;
+      }
+      if (elop.elType === 'image' || elop.elType === 'image-svg') item.status = 'rasterized';
       try {
         applyElement(pptx, slide, elop, theme);
+        if (item.status === 'rasterized') report.summary.rasterized++;
+        else report.summary.editable++;
       } catch (err) {
+        item.status = 'failed';
+        item.message = err.message;
+        report.summary.failed++;
+        if (strict) {
+          const error = new Error(`第${si + 1}页元素 ${elop.id || elop.elType} 转换失败: ${err.message}`);
+          error.report = report;
+          throw error;
+        }
         logger.warn(`[element] ${elop.elType} 渲染失败: ${err.message}`);
       }
     }
     if (slideSpec.notes || slideSpec.speakerNotes) slide.addNotes(slideSpec.notes || slideSpec.speakerNotes);
   }
-  return { pptx, theme };
+  report.summary.skipped = report.summary.total - report.summary.editable - report.summary.rasterized - report.summary.failed;
+  return { pptx, theme, report, compiledDeck: resolved };
 }

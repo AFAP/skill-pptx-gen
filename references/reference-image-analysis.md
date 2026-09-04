@@ -1,93 +1,86 @@
-# 参考图风格分析协议
+# 参考图分析与落地协议
 
-用户提供参考图（PPT 截图、设计稿、网页截图、海报）时，先用 `read_image` 逐张查看，再按本协议提取风格，最后落地为 `deck.theme` 与布局决策。
+用户提供 PPT 截图、网页截图、设计稿或海报时，逐张查看后再生成内容。目标是提取可复用的视觉令牌和页面规律，而不是把截图中的偶然细节误判为完整品牌规范。
 
-## 第一步：提取风格 JSON
+## 1. 先识别页面角色
 
-对照参考图，输出如下分析（内部思考即可，不必写文件）：
+记录每张图更接近 `cover`、`section`、`agenda`、`cards`、`metrics`、`split`、`comparison`、`timeline`、`chart-insight`、`quote` 或 `ending` 中的哪一种。多张截图要分别标注角色，不要把封面的规则直接套给数据页。
+
+同时记录：
+
+- 可以直接观察到的事实，例如背景色、标题位置、卡片间距、是否有页码。
+- 只能推测的规律，例如未展示页面的布局；这些项要标为低置信度并沿用基础预设。
+- 无法确认的字体或色值；选择最接近且跨端可用的替代值，不假装精确识别。
+
+## 2. 提取样式令牌
+
+内部使用下列结构即可，不必把分析过程写入交付物：
 
 ```json
 {
-  "colorSystem": {
-    "background": "页面背景主色HEX",
-    "primary": "主色调HEX（标题/重点元素）",
-    "secondary": "辅助色HEX",
-    "text": "主文字色HEX",
-    "accent": "强调色HEX（按钮/高亮/装饰）",
-    "textSecondary": "次要文字色HEX"
+  "baseStyle": "clean-minimal",
+  "confidence": "high | medium | low",
+  "themeOverrides": {
+    "background": "#F6F7F9",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#EEF1F5",
+    "primary": "#173B57",
+    "accent": "#E86A33",
+    "text": "#1F2933",
+    "textSecondary": "#667085",
+    "border": "#DCE1E7",
+    "palette": ["#173B57", "#E86A33", "#4B7A9B", "#8AA7B8"],
+    "fontFamily": "Microsoft YaHei",
+    "radius": 12,
+    "pagePadding": 64,
+    "titleMarker": "line",
+    "footer": true
   },
   "typography": {
-    "headingStyle": "标题风格（如 大字号粗体左对齐 / 居中衬线）",
-    "bodyStyle": "正文风格",
-    "fontSizePattern": "字号层级规律（如 标题48/副标24/正文16）"
+    "heading": "左对齐、粗体、高对比",
+    "body": "常规字重、短行",
+    "observedSizes": "约 44/24/17 px"
   },
-  "cardStyle": {
-    "hasCard": true,
-    "cornerRadius": "16px大圆角/8px小圆角/0直角",
-    "shadow": "无阴影/柔和弥散/强烈投影",
-    "border": "1px细边框/无边框/2px粗边框",
-    "fill": "纯色/渐变/半透明/无填充"
+  "pageRules": {
+    "cover": "左侧标题，右侧主视觉",
+    "content": "三列卡片，20px 间距",
+    "data": "白卡、大数字、弱网格线"
   },
-  "layoutStructure": ["封面特征", "内容页特征", "数据页特征"],
-  "visualTexture": "一句话质感（如 极简商务白色卡片 / 深色科技感线框 / 新中式水墨意境）",
-  "decorationElements": ["双色装饰线", "编号方块", "几何背景"],
-  "pageArchetypes": {
-    "cover": "封面构图规则", "catalog": "目录页节奏", "content": "内容页信息块组织",
-    "data": "数据页处理", "pipeline": "流程页连接方式", "quote": "金句页留白", "ending": "结尾页处理"
-  },
+  "recurringDecorations": ["标题下短线", "右下角页码"],
   "renderStrategy": {
-    "generationMode": "elements 或 image",
-    "reason": "判断原因",
-    "componentRisks": ["复杂插画背景", "手绘纹理"],
-    "imagePromptHints": ["英文风格关键词1", "英文风格关键词2"]
+    "mode": "elements | hybrid | full-raster",
+    "rasterRegions": ["右侧插画"],
+    "reason": "插画没有稳定的 PPT 原生等价物"
   }
 }
 ```
 
-## 第二步：判定渲染模式
+优先从 [styles.md](styles.md) 选最接近的 `baseStyle`，再只覆盖确实观察到的字段。这样比从零生成整套 theme 更省 token，也更稳定。
 
-**elements 模式（默认，输出可编辑元素）**：参考图由纯色背景、文字、圆角卡片、简单几何装饰构成。
-**image 模式（整页文生图）**：出现以下任一信号 → 组件难以稳定复刻，改用整页图片：
-手绘、粉笔、水墨、插画、摄影、照片、3D、立体、纹理、颗粒、纸张、撕纸、涂鸦、复古、赛博、霓虹、写实、人物场景、复杂背景。
+## 3. 选择渲染策略
 
-## 第三步：落地
+### elements（默认）
 
-### elements 模式
-1. colorSystem → `deck.theme`：
-   - `background/primary/accent/text/textSecondary` 直接映射
-   - `palette` = [primary, secondary, accent] + 同色系补充 + 灰阶，6-9 色
-   - `fontFamily`：衬线感 → `"Georgia, SimSun, serif"`；现代无衬线 → `"Microsoft YaHei, PingFang SC, sans-serif"`
-2. cardStyle → 所有卡片的 cornerRadius/shadow/stroke 参数
-3. typography → 字号层级（映射到 design-system.md 的层级表）
-4. pageArchetypes → 各页面角色的布局组织方式
-5. decorationElements → 每页固定复现 1-2 种（保持一致性）
+纯色背景、文字、线条、普通卡片、指标、表格和图表都使用可编辑元素。参考图即使很复杂，也不要因此把本可编辑的文字和数据一起变成图片。
 
-### image 模式
-每页只输出一个全屏 image 元素：
-```json
-{"elements":[{"elType":"image","prompt":"...","ratio":"16:9","x":0,"y":0,"width":1280,"height":720}]}
-```
-prompt 必须英文、详尽到足以复刻风格，且中文标题/要点原文保留在引号中。结构：
-- **Style**: 克隆的视觉风格、色板、纹理、字体气质、装饰语言
-- **Canvas**: 16:9 presentation slide, clean composition, high readability
-- **Title**: 页面中文标题原文
-- **Content**: 各中文要点作为清晰文字块/标注出现
-- **Layout**: 标题/内容块/数据/图标/线的位置
-- **Details**: 纹理、阴影、边框、渐变、插画或摄影风格
-- **Quality**: high-resolution, professional, readable Chinese text
+### hybrid（复杂视觉的默认降级）
 
-按页面角色追加侧重：
-- cover → 一个主导大标题 + 品牌氛围
-- catalog → 章节节奏 + 大留白
-- data → 大数字 + 信息图元素
-- pipeline → 连接步骤/箭头/层级流
-- quote → 单一核心观点 + 强负空间
-- ending → 收束构图 + 行动号召
+只把没有可靠 PPT 等价物的局部做成 SVG/PNG，例如摄影、3D、手绘、水墨、颗粒、纸张纹理、复杂渐变或插画。图片中不要包含必须准确显示的标题、正文、数字或图表标签；这些内容另用可编辑元素叠加。
+
+若需要生成图片，提示词描述画面与留白位置，并明确 `no text, no letters, no numbers, no watermark`。生成后把实际资源路径写入 `path` 或 `data`，不能只留下 `prompt`。
+
+### full-raster（仅显式接受时）
+
+只有用户明确把“视觉像素还原”置于“可编辑、可访问、文字可靠”之上，并接受整页不可编辑时，才使用整页图片。中文或关键数字不得依赖图片生成模型准确书写。
+
+## 4. 落地检查
+
+- 色板、圆角、边框、页面边距和固定装饰在各页保持一致。
+- 截图裁切、阴影或透视造成的颜色偏差不应变成新令牌。
+- 一张截图没有展示的页面角色继续使用基础预设，不凭空发明规则。
+- `build_all` 报告里的 `failed` 和 `skipped` 必须为 0；局部图片应明确显示为 `rasterized`。
+- 与截图比较时优先检查信息层级、相对位置和节奏；字体替换与原生图表的小幅差异单独记录。
 
 ## 示例
 
-参考图：深蓝底、金色细线、白色衬线大标题、右下角页码 →
-```json
-"theme": {"background":"#14213D","primary":"#FFFFFF","accent":"#C9A96E","text":"#FFFFFF","textSecondary":"#A8B2C8","palette":["#FFFFFF","#C9A96E","#3E5C8A","#8A9BB8","#E5E0D5","#6D7F99","#B8B09F"],"fontFamily":"Georgia, SimSun, serif"}
-```
-布局上每页固定：金色细线装饰 + 衬线标题 + 右下角页码。
+参考图是深蓝底、金色细线、白色衬线标题，且只有封面：选择 `navy-report`，覆盖背景、强调色和字体；只把“封面左标题、金色短线”作为高置信度规则。内容页继续使用 `navy-report` 的默认结构，而不是推断所有页面都必须深色。

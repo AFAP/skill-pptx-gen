@@ -1,189 +1,113 @@
-# skill-ppt-gen
+# ai-ppt-gen
 
-中文 · [English](#english)
+把受约束网页或紧凑语义 JSON 转成可检查的网页预览和可编辑 PPTX。项目重点是转换完整性、一致性与低 token 输入，不负责替代模型的视觉设计判断，也不承诺任意网页/CSS 的像素级无损转换。
 
-> AI PPT 生成管线：一套 PPT-DSL 中间层 + 双端渲染核心（Konva 网页预览 + PptxGenJS 可编辑导出），
-> 让 AI 只产出 JSON，就能得到**网页可预览、可微调、可导出真实可编辑 PPTX** 的演示文稿。
+## 管线
 
----
-
-## 这是什么
-
-把"内容"变成 PPT 通常卡在两个地方：排版难维护、导出不可编辑。本项目的解法是**不直接生成 PPTX，而是让 AI 生成一层中间 DSL**：
-
-```
-内容/主题/参考图
-   │
-   ▼
-deck.json（PPT-DSL，1280×720px 绝对定位）
-   │
-   ├─→ Konva 渲染 → 自包含预览 HTML（可缩放、双击改文本、可导出修改稿）
-   └─→ PptxGenJS → 真实可编辑 .pptx（文本/形状/图表/表格均可在 PowerPoint/WPS 二次编辑）
+```text
+语义 deck.json ─┐
+                ├─> primitive PPT-DSL ─> Konva 预览
+WebSlide HTML ──┘                     └─> PptxGenJS ─> PPTX + 转换报告
 ```
 
-同一份 DSL 驱动两端，预览即所得，导出即所见。
-
-## 特性
-
-- **单一数据源 PPT-DSL**：12 种元素类型（文本/图片/SVG/矩形/圆/直线/箭头/路径/曲线/图表/表格/text-path，其中 text-path 仅预览）+ 3 个连接线/弧形宏
-- **主题令牌系统**：`$primary` `$accent` `$bg` `$text` `$1`~`$9` `$light:$primary`，换主题只改 theme 对象
-- **内置主题**：navy-brief（墨青 × 机械橙）及 business/tech/health/education/nature/creative/minimal/warm/dark；支持参考图风格提取与文字描述风格定制
-- **DSL 校验器**：越界检测、文本溢出估算、按透明度逐层混合的对比度检查
-- **连接线宏**：`connector-s`（脑图标准 S 曲线，自适应切线方向）、`connector-elbow`（肘形）、`arc-segment`（带箭头的轨道环段）——脑图/辐射/循环布局开箱即用
-- **预览即编辑器**：预览页双击文本就地修改，一键导出修改后的 deck.json 或直接浏览器端导出 PPTX
-- **自包含预览 HTML**：Konva 与数据全部内嵌，双击即可打开，无需服务器
-
-## 效果预览
-
-### 网页预览（双击文本可编辑）
-
-| 网页效果 | 双击编辑 |
-| --- | --- |
-| ![网页效果-1](screenshot/网页效果-1.png) | ![网页效果-部分可编辑](screenshot/网页效果-部分可编辑.png) |
-
-### 导出 PPTX（PowerPoint/WPS 可二次编辑）
-
-| 单页效果 | 多页概览 |
-| --- | --- |
-| ![可编辑pptx实际效果-1](screenshot/可编辑pptx实际效果-1.png) | ![可编辑pptx实际效果-2](screenshot/可编辑pptx实际效果-2.png) |
-
-## 使用说明
-
-把本仓库地址发给任意 AI Agent（Cursor、GitHub Copilot、DeepSeek Harness、Codex 等），告知：
-
-> "用这个 skill 帮我做一份 PPT，主题是 XXX"
-
-Agent 会读取 `SKILL.md` 中的工作流指令，自动完成：生成 DSL → 预览检查 → 导出可编辑 PPTX。
-
-仓库地址：`https://github.com/AFAP/skill-pptx-gen`
+- 语义版式适合普通汇报：只写页面角色和内容，减少绝对坐标与重复样式。
+- WebSlide 适合网页式构图：Flex/Grid 负责布局，只有带 `data-ppt` 的节点进入 PPTX。
+- primitive DSL 是两端共用的稳定中间层，可作为语义版式的局部覆盖层。
+- 默认严格构建；不支持的元素、缺失图片和转换异常不会被静默丢弃。
+- 文本、形状、图表、表格保持可编辑；图片与 SVG 会在报告中标为 `rasterized`。
 
 ## 快速开始
 
-```bash
-npm install   # pptxgenjs + jszip; sharp is optional for Node-side SVG rasterizing        # pptxgenjs + jszip；sharp 用于 Node 端 SVG 栅格化
-
-# 校验 → 预览 → 构建
-node tools/check_deck.mjs examples/deck-report.json
-node tools/make_preview.mjs examples/deck-report.json   # 生成 *.preview.html
-node tools/build_pptx.mjs examples/deck-report.json -o out.pptx
-```
-
-## 工作流
-
-1. **生成 deck.json**：按 `references/dsl-schema.md` 编写（或让 AI 按 SKILL.md 生成）
-2. **确定风格**（三选一）：
-   - 不指定 → 内置 `navy-brief` 藏青商务简报风模版
-   - 提供参考图 → 按 `references/reference-image-analysis.md` 提取色板/字体/卡片风格
-   - 文字描述（如"科技深蓝"）→ 按 `references/builtin-template.md` 末尾速配公式生成 theme
-3. **校验 → 预览 → 导出**：三条命令，预览页可先目视检查
-
-## DSL 速览
-
-| elType | 说明 | 关键字段 |
-| --- | --- | --- |
-| `text` | 文本（fill=字体颜色，框底色用 bgFill） | text, fontSize, align, verticalAlign, lineHeight |
-| `image` | 图片（URL/本地路径自动预取为 base64） | path/url, prompt（AI 生图占位）, sizing |
-| `image-svg` | SVG 矢量 | svgXml |
-| `shape-rect` | 矩形/圆角矩形 | fill, stroke, cornerRadius, shadow* |
-| `shape-circle` | 圆/椭圆（**x/y 为圆心**） | fill, stroke |
-| `shape-line` / `shape-arrow` | 直线/箭头 | pointArr, lineColor, lineWidth |
-| `curve-quadratic` / `shape-path` | 贝塞尔/自由路径 | pointArr（支持 quadratic/cubic/arc 曲线） |
-| `chart` | 真实可编辑图表 | chartType: bar/line/pie/doughnut/area/radar/scatter, data |
-| `table` | 真实可编辑表格 | rows, header, stripeColor |
-| `connector-s`（宏） | 脑图 S 连接线 | x1,y1,x2,y2, orientation(h/v/auto), dashType |
-| `connector-elbow`（宏） | 直角肘形连接线 | x1,y1,x2,y2, orientation(h-first/v-first) |
-| `arc-segment`（宏） | 带箭头的圆环扇段 | cx,cy,rOuter,rInner,startAngle,endAngle,fill |
-
-> 宏不是渲染类型：构建/预览生成阶段自动展开为标准元素，两端表现一致。
-> 完整规范见 `references/dsl-schema.md`。
-
-## 项目结构
-
-```
-root/
-├── SKILL.md                     # DSH skill 主入口（AI 工作流指令）
-├── package.json                 # 依赖：pptxgenjs + jszip（sharp 可选）
-├── core/                        # 转换核心
-│   ├── ppt-core.mjs             #   Node：DSL → PptxGenJS
-│   ├── dsl-to-pptx.mjs          #   纯转换层：DSL → PptxGenJS（双端共用）
-│   ├── ppt-preview-core.js      #   浏览器：DSL → Konva（含双击编辑回写）
-│   ├── connectors.mjs           #   连接线/弧形宏（构建期展开）
-│   └── dsl-validate.mjs         #   DSL 校验器
-
-├── tools/
-│   ├── check_deck.mjs           #   校验
-│   ├── make_preview.mjs         #   生成自包含预览 HTML
-│   └── build_pptx.mjs           #   构建可编辑 PPTX
-├── references/                  # DSL 规范 / 设计系统 / 内置模版 / 参考图分析协议
-├── assets/                      # konva + pptxgenjs 浏览器运行时
-├── tests/                        # 冒烟测试（npm test）
-└── examples/                    # 示例：可直接看效果
-```
-
-## 作为 DSH Skill 使用
-
-整个目录就是一个 skill（含 `SKILL.md`）。复制到 `~/.dsh/skills/` 下即可被 DSH 识别。
-
-## 常见问题
-
-- **导出的文字变成色块** → text 的 `fill` 是字体颜色；要框底色请用 `bgFill`
-- **连接线/弧段不显示** → 自定义几何必须用 `pptx.shapes.CUSTOM_GEOMETRY`（`ShapeType.customGeometry` 是 undefined）
-- **PPT 里文字偏小** → 调 `theme.fontScale`（默认 0.667，视觉等大是 0.75）
-
----
-
-## <a id="english"></a>English
-
-> An AI PPT generation pipeline: a PPT-DSL intermediate layer + dual rendering cores (Konva web preview + PptxGenJS editable export). The AI only produces JSON; you get a **web-previewable, lightly editable, truly editable PPTX** presentation.
-
-### What it is
-
-Instead of generating PPTX directly (hard to maintain, hard to edit), the AI generates an intermediate DSL:
-
-```
-Content / topic / reference image
-   │
-   ▼
-deck.json (PPT-DSL, 1280×720px absolute positioning)
-   │
-   ├─→ Konva → self-contained preview HTML (zoom, dbl-click text edit, export edited JSON)
-   └─→ PptxGenJS → truly editable .pptx (text/shapes/charts/tables editable in PowerPoint/WPS)
-```
-
-One DSL drives both ends: what you preview is what you export.
-
-### Features
-
-- **Single-source PPT-DSL**: 12 element types (text/image/SVG/shapes/path/chart/table/text-path) + 3 connector/arc macros
-- **Theme token system**: `$primary`, `$accent`, `$1`–`$9`, `$light:…` — re-skin via the theme object only
-- **Built-in themes**: navy-brief (ink navy × machine orange) plus business/tech/health/education/nature/creative/minimal/warm/dark; reference-image style extraction and text-described style customization also supported
-- **DSL validator**: bounds check, text-overflow estimation, alpha-blended contrast analysis
-- **Connector macros**: `connector-s` (mind-map S-curves with adaptive tangents), `connector-elbow`, `arc-segment` (orbital ring segments with arrow notches)
-- **Preview doubles as editor**: dbl-click text to edit in place; export the edited deck.json or re-export PPTX right in the browser
-- **Self-contained preview HTML**: Konva and data inlined — double-click to open, no server needed
-
-### Quick start
+需要 Node.js 18 或更高版本。
 
 ```bash
-npm install   # pptxgenjs + jszip; sharp is optional for Node-side SVG rasterizing
+npm ci
 
-node tools/check_deck.mjs examples/deck-report.json
-node tools/make_preview.mjs examples/deck-report.json
-node tools/build_pptx.mjs examples/deck-report.json -o out.pptx
+# 低 token 语义示例：校验、预览、PPTX、报告一次生成
+node tools/build_all.mjs examples/deck-compact.json -o output
+
+# 受约束网页先提取为 deck，再构建
+node tools/html_to_deck.mjs examples/webslide-basic.html -o output/webslide.json
+node tools/build_all.mjs output/webslide.json -o output
 ```
 
-### Workflow
+生成物包括 `*.preview.html`、`*.pptx` 和 `*.report.json`。最终交付要求报告的 `failed`、`skipped` 均为 0。
 
-1. Author `deck.json` per `references/dsl-schema.md`
-2. Pick a style: built-in `navy-brief` template / extract from a reference image (`references/reference-image-analysis.md`) / describe in words
-3. Check → preview → build
+预览页默认支持双击文字修改，可下载保留主题令牌和语义结构的新 `deck.json`，也可直接在浏览器导出 PPTX。浏览器不会自动覆盖原始源文件；纯审阅可给 `make_preview` 传 `--no-edit`。
 
-### Project structure
+## 输入方式
 
-See the tree above. The conversion cores live in `core/`, CLIs in `tools/`, docs in `references/`, runnable examples in `examples/`.
+长文档、研究报告或多章节材料不要直接逐段塞进幻灯片。先按 [长文档拆页工作流](references/content-to-deck.md) 形成页面计划，再选择语义版式或 WebSlide。
 
-### FAQ
+### 紧凑语义版式
 
-- **Text turns into a color block** → for text, `fill` is the font color; use `bgFill` for box background
-- **Text looks small in PPT** → adjust `theme.fontScale` (default 0.667; 0.75 is visually equal size)
-- **Connectors/arcs missing in exported PPTX** → custom geometry must use `pptx.shapes.CUSTOM_GEOMETRY` (`ShapeType.customGeometry` is undefined)
+```json
+{
+  "dslVersion": 2,
+  "style": "clean-minimal",
+  "slides": [
+    {
+      "layout": "cards",
+      "title": "核心能力",
+      "items": [
+        { "title": "可编辑", "body": "文字、形状、图表和表格保留为 PPT 对象" },
+        { "title": "可追踪", "body": "每个元素都有转换状态" }
+      ]
+    }
+  ]
+}
+```
+
+内置版式和字段见 [紧凑语义版式](references/layout-dsl.md)。
+
+### WebSlide
+
+```html
+<section class="ppt-slide" data-ppt-slide>
+  <article data-ppt="shape">
+    <h2 data-ppt="text">可编辑标题</h2>
+  </article>
+</section>
+```
+
+WebSlide 只提取显式标记的节点。支持范围与降级规则见 [WebSlide 协议](references/webslide.md)。
+
+## 默认样式
+
+推荐的常用预设：`navy-report`、`clean-minimal`、`tech-dark`、`warm-editorial`、`data-dashboard`。样式只定义视觉令牌，不绑定版式；详细字段见 [默认样式](references/styles.md)。
+
+未指定样式时默认使用 `navy-report`；`navy-brief` 仅作为旧名称兼容。
+
+## 常用命令
+
+```bash
+node tools/check_deck.mjs deck.json --json
+node tools/make_preview.mjs deck.json -o preview.html
+node tools/build_pptx.mjs deck.json -o out.pptx --report out.report.json
+npm test
+```
+
+`--allow-partial` 只用于用户明确接受不完整调试输出的情况。
+
+## 一致性边界
+
+网页与 PPTX 共用编译后的 DSL，但浏览器、PowerPoint 和 WPS 的字体度量与图表渲染并不相同，因此项目保证的是可追踪转换和明确降级，而不是虚假的像素级承诺。完整能力矩阵见 [转换一致性契约](references/parity-contract.md)。
+
+参考截图默认采用“可编辑元素 + 局部无文字图片”的混合策略；不会把含中文和关键数据的整页生图作为常规方案。见 [参考图分析协议](references/reference-image-analysis.md)。
+
+构建报错、缺少浏览器或可选 SVG 能力时，先查 [故障排查](references/troubleshooting.md)。复杂 primitive 构图按需查 [设计系统与版式配方](references/design-system.md)，不要在普通语义版式任务中整份加载。
+
+## 目录
+
+- `core/compile-deck.mjs`：语义版式、主题令牌和连接宏编译。
+- `core/layouts.mjs`：紧凑语义版式。
+- `core/webslide-extract.js`：浏览器计算后的 HTML/CSS 提取。
+- `core/dsl-to-pptx.mjs`：primitive DSL 到 PptxGenJS。
+- `core/ppt-preview-core.js`：primitive DSL 到 Konva。
+- `core/pptx-sanitize.mjs`：Node/浏览器共用 OOXML 修复。
+- `tools/build_all.mjs`：推荐的一键管线。
+- `examples/`：两种输入模式的示例。
+- `screenshot/`：人工检查网页预览与 PPTX 实际效果的截图。
+- `对比/`：历史修复前后产物，仅用于回归对照，不作为新 deck 的输入模板。
+
+本目录本身也是 Codex skill；入口与 agent 工作流见 [SKILL.md](SKILL.md)。

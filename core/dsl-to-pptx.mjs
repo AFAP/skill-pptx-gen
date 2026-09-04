@@ -2,7 +2,8 @@
  * ai-ppt-gen 纯转换层：PPT-DSL → PptxGenJS 调用（无任何 Node/浏览器专有 API）
  *
  * Node 端（tools/build_pptx.mjs）与浏览器端（预览页的"导出 PPTX"按钮）共用同一份实现，
- * 保证 预览 = 导出（WYSIWYG）。Node 专有的图片预取/文件 IO 在 core/ppt-core.mjs。
+ * 保证两端使用同一转换语义；字体度量与原生图表外观仍可能因渲染器不同而有小幅差异。
+ * Node 专有的图片预取/文件 IO 在 core/ppt-core.mjs。
  *
  * 画布约定：1280 × 720 px（16:9）→ PPT 13.333 × 7.5 inch（96 DPI）
  * 字体换算：pt = px × fontScale（默认 0.667，为中文行高留余量；0.75 为视觉等大）
@@ -114,11 +115,49 @@ export function lighten(hexColor, level = 2) {
 
 export const BUILTIN_THEMES = {
   default: { palette: ['#4A90E2', '#6CC215', '#31AB78', '#F5A623', '#9C27B0', '#A86900', '#00BCD4', '#3B7500'], background: '#FFFFFF', text: '#111111', textSecondary: '#444444' },
-  // 内置模版：藏青商务简报风（墨青 × 机械橙）。使用方式：theme: "navy-brief"
+  // navy-brief 是 navy-report 的兼容旧名称；新文件统一使用 navy-report。
   'navy-brief': {
     palette: ['#0C1B2E', '#F26B21', '#4A7BA6', '#8FA3D9', '#C9CFDA', '#667085'],
     background: '#F7F6F3', text: '#17233B', textSecondary: '#667085',
-    primary: '#0C1B2E', accent: '#F26B21', fontFamily: 'Microsoft YaHei',
+    primary: '#0C1B2E', accent: '#F26B21', accentText: '#B83F08', fontFamily: 'Microsoft YaHei',
+    surface: '#FFFFFF', surfaceAlt: '#EEF1F5', border: '#E8E4DC', radius: 14,
+    pagePadding: 60, titleMarker: 'bar', footer: true,
+  },
+  // 完整样式预设。旧主题名继续可用；新预设除色板外还携带版式表面、圆角和页脚令牌。
+  'navy-report': {
+    palette: ['#0C1B2E', '#F26B21', '#4A7BA6', '#8FA3D9', '#C9CFDA', '#667085'],
+    background: '#F7F6F3', text: '#17233B', textSecondary: '#667085',
+    primary: '#0C1B2E', accent: '#F26B21', accentText: '#B83F08', fontFamily: 'Microsoft YaHei',
+    surface: '#FFFFFF', surfaceAlt: '#EEF1F5', border: '#E8E4DC', radius: 14,
+    pagePadding: 60, titleMarker: 'bar', footer: true,
+  },
+  'clean-minimal': {
+    palette: ['#111827', '#2563EB', '#60A5FA', '#94A3B8', '#CBD5E1', '#E2E8F0'],
+    background: '#FFFFFF', text: '#111827', textSecondary: '#64748B',
+    primary: '#111827', accent: '#2563EB', fontFamily: 'Microsoft YaHei',
+    surface: '#FFFFFF', surfaceAlt: '#F8FAFC', border: '#E2E8F0', radius: 10,
+    pagePadding: 64, titleMarker: 'line', footer: true,
+  },
+  'tech-dark': {
+    palette: ['#07111F', '#22D3EE', '#3B82F6', '#6366F1', '#14B8A6', '#94A3B8'],
+    background: '#07111F', text: '#F8FAFC', textSecondary: '#A8B4C7',
+    primary: '#07111F', accent: '#22D3EE', onAccent: '#06202B', fontFamily: 'Microsoft YaHei',
+    surface: '#102033', surfaceAlt: '#162A40', border: '#274158', radius: 16,
+    pagePadding: 60, titleMarker: 'line', footer: true,
+  },
+  'warm-editorial': {
+    palette: ['#6B2D2D', '#D97757', '#B68A5A', '#9A826A', '#D9C7B8', '#7A6A5E'],
+    background: '#FBF6EF', text: '#342923', textSecondary: '#76675D',
+    primary: '#6B2D2D', accent: '#D97757', accentText: '#963C2C', fontFamily: 'Microsoft YaHei',
+    surface: '#FFFDFC', surfaceAlt: '#F3E8DC', border: '#E4D4C6', radius: 8,
+    pagePadding: 68, titleMarker: 'line', footer: true,
+  },
+  'data-dashboard': {
+    palette: ['#123B5D', '#0E7490', '#22A06B', '#D97706', '#7C3AED', '#94A3B8'],
+    background: '#F3F6F9', text: '#122230', textSecondary: '#5B6B78',
+    primary: '#123B5D', accent: '#0E7490', fontFamily: 'Microsoft YaHei',
+    surface: '#FFFFFF', surfaceAlt: '#EAF0F5', border: '#D8E1E8', radius: 12,
+    pagePadding: 48, titleMarker: 'bar', footer: true,
   },
   // 源自 PptxGenJS-Preview utils.js 的经典主题色板（schema 示例使用的 business 也在此注册）
   business: {
@@ -184,10 +223,19 @@ export function resolveTheme(deckTheme) {
     background: parseColor(custom.background || base.background || '#FFFFFF')?.color || 'FFFFFF',
     primary: parseColor(custom.primary || custom.palette?.[0] || base.primary || base.palette[0])?.color || '4A90E2',
     accent: parseColor(custom.accent || custom.palette?.[2] || base.accent || base.palette[2] || base.palette[0])?.color || '31AB78',
+    accentText: parseColor(custom.accentText || custom.accent || base.accentText || base.accent || '#2563EB')?.color || '2563EB',
+    onAccent: parseColor(custom.onAccent || base.onAccent || '#FFFFFF')?.color || 'FFFFFF',
     text: parseColor(custom.text || base.text || '#111111')?.color || '111111',
     textSecondary: parseColor(custom.textSecondary || base.textSecondary || '#444444')?.color || '444444',
     fontFamily: custom.fontFamily || base.fontFamily || '',
     fontScale: typeof custom.fontScale === 'number' ? custom.fontScale : DEFAULT_FONT_SCALE,
+    surface: parseColor(custom.surface || base.surface || '#FFFFFF')?.color || 'FFFFFF',
+    surfaceAlt: parseColor(custom.surfaceAlt || base.surfaceAlt || '#F1F5F9')?.color || 'F1F5F9',
+    border: parseColor(custom.border || base.border || '#E2E8F0')?.color || 'E2E8F0',
+    radius: Number.isFinite(custom.radius) ? custom.radius : (Number.isFinite(base.radius) ? base.radius : 12),
+    pagePadding: Number.isFinite(custom.pagePadding) ? custom.pagePadding : (Number.isFinite(base.pagePadding) ? base.pagePadding : 60),
+    titleMarker: custom.titleMarker || base.titleMarker || 'bar',
+    footer: custom.footer ?? base.footer ?? true,
   };
 }
 
@@ -197,7 +245,8 @@ const COLOR_KEYS = new Set(['fill', 'stroke', 'lineColor', 'shadowColor', 'bgFil
 /** 深拷贝并把颜色字段中的 $令牌 替换为主题色（只在白名单字段上解析） */
 export function resolveTokens(obj, theme) {
   const map = {
-    $primary: theme.primary, $accent: theme.accent, $bg: theme.background,
+    $primary: theme.primary, $accent: theme.accent, $accentText: theme.accentText, $onAccent: theme.onAccent,
+    $surface: theme.surface, $surfaceAlt: theme.surfaceAlt, $border: theme.border, $bg: theme.background,
     $text: theme.text, $text2: theme.textSecondary, $white: 'FFFFFF', $black: '000000',
   };
   theme.palette.forEach((c, i) => { map['$' + (i + 1)] = c; });
@@ -415,13 +464,15 @@ export function applyElement(pptx, slide, elop, theme) {
     if (elop._data) opt.data = elop._data;
       else if (elop.data) opt.data = elop.data; // 直接内嵌 data URI（预览/校验器同样支持）
     else if (elop.path || elop.url) opt.path = elop.path || elop.url; // 兜底：未预取时让 pptxgenjs 自行处理
-    else return;
+    else throw new Error('image 缺少 path/url/data');
     // 默认 cover 裁满（与 Konva 预览一致），显式 contain 才完整容纳；不再默认 stretch 变形
     const sizingType = elop.sizing?.type === 'contain' ? 'contain' : 'cover';
     opt.sizing = { type: sizingType, w: opt.w, h: opt.h };
-    if (elop.rounding || elop.cornerRadius) opt.rounding = true;
+    // PptxGenJS 的 rounding 是椭圆裁切，不等价于网页圆角；仅在显式 rounding=true 时启用。
+    if (elop.rounding === true) opt.rounding = true;
     slide.addImage(opt);
   } else if (t === 'image-svg') {
+    if (!elop._data && !elop.svgXml) throw new Error('image-svg 缺少 svgXml');
     const opt = baseOptions(elop);
     if (elop._data) {
       opt.data = elop._data; // Node 端：已预栅格化为 PNG（pptxgenjs 的 SVG 支持是纯浏览器功能）
@@ -478,7 +529,7 @@ export function applyElement(pptx, slide, elop, theme) {
       slide.addShape(pptx.ShapeType.line, opt);
     } else if (typeof elop.width === 'number') {
       slide.addShape(pptx.ShapeType.line, opt);
-    }
+    } else throw new Error(`${t} 缺少 pointArr`);
   } else if (t === 'shape-path' || t === 'curve-quadratic') {
     const opt = baseOptions(elop);
     if (Array.isArray(elop.pointArr)) {
@@ -486,17 +537,19 @@ export function applyElement(pptx, slide, elop, theme) {
       slide.addShape(pptx.shapes.CUSTOM_GEOMETRY, opt); // 注意：ShapeType.customGeometry 是 undefined
     } else if (elop.data || elop.svgPath) {
       throw new Error(`shape-path 的 SVG data 需预转为 pointArr（或改用 image-svg）`);
-    }
+    } else throw new Error(`${t} 缺少 pointArr`);
   } else if (t === 'chart') {
     const typeMap = { bar: 'bar', line: 'line', pie: 'pie', doughnut: 'doughnut', area: 'area', radar: 'radar', scatter: 'scatter' };
-    const chartType = pptx.ChartType[typeMap[elop.chartType] || 'bar'];
+    const typeKey = elop.chartType || 'bar';
+    if (!typeMap[typeKey]) throw new Error(`未知 chartType: ${typeKey}`);
+    const chartType = pptx.ChartType[typeMap[typeKey]];
     const opt = baseOptions(elop);
     if (Array.isArray(elop.chartColors) && elop.chartColors.length) {
       opt.chartColors = elop.chartColors.map(c => parseColor(c)?.color).filter(Boolean);
     } else {
       opt.chartColors = theme.palette.slice(0, 6);
     }
-    if (elop.showLegend != null) opt.showLegend = elop.showLegend; // 缺省隐藏（pptxgenjs 默认 false）
+    opt.showLegend = elop.showLegend === true; // 两端统一：缺省隐藏
     if (elop.showTitle && (elop.chartTitle || elop.title)) { opt.showTitle = true; opt.title = elop.chartTitle || elop.title; } // pptxgenjs 的标题字段是 title
     opt.showValue = elop.showValue ?? false;
     const data = (elop.data || []).map(s => ({
@@ -506,9 +559,10 @@ export function applyElement(pptx, slide, elop, theme) {
     }));
     slide.addChart(chartType, data, opt);
   } else if (t === 'table') {
+    if (!Array.isArray(elop.rows) || !elop.rows.length) throw new Error('table 缺少 rows');
     const opt = baseOptions(elop);
     opt.fontSize = Math.max(6, Math.round((elop.fontSize || 16) * theme.fontScale * 10) / 10);
-    if (theme.fontFamily || elop.fontFamily) opt.fontFace = String(elop.fontFamily || theme.fontFamily).split(',')[0].trim();
+    if (theme.fontFamily || elop.fontFamily) opt.fontFace = String(elop.fontFamily || theme.fontFamily).split(',')[0].trim().replace(/^["']|["']$/g, '');
     const hd = elop.header || {};
     const rows = (elop.rows || []).map((row, ri) => row.map(cell => {
       const isHd = hd.enabled !== false && ri === 0;
@@ -524,6 +578,10 @@ export function applyElement(pptx, slide, elop, theme) {
         },
       };
     }));
+    if (typeof elop.height === 'number' && rows.length) {
+      opt.rowH = pxToInch(elop.height / rows.length);
+      delete opt.h; // PptxGenJS 表格高度由 rowH 决定，h 容易造成预览/导出差异
+    }
     slide.addTable(rows, opt);
   } else {
     throw new Error(`未知 elType: ${t}`);

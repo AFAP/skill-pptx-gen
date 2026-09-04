@@ -354,7 +354,7 @@
 
     // 图例：多系列或饼图时显示（预览默认给出以便核对文案）
     const legendNames = isPieLike ? labels : series.map(s => s.name).filter(Boolean);
-    const wantLegend = elop.showLegend === true || (elop.showLegend == null && (series.length > 1 || isPieLike));
+    const wantLegend = elop.showLegend === true; // 与 PPTX 导出统一：缺省隐藏
     const legendH = wantLegend && legendNames.length ? 26 : 0;
     if (legendH) {
       let lx = x + 8;

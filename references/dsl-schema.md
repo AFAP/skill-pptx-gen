@@ -1,13 +1,17 @@
-# PPT-DSL 全量规范
+# PPT-DSL primitive 规范
 
-一套 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。
+这是编译后的底层 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。普通页面优先使用 [紧凑语义版式](layout-dsl.md)，只有精确定位或局部覆盖时才直接写本规范，以减少 token 和重复坐标。
+
+机器可读基础约束见 [deck.schema.json](deck.schema.json)；能力、资源和几何的严格检查以 `tools/check_deck.mjs` 为准。
 
 ## 顶层结构
 
 ```json
 {
+  "dslVersion": 2,
   "meta":  { "title": "演示标题", "author": "作者" },
-  "theme": "business" | { ...主题对象... },
+  "style": "clean-minimal",
+  "theme": "可选，字符串或主题对象；存在时覆盖 style",
   "slides": [
     {
       "background": "#FFFFFF",            // 可选，默认取 theme.background
@@ -35,7 +39,7 @@
 
 - 颜色值支持：`#RGB`、`#RRGGBB`、`#RRGGBBAA`（末两位透明度）、`rgb()/rgba()`。
 - 令牌（元素任意颜色字段可用）：
-  - `$primary` `$accent` `$bg` `$text` `$text2` `$white` `$black`
+  - `$primary` `$accent` `$accentText` `$onAccent` `$surface` `$surfaceAlt` `$border` `$bg` `$text` `$text2` `$white` `$black`
   - `$1`…`$9` → theme.palette 第 1~9 色（实际可用到 `$N` 取决于 palette 长度；内置主题均为 6-9 色）
   - `$light:$primary` → 某令牌/色值的浅填充版（HSL 提亮，适合做卡片底色）
 - 令牌在构建/预览生成时解析为最终色值。
@@ -45,15 +49,21 @@
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
 | `elType` | string | 必填，元素类型（见下表） |
+| `id` | string | 推荐，稳定元素 ID；用于报告和诊断 |
+| `role` | string | 可选，title/body/footer 等语义角色 |
+| `sourcePath` | string | 编译器生成的 JSON Pointer；预览改字时回写语义源 |
 | `x` `y` | number(px) | 左上角（`shape-circle` 例外：圆心） |
 | `width` `height` | number(px) | 尺寸 |
 | `opacity` | 0-1 | 整体透明度 |
 | `rotation` | number(deg) | 旋转 |
+| `allowOverflow` | boolean | 明确允许元素越出 1280×720 时跳过边界告警；最终 PPTX 仍应实际渲染检查 |
+| `allowOverlap` | boolean | 明确允许该文本框与其他文本框叠放时跳过疑似重叠告警 |
 | `fill` | 颜色 / `{color, transparency}` / `{type:"gradient", stops:[{offset,color}], angle}` | 填充。**渐变仅预览显示真渐变；导出 PPTX 压平为首色**（可编辑性限制，校验器会提示），要真渐变用 `image-svg` 或图片 |
 | `stroke` / `strokeWidth` | 颜色 / px | 描边 |
 | `dashType` | `"dash"` | 虚线 |
 | `shadowColor` `shadowBlur` `shadowOffsetX/Y` `shadowOpacity` | 阴影（Konva 风格） | 自动转换为 PPT outer shadow |
-| `cornerRadius` | px | 圆角（shape-rect / image 裁剪） |
+| `cornerRadius` | px | shape-rect 圆角；图片圆角仅预览可见，PPTX 不原生裁圆角 |
+| `webUnsupported` | string[] | WebSlide 提取器记录的 CSS 降级项；校验器会告警 |
 
 ## 元素类型
 
@@ -68,24 +78,27 @@
 - `lineHeight` 导出为 lineSpacingMultiple（0.5-3）。
 - **`fill` 对 text 是字体颜色**（Konva 约定），不会成为文本框底色；
   需要带底色的文本框时用 `bgFill`（如 `"bgFill":"#1E3A5F"`），别用 `fill`。
+- 浅色表面上的强调文字用 `$accentText`；`$accent` 主要用于装饰和填充；accent 色块上的文字用 `$onAccent`。
 - 文本框可带 `stroke`/`shadow`。
 
 ### image — 图片
 ```json
 {"elType":"image","path":"URL或本地路径或留空","prompt":"AI生图描述(英文)","ratio":"16:9",
- "x":60,"y":180,"width":540,"height":300,"cornerRadius":12,"sizing":{"type":"cover"}}
+ "x":60,"y":180,"width":540,"height":300,"sizing":{"type":"cover"}}
 ```
 - 图片来源优先级：`path`/`url`（http(s) 下载、本地相对 deck.json 路径）→ 生成 base64 嵌入。
-- 只有 `prompt` 时：预览显示占位框，导出跳过。生图完成后补 `path`。
+- 只有 `prompt` 时严格构建会失败。生图完成后必须补 `path` 或 `data`，不允许最终导出静默跳过。
 - 也可直接给 `data`（data URI），预览/导出均支持。
 - `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）。
+- `cornerRadius` 只在网页预览中裁切；需要 PPTX 也保留图片圆角时，先把透明圆角栅格化进图片本身。
+- `rounding:true` 表示椭圆/圆形图片裁切，不等价于普通圆角矩形。
 
 ### image-svg — SVG 矢量图
 ```json
 {"elType":"image-svg","x":100,"y":100,"width":64,"height":64,
  "svgXml":"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>...</svg>"}
 ```
-- Node 端导出：由 sharp 预栅格化为 PNG（2x）；未安装 sharp 则跳过并告警。浏览器端导出：由 pptxgenjs 栅格化 SVG。
+- Node 端导出：由可选依赖 sharp 预栅格化为 PNG（2x）；未安装时该元素会记为失败，严格构建会中止。浏览器端导出由 pptxgenjs 栅格化 SVG，不受影响。
 
 ### shape-rect — 矩形/圆角矩形
 ```json
@@ -121,7 +134,7 @@
 
 ### shape-path — 自由路径
 - `pointArr`（同上，可含 `curve:{type:"arc",hR,wR,stAng,swAng}` 圆弧；hR/wR 单位 px，构建时自动换算）→ 导出自定义几何。
-- 或 `data`（SVG path 字符串）→ 仅预览支持；**要导出 PPT 请用 pointArr**。
+- `data`/`svgPath`（SVG path 字符串）只有预览支持，严格校验会报错；要导出 PPTX 必须改用 `pointArr` 或完整 `image-svg`。
 
 ## 连接线与弧形宏（构建期展开，源自原项目脑图布局函数）
 
@@ -169,6 +182,7 @@ Konva 预览与 PPTX 导出自动一致：
 - `chartColors` 缺省取 theme.palette 前 6 色。
 - pie/doughnut 只用第一个系列的 values。
 - scatter 的 `values` 为 `[[x,y],...]` 数字对。
+- `showLegend` 默认 `false`；只有显式写 `true` 才在预览和 PPTX 显示图例。
 - `showValue:true` 可在柱/线/面积图上显示数值标签；预览同步绘制。
 
 ### table — 表格（导出为真实可编辑表格）
@@ -180,7 +194,7 @@ Konva 预览与 PPTX 导出自动一致：
 ```
 
 ### text-path — 路径文字
-- 仅 Konva 预览原生支持；PPT 导出需要 SVG/PNG 降级。**避免使用**，用普通 text 替代。
+- 仅 Konva 预览支持，严格校验会报错。改用普通 `text`；若外观必须固定，将不含关键可编辑文字的局部预合成为 SVG/PNG。
 
 ## 常见陷阱
 
@@ -190,3 +204,5 @@ Konva 预览与 PPTX 导出自动一致：
 4. 每页都要有全屏背景 shape-rect（或 slide.background），否则预览默认白底、导出可能透出母版底色。
 5. JSON 不允许注释、尾逗号、单引号。
 6. emoji 在 Windows PowerPoint 中渲染为彩色、在部分 WPS/Mac 中风格不同；关键图标用 image-svg。
+7. 未知 `chartType`、只有 prompt 的图片、`text-path` 和 SVG path data 都是严格错误，不会回退成别的对象。
+8. `webUnsupported` 表示已知降级，必须逐条判断是接受、重做为原生元素，还是局部栅格化。

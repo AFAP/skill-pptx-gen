@@ -1,5 +1,9 @@
 node_modules/
 .npm-cache/
 *.preview.html
+*.report.json
+output/
+.tmp/
 .DS_Store
 Thumbs.db
+agents/

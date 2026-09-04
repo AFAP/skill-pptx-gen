@@ -17,18 +17,22 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = resolve(__dirname, '..');
 
-const { resolveTheme, resolveTokens } = await import('../core/dsl-to-pptx.mjs');
-const { expandConnectors, pointsToSvgPath } = await import('../core/connectors.mjs');
+const { resolveTheme } = await import('../core/dsl-to-pptx.mjs');
+const { pointsToSvgPath } = await import('../core/connectors.mjs');
+const { compileDeck } = await import('../core/compile-deck.mjs');
 const { prefetchImages } = await import('../core/ppt-core.mjs');
+const { validateDeck, formatReport } = await import('../core/dsl-validate.mjs');
 
 function parseArgs(argv) {
-  const args = { input: null, output: null, editable: true, scale: null, prefetch: false };
+  const args = { input: null, output: null, editable: true, scale: null, prefetch: true, strict: true };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-o' || a === '--output') args.output = argv[++i];
     else if (a === '--no-edit') args.editable = false;
     else if (a === '--scale') args.scale = Number(argv[++i]);
-    else if (a === '--embed-images') args.prefetch = true; // 把 URL/本地图片内嵌为 base64（文件变大但离线可看）
+    else if (a === '--embed-images') args.prefetch = true;
+    else if (a === '--no-embed-images') args.prefetch = false;
+    else if (a === '--allow-partial') args.strict = false;
     else if (!a.startsWith('-') && !args.input) args.input = a;
   }
   return args;
@@ -37,11 +41,11 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv);
 
 if (process.argv.includes('--help')) {
-  console.log('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--embed-images]');
+  console.log('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--no-embed-images] [--allow-partial]');
   process.exit(0);
 }
 if (!args.input) {
-  console.error('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--embed-images]');
+  console.error('用法: node tools/make_preview.mjs deck.json [-o preview.html] [--no-edit] [--scale 0.75] [--no-embed-images] [--allow-partial]');
   process.exit(2);
 }
 
@@ -49,10 +53,11 @@ const inputPath = resolve(args.input);
 const outputPath = resolve(args.output || basename(inputPath).replace(/\.json$/i, '') + '.preview.html');
 
 const deck = JSON.parse((await readFile(inputPath, 'utf-8')).replace(/^\uFEFF/, '')); // 容忍 Windows BOM
-// 主题令牌在生成时解析，预览端拿到的就是最终颜色；宏展开为标准元素
-const theme = resolveTheme(deck.theme);
-const resolved = resolveTokens(deck, theme);
-expandConnectors(resolved);
+const validation = validateDeck(deck);
+if (!validation.ok || validation.warnings.length) console.warn(formatReport(validation));
+if (!validation.ok && args.strict) process.exit(1);
+// 语义 layout → primitive DSL；主题令牌与连接线宏也在此统一展开。
+const { deck: resolved, theme } = compileDeck(deck);
 // shape-path 预合成 SVG data（预览端 Konva.Path 直接可用；闭合规则与转换层一致）
 for (const slide of resolved.slides || []) {
   for (const el of slide.elements || []) {
@@ -71,13 +76,16 @@ const toBrowserJs = s => s.replace(/^import[^\n]*\n/gm, '').replace(/^export\s+(
 
 const konvaSrc = safeJs(await readFile(resolve(SKILL_DIR, 'assets/konva.10.0.12.min.js'), 'utf-8'));
 const pptxgenSrc = safeJs(await readFile(resolve(SKILL_DIR, 'assets/pptxgen.4.0.1.js'), 'utf-8'));
+const jszipSrc = safeJs(await readFile(resolve(SKILL_DIR, 'node_modules/jszip/dist/jszip.min.js'), 'utf-8'));
 const previewCoreSrc = safeJs(await readFile(resolve(SKILL_DIR, 'core/ppt-preview-core.js'), 'utf-8'));
 const connectorsSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/connectors.mjs'), 'utf-8')));
 const dslCoreSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/dsl-to-pptx.mjs'), 'utf-8')));
+const sanitizeSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/pptx-sanitize.mjs'), 'utf-8')));
 
 const deckJson = JSON.stringify(resolved).replace(/<\//g, '<\\/');
 const deckRawJson = JSON.stringify(deck).replace(/<\//g, '<\\/');
-const title = (deck.meta?.title || 'PPT 预览').replace(/</g, '&lt;');
+const title = (deck.meta?.title || 'PPT 预览')
+  .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -118,9 +126,11 @@ const html = `<!DOCTYPE html>
 <div id="app"></div>
 <script>${konvaSrc}</script>
 <script>${pptxgenSrc}</script>
+<script>${jszipSrc}</script>
 <script>${previewCoreSrc}</script>
 <script>${connectorsSrc}</script>
 <script>${dslCoreSrc}</script>
+<script>${sanitizeSrc}</script>
 <script>
 const DECK = ${deckJson};        // 已解析令牌+已展开宏（渲染与 PPTX 导出用）
 const DECK_RAW = ${deckRawJson}; // 原始 deck（导出 deck.json 用，保留主题令牌与宏写法）
@@ -132,14 +142,24 @@ let editCount = 0;
 // 双击文本编辑 → 同时回写解析稿（PPTX 导出用）与原始稿（deck.json 导出用）
 function onTextEdit(node, newText) {
   if (node._elop) node._elop.text = newText;
-  const p = node._editPath;
-  if (p && DECK_RAW.slides[p.s] && DECK_RAW.slides[p.s].elements[p.e] && DECK_RAW.slides[p.s].elements[p.e].elType === 'text') {
-    DECK_RAW.slides[p.s].elements[p.e].text = newText;
-  }
+  const sourcePath = node._elop && node._elop.sourcePath;
+  if (sourcePath) setJsonPointer(DECK_RAW, sourcePath, newText);
   editCount++;
   const btn = document.getElementById('btn-deck');
   btn.style.display = '';
   btn.textContent = '导出 deck.json（已改 ' + editCount + ' 处）';
+}
+
+function setJsonPointer(root, pointer, value) {
+  const parts = String(pointer).split('/').slice(1).map(v => v.replaceAll('~1', '/').replaceAll('~0', '~'));
+  let cur = root;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur == null || !(parts[i] in cur)) return false;
+    cur = cur[parts[i]];
+  }
+  if (cur == null || !parts.length) return false;
+  cur[parts.at(-1)] = value;
+  return true;
 }
 
 function exportDeck() {
@@ -185,12 +205,19 @@ async function exportPptx() {
       const bg = slideBackground(slideSpec.background, THEME);
       if (bg) slide.background = bg;
       for (const el of slideSpec.elements) {
-        if (el._error) continue;
-        try { applyElement(pptx, slide, el, THEME); } catch (err) { console.warn('元素导出失败', el.elType, err); }
+        if (el._error) throw new Error((el.id || el.elType) + ': ' + el._error);
+        if (el.elType === 'image' && !el._data && !el.data && !el.path && !el.url) throw new Error((el.id || 'image') + ': 缺少实际图片资源');
+        applyElement(pptx, slide, el, THEME);
       }
       if (slideSpec.notes || slideSpec.speakerNotes) slide.addNotes(slideSpec.notes || slideSpec.speakerNotes);
     }
-    await pptx.writeFile({ fileName: (DECK.meta?.title || 'presentation') + '.pptx' });
+    const raw = await pptx.write({ outputType: 'arraybuffer' });
+    const sanitized = await sanitizePptxData(JSZip, raw, { outputType: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(sanitized.data);
+    a.download = (DECK.meta?.title || 'presentation') + '.pptx';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   } catch (e) {
     alert('导出失败: ' + e.message);
   } finally {
