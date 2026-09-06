@@ -136,7 +136,7 @@
         fontSize: 14, fill: '#94A3B8', align: 'center', verticalAlign: 'middle',
       });
       group.add(ph, label);
-      return;
+      throw new Error('图片尚未提供实际资源');
     }
     try {
       const img = await loadImage(src);
@@ -166,18 +166,19 @@
       const ph = new Konva.Rect({ x: elop.x, y: elop.y, width: elop.width, height: elop.height, fill: '#FEE2E2', stroke: '#FCA5A5', strokeWidth: 1 });
       const label = new Konva.Text({ x: elop.x, y: elop.y, width: elop.width, height: elop.height, text: '图片加载失败', fontSize: 13, fill: '#B91C1C', align: 'center', verticalAlign: 'middle' });
       group.add(ph, label);
+      throw e;
     }
   }
 
   async function renderImageSvg(elop, group) {
     try {
-      const img = await loadImage(svgToDataUri(elop.svgXml || ''));
+      const img = await loadImage(elop._data || svgToDataUri(elop.svgXml || ''));
       group.add(new Konva.Image({
         x: elop.x, y: elop.y, width: elop.width, height: elop.height, image: img,
         opacity: elop.opacity ?? 1, rotation: elop.rotation || elop.rotate || 0,
         ...konvaShadow(elop),
       }));
-    } catch (e) { /* 忽略失败 svg */ }
+    } catch (e) { throw new Error('SVG 加载失败: ' + e.message); }
   }
 
   function renderText(elop, group, layer, opts) {
@@ -212,6 +213,13 @@
     if (elop.underline) cfg.textDecoration = 'underline';
     if (elop.strikethrough) cfg.textDecoration = 'line-through';
     const node = new Konva.Text(cfg);
+    if (opts.onDiagnostic) {
+      const measure = new Konva.Text({ ...cfg, height: undefined });
+      const required = measure.height();
+      measure.destroy();
+      if (required > elop.height + 2) opts.onDiagnostic({ severity: 'warning', code: 'TEXT_OVERFLOW',
+        sourcePath: elop.sourcePath || elop.originPath, message: `${elop.id}: 实测文字高 ${Math.ceil(required)}px，容器 ${elop.height}px` });
+    }
     node._elop = elop; // DSL 引用：双击编辑回写
     if (opts._slideIndex != null && opts._elementIndex != null) {
       node._editPath = { s: opts._slideIndex, e: opts._elementIndex }; // 原始 deck 回写路径
@@ -330,10 +338,10 @@
   }
 
   /* ---------- chart：原生 Konva 绘制（预览用；导出 PPTX 为真实可编辑图表） ---------- */
-  function renderChart(elop, group, opts = {}) {
+  function renderChart(elop, group, layer, opts = {}) {
     const { x = 0, y = 0, width: w = 400, height: h = 300 } = elop;
-    const series = Array.isArray(elop.data) ? elop.data : [];
-    const labels = elop.labels || series[0]?.labels || [];
+    const model = chartModel(elop);
+    const { series, labels } = model;
     const defaultColors = (opts.palette && opts.palette.length ? opts.palette : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31']);
     const colors = (elop.chartColors && elop.chartColors.length ? elop.chartColors : defaultColors)
       .map(c => typeof c === 'string' && !c.startsWith('#') && !c.startsWith('rgb') ? '#' + c : c);
@@ -372,6 +380,8 @@
     const padL = 10, padT = titleH + legendH + 6, padB = labelH + 8;
     const cw = w - padL * 2, ch = h - padT - padB;
     const plotY = y + padT;
+    const plotValue = v => plotY + ch * (model.yDomain.max - v) / (model.yDomain.max - model.yDomain.min);
+    const zeroY = plotValue(0);
 
     const allVals = series.flatMap(s => s.values || []).flat().map(Number).filter(v => !isNaN(v));
     const maxV = Math.max(1e-9, ...allVals.map(v => Math.abs(v)));
@@ -384,6 +394,11 @@
       vals.forEach((v, i) => {
         const sweep = v / total * 360;
         group.add(new Konva.Wedge({ x: cx, y: cy, radius: r, angle: sweep, rotation: angle, fill: colors[i % colors.length] }));
+        if (elop.showValue) {
+          const mid = (angle + sweep / 2) * Math.PI / 180;
+          group.add(new Konva.Text({ x: cx + r * 0.78 * Math.cos(mid) - 20, y: cy + r * 0.78 * Math.sin(mid) - 6,
+            width: 40, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
+        }
         angle += sweep;
       });
       if (type === 'doughnut') {
@@ -432,7 +447,7 @@
         (s.values || []).forEach(pt => {
           const px = Array.isArray(pt) ? pt[0] : 0, py = Array.isArray(pt) ? pt[1] : 0;
           group.add(new Konva.Circle({
-            x: x + padL + (px / maxV) * cw, y: plotY + ch - (py / maxV) * ch,
+            x: x + padL + (px - model.xDomain.min) / (model.xDomain.max - model.xDomain.min) * cw, y: plotValue(py),
             radius: 4, fill: colors[si % colors.length],
           }));
         });
@@ -445,19 +460,22 @@
       const n = Math.max(2, labels.length || series[0]?.values?.length || 2);
       series.forEach((s, si) => {
         const pts = (s.values || []).map((v, i) => [
-          x + padL + (cw * i) / (n - 1),
-          plotY + ch - (Number(v) || 0) / maxV * ch,
+          x + padL + cw * (i + 0.5) / (labels.length || n),
+          plotValue(v),
         ]);
         const c = colors[si % colors.length];
-        group.add(new Konva.Line({
-          points: pts.flat(), stroke: c, strokeWidth: 2,
-          lineCap: 'round', lineJoin: 'round', tension: 0.2,
-          ...(type === 'area' ? { fill: c + '33', closed: true } : {}),
+        if (type === 'area') group.add(new Konva.Line({
+          points: [pts[0][0], zeroY, ...pts.flat(), pts.at(-1)[0], zeroY],
+          fill: c, opacity: 0.2, closed: true,
         }));
-        pts.forEach(p => {
-          group.add(new Konva.Circle({ x: p[0], y: p[1], radius: 3, fill: c }));
+        if (type !== 'area') group.add(new Konva.Line({
+          points: pts.flat(), stroke: c, strokeWidth: 2,
+          lineCap: 'round', lineJoin: 'round',
+        }));
+        pts.forEach((p, i) => {
+          if (type !== 'area') group.add(new Konva.Circle({ x: p[0], y: p[1], radius: 3, fill: c }));
           if (elop.showValue) {
-            group.add(new Konva.Text({ x: p[0] - 18, y: p[1] - 16, width: 36, height: 12, text: String(Number(s.values?.[i]) || 0), fontSize: 9, fill: secondary, align: 'center' }));
+            group.add(new Konva.Text({ x: p[0] - 18, y: type === 'area' ? (p[1] + zeroY) / 2 - 6 : p[1] - 16, width: 36, height: 12, text: String(Number(s.values?.[i]) || 0), fontSize: 9, fill: secondary, align: 'center' }));
           }
         });
       });
@@ -465,19 +483,19 @@
       // bar（默认）
       const n = labels.length || series[0]?.values?.length || 1;
       const slot = cw / n;
-      const bw = Math.min(slot * 0.7 / Math.max(1, series.length), 60);
+      const bw = slot / (series.length + 1.5); // Same 150% category gap as native clustered bars.
       for (let i = 0; i < n; i++) {
         series.forEach((s, si) => {
           const v = Number(s.values?.[i]) || 0;
-          const bh = (v / maxV) * ch;
+          const bh = Math.abs(plotValue(v) - zeroY);
           const bx = x + padL + slot * i + slot / 2 - (bw * series.length) / 2 + si * bw;
-          const by = plotY + ch - bh;
+          const by = Math.min(zeroY, plotValue(v));
           group.add(new Konva.Rect({
-            x: bx, y: by, width: bw * 0.9, height: bh,
-            fill: colors[si % colors.length], cornerRadius: [3, 3, 0, 0],
+            x: bx, y: by, width: bw, height: bh,
+            fill: colors[si % colors.length],
           }));
           if (elop.showValue) {
-            group.add(new Konva.Text({ x: bx - 10, y: by - 14, width: bw * 0.9 + 20, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
+            group.add(new Konva.Text({ x: bx - 10, y: v >= 0 ? plotValue(v) - 14 : plotValue(v) + 2, width: bw + 20, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
           }
         });
       }
@@ -493,12 +511,12 @@
         }));
       }
     }
-    // 轴线
-    group.add(new Konva.Line({ points: [x + padL, plotY + ch, x + padL + cw, plotY + ch], stroke: gridColor, strokeWidth: 1 }));
+    // 分类轴穿过零值，标签仍保持在底部，与原生负值图表一致。
+    group.add(new Konva.Line({ points: [x + padL, zeroY, x + padL + cw, zeroY], stroke: gridColor, strokeWidth: 1 }));
     }
 
     /* ---------- table ---------- */
-    function renderTable(elop, group, opts = {}) {
+    function renderTable(elop, group, layer, opts = {}) {
       const rows = elop.rows || [];
       if (!rows.length) return;
       const { x = 0, y = 0, width: w = 600, height: h = 200 } = elop;
@@ -533,14 +551,14 @@
       const stage = textNode.getStage();
       if (!stage) return;
       const stageBox = stage.container().getBoundingClientRect();
-      const pos = textNode.absolutePosition();
+      const pos = textNode.getAbsoluteTransform().point({ x: 0, y: 0 });
       const scale = stage.scaleX() || 1;
       const textarea = document.createElement('textarea');
       document.body.appendChild(textarea);
       Object.assign(textarea.style, {
         position: 'fixed', zIndex: 9999,
-        top: (stageBox.top + pos.y * scale) + 'px',
-        left: (stageBox.left + pos.x * scale) + 'px',
+        top: (stageBox.top + pos.y) + 'px',
+        left: (stageBox.left + pos.x) + 'px',
         width: textNode.width() * scale + 'px',
         height: Math.max(textNode.height() * scale, 40) + 'px',
         fontSize: textNode.fontSize() * scale + 'px',
@@ -548,16 +566,22 @@
         textAlign: textNode.align(), lineHeight: textNode.lineHeight() || 1.25,
         border: '2px solid #2563EB', borderRadius: '4px', background: 'rgba(255,255,255,0.98)',
         outline: 'none', resize: 'none', padding: '4px', margin: '0',
+        transformOrigin: 'top left', transform: 'rotate(' + textNode.getAbsoluteRotation() + 'deg)',
       });
       textarea.value = textNode.text();
       textarea.focus();
-      const finish = commit => {
-        if (commit) {
-          textNode.text(textarea.value);
-          layer.batchDraw();
-          if (typeof opts.onTextEdit === 'function') opts.onTextEdit(textNode, textarea.value);
-        }
+      let finished = false;
+      const finish = async commit => {
+        if (finished) return;
+        finished = true;
+        const value = textarea.value;
         textarea.remove();
+        if (commit) {
+          try {
+            if (typeof opts.onTextEdit === 'function') await opts.onTextEdit(textNode, value);
+            else { textNode.text(value); layer.batchDraw(); }
+          } catch (error) { window.alert('修改未保存: ' + error.message); }
+        }
       };
       textarea.addEventListener('blur', () => finish(true));
       textarea.addEventListener('keydown', e => {
@@ -589,8 +613,30 @@
     for (let i = 0; i < (elops || []).length; i++) {
       const elop = elops[i];
       const r = renderers[elop.elType];
-      if (!r) { console.warn('[PptPreview] 未知 elType:', elop.elType); continue; }
-      try { await r(elop, group, layer, { ...opts, _elementIndex: i }); } catch (e) { console.warn('[PptPreview] 渲染失败:', elop.elType, e); }
+      try {
+        if (!r) throw new Error('未知 elType: ' + elop.elType);
+        if (elop._error) throw new Error(elop._error);
+        let target = group, rendered = elop;
+        const rotation = elop.rotation ?? elop.rotate ?? 0;
+        const compositeOpacity = ['chart', 'table'].includes(elop.elType) ? (elop.opacity ?? 1) : 1;
+        if (rotation || compositeOpacity !== 1) {
+          let cx = (elop.x || 0) + (elop.width || 0) / 2, cy = (elop.y || 0) + (elop.height || 0) / 2;
+          if (elop.elType === 'shape-circle') { cx = elop.x; cy = elop.y; }
+          if (['shape-line', 'shape-arrow'].includes(elop.elType) && elop.pointArr?.length) {
+            const xs = elop.pointArr.map(p => p.x), ys = elop.pointArr.map(p => p.y);
+            cx = (Math.min(...xs) + Math.max(...xs)) / 2; cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+          }
+          target = new Konva.Group({ x: cx, y: cy, offsetX: cx, offsetY: cy, rotation, opacity: compositeOpacity });
+          group.add(target);
+          rendered = { ...elop, rotation: 0, rotate: 0, ...(['chart', 'table'].includes(elop.elType) ? { opacity: 1 } : {}) };
+        }
+        await r(rendered, target, layer, { ...opts, _elementIndex: i });
+      } catch (e) {
+        const message = `第${(opts._slideIndex || 0) + 1}页 ${elop.id || elop.elType}: ${e.message}`;
+        if (opts.strict !== false) throw new Error(message);
+        console.warn('[PptPreview] 渲染失败:', message);
+        opts.onDiagnostic?.({ severity: 'error', message, sourcePath: elop.originPath });
+      }
     }
     layer.batchDraw();
   }
@@ -600,6 +646,7 @@
    * @returns [{ stage, layer, holder }] —— 缩放用 applyZoom，无需重建
    */
   async function renderDeck(deck, container, opts = {}) {
+    if (document.fonts?.ready) await document.fonts.ready;
     const scale = opts.scale || 1;
     const gap = opts.pageGap ?? 24;
     const theme = opts.theme || {};
@@ -624,14 +671,15 @@
       if (bgIsColor) {
         layer.add(new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: bgColor }));
       } else if (typeof bgSpec === 'string' && bgSpec) {
-        loadImage(bgSpec).then(img => {
+        await loadImage(bgSpec).then(img => {
           const s2 = Math.max(PPT_WIDTH / img.width, PPT_HEIGHT / img.height);
           const cw = PPT_WIDTH / s2, ch = PPT_HEIGHT / s2;
           const bgImg = new Konva.Image({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, image: img, crop: { x: (img.width - cw) / 2, y: (img.height - ch) / 2, width: cw, height: ch } });
           layer.add(bgImg);
           bgImg.moveToBottom();
           layer.batchDraw();
-        }).catch(() => {
+        }).catch(error => {
+          if (opts.strict !== false) throw new Error(`第${i + 1}页背景: ${error.message}`);
           const fallback = new Konva.Rect({ x: 0, y: 0, width: PPT_WIDTH, height: PPT_HEIGHT, fill: '#F1F5F9' });
           layer.add(fallback);
           fallback.moveToBottom(); // 失败占位不能盖住已渲染内容

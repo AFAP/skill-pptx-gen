@@ -1,16 +1,14 @@
 /** End-to-end build: semantic deck -> PptxGenJS -> OOXML sanitizer -> ZIP assertions. */
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { buildPresentation, sanitizePptxBuffer } from '../core/ppt-core.mjs';
-import { compileDeck } from '../core/compile-deck.mjs';
 import { validateDeck } from '../core/dsl-validate.mjs';
+import deck from './fixtures/deck.mjs';
 
 const require = createRequire(import.meta.url);
 const PptxGenJS = require('pptxgenjs');
-const deck = JSON.parse(await readFile(new URL('../examples/南京埃斯顿深度研究报告-29页展示版.deck.json', import.meta.url), 'utf-8'));
 const validation = validateDeck(deck);
 assert.equal(validation.ok, true, validation.errors.join('\n'));
 
@@ -44,8 +42,6 @@ function assertWritablePathsExist(sourceDeck, resultDeck) {
 }
 
 assertWritablePathsExist(deck, compiledDeck);
-const creativeDeck = JSON.parse(await readFile(new URL('../examples/南京埃斯顿深度研究报告-AI创意版.deck.json', import.meta.url), 'utf-8'));
-assertWritablePathsExist(creativeDeck, compileDeck(creativeDeck).deck);
 
 const zip = await JSZip.loadAsync(buffer);
 const slideFiles = Object.keys(zip.files).filter(p => /^ppt\/slides\/slide\d+\.xml$/.test(p));

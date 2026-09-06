@@ -42,10 +42,10 @@ AI 应复用一套字体、颜色、描边、圆角和曲线习惯，同时让�
 {
   "theme": {
     "extends": "clean-minimal",
-  "primary": "#173B57",
-  "accent": "#E86A33",
-  "accentText": "#A33A12",
-  "onAccent": "#FFFFFF",
+    "primary": "#173B57",
+    "accent": "#E86A33",
+    "accentText": "#A33A12",
+    "onAccent": "#FFFFFF",
     "background": "#F7F5F1",
     "surface": "#FFFFFF",
     "surfaceAlt": "#EFECE6",

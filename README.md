@@ -28,13 +28,15 @@ npm ci
 node tools/build_all.mjs examples/南京埃斯顿深度研究报告-AI创意版.deck.json -o output
 
 # 受约束网页先提取为 deck，再构建
-node tools/html_to_deck.mjs examples/埃斯顿2026中期报.html -o output/webslide.json
+node tools/html_to_deck.mjs path/to/slides.html -o output/webslide.json
 node tools/build_all.mjs output/webslide.json -o output
 ```
 
-生成物包括 `*.preview.html`、`*.pptx` 和 `*.report.json`。最终交付要求报告的 `failed`、`skipped` 均为 0。
+生成物包括 `*.preview.html`、`*.pptx`、`*.report.json` 和记录源文件/产物 SHA-256 的 `*.build.json`。各步骤使用同一源快照，全部成功才发布；构建失败会保留上一套完整产物。最终交付要求报告的 `failed`、`skipped` 均为 0。
 
 预览页默认支持双击有明确源路径的文字修改，可下载保留主题令牌和语义结构的新 `deck.json`，也可直接在浏览器导出 PPTX。循环序号、混合插值等派生文字为只读，避免错误回写；浏览器不会自动覆盖原始源文件。纯审阅可给 `make_preview` 传 `--no-edit`。
+
+改字会保留原数据类型，重新编译整套场景，同步刷新依赖该字段的文字和几何；不合法的输入不会保存。浏览器与 CLI 共用编译、导出和 OOXML 修复模块。
 
 ## 完整展示示例
 
@@ -98,14 +100,20 @@ WebSlide 只提取显式标记的节点。支持范围与降级规则见 [WebSli
 node tools/check_deck.mjs deck.json --json
 node tools/make_preview.mjs deck.json -o preview.html
 node tools/build_pptx.mjs deck.json -o out.pptx --report out.report.json
+node tools/check_preview.mjs preview.html --json --screenshots output/slides
 npm test
+npm run test:browser
 ```
 
 `--allow-partial` 只用于用户明确接受不完整调试输出的情况。
 
+`npm test` 不依赖浏览器；`test:browser` 使用本机 Chrome/Edge 实测提取、改字、重编译和浏览器导出。给 `build_all` 加 `--check-browser` 可把真实预览检查纳入构建，包含运行错误与实测文字溢出。Chrome/Edge 路径可由 `PPT_BROWSER` 指定。
+
 ## 一致性边界
 
 网页与 PPTX 共用编译后的 DSL，但浏览器、PowerPoint 和 WPS 的字体度量与图表渲染并不相同，因此项目保证的是可追踪转换和明确降级，而不是虚假的像素级承诺。完整能力矩阵见 [转换一致性契约](references/parity-contract.md)。
+
+默认字号换算已校正为 `px × 0.75 = pt`，避免导出后文字整体缩小。旧稿需要保持原字号时，在主题对象中显式设置 `fontScale: 0.6666666667`。文字换行和原生图表仍需实际打开 PPTX 核对。
 
 参考截图默认采用“可编辑元素 + 局部无文字图片”的混合策略；不会把含中文和关键数据的整页生图作为常规方案。见 [参考图分析协议](references/reference-image-analysis.md)。
 
@@ -120,6 +128,10 @@ npm test
 - `core/dsl-to-pptx.mjs`：primitive DSL 到 PptxGenJS。
 - `core/ppt-preview-core.js`：primitive DSL 到 Konva。
 - `core/pptx-sanitize.mjs`：Node/浏览器共用 OOXML 修复。
+- `core/source-edit.mjs`：保留类型的源数据修改与重新编译。
+- `core/presentation.mjs`：Node/浏览器共用 PPTX 构建与转换报告。
 - `tools/build_all.mjs`：推荐的一键管线。
-- `examples/`：WebSlide 输入、原始研究报告、23 页创意案例、29 页工程覆盖案例及其交付物。
+- `tools/check_preview.mjs`：真实浏览器渲染诊断与逐页截图。
+- `tests/fixtures/`：独立的版式、图表和 HTML 工程测试，不依赖公开示例的命名或页数。
+- `examples/`：原始研究报告、23 页创意案例及其交付物。
 - `screenshot/`：历史实测截图，用于确认网页改字和 PowerPoint/WPS 对象可编辑。

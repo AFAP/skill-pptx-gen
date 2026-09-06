@@ -6,14 +6,14 @@
  * Node 专有的图片预取/文件 IO 在 core/ppt-core.mjs。
  *
  * 画布约定：1280 × 720 px（16:9）→ PPT 13.333 × 7.5 inch（96 DPI）
- * 字体换算：pt = px × fontScale（默认 0.667，为中文行高留余量；0.75 为视觉等大）
+ * 字体换算：pt = px × fontScale（默认 0.75，视觉等大；旧稿可显式设为 2/3）
  */
 
 export const PPT_WIDTH = 1280;
 export const PPT_HEIGHT = 720;
 export const INCH_W = 13.333;
 export const INCH_H = 7.5;
-export const DEFAULT_FONT_SCALE = 2 / 3;
+export const DEFAULT_FONT_SCALE = 0.75;
 
 const PX2INCH = INCH_W / PPT_WIDTH;
 /** 描边宽度/阴影的 px→pt（画布 1280px = 960pt，视觉等比缩放 0.75） */
@@ -277,6 +277,58 @@ export function resolveTokens(obj, theme) {
 
 /* ============================== 元素转换 ============================== */
 
+/** One data contract for validation, Konva coordinates and native chart export. */
+export function chartModel(elop) {
+  const type = elop.chartType || 'bar';
+  if (!['bar', 'line', 'area', 'pie', 'doughnut', 'radar', 'scatter'].includes(type)) throw new Error(`未知 chartType: ${type}`);
+  if (!Array.isArray(elop.data) || !elop.data.length) throw new Error('chart.data 必须是非空数组');
+  const series = elop.data.map((s, index) => {
+    if (!s || !Array.isArray(s.values) || !s.values.length) throw new Error(`chart.data[${index}].values 必须是非空数组`);
+    s.values.forEach((value, vi) => {
+      if (type === 'scatter' ? !Array.isArray(value) || value.length !== 2 || !value.every(Number.isFinite) : !Number.isFinite(value)) {
+        throw new Error(`chart.data[${index}].values[${vi}] 必须是${type === 'scatter' ? '[x,y] 有限数字对' : '有限数字'}`);
+      }
+    });
+    return { name: String(s.name ?? ''), values: s.values, labels: s.labels || elop.labels };
+  });
+  const domain = values => {
+    let min = Math.min(0, ...values), max = Math.max(0, ...values);
+    if (min === max) max = min + 1;
+    // Keep native value labels away from chart/category boundaries.
+    if (min < 0) min *= 1.08;
+    if (max > 0) max *= 1.08;
+    return { min, max };
+  };
+  if (type === 'scatter') {
+    // PptxGenJS shares one X column. Sparse Y columns retain different X sets,
+    // duplicate X values and every original point without coercion or truncation.
+    const xs = series.flatMap(s => s.values.map(p => p[0]));
+    let offset = 0;
+    const nativeData = [{ name: 'X', values: xs }, ...series.map(s => {
+      const values = Array(xs.length).fill(null);
+      s.values.forEach((point, i) => { values[offset + i] = point[1]; });
+      offset += s.values.length;
+      return { name: s.name, values };
+    })];
+    return { type, series, labels: [], nativeData, xDomain: domain(xs), yDomain: domain(series.flatMap(s => s.values.map(p => p[1]))) };
+  }
+  const count = series[0].values.length;
+  const labels = series[0].labels ?? Array.from({ length: count }, (_, i) => String(i + 1));
+  if (!Array.isArray(labels) || labels.length !== count) throw new Error('chart.labels 数量必须与 values 一致');
+  for (const s of series) {
+    if (s.values.length !== count || (s.labels && JSON.stringify(s.labels) !== JSON.stringify(labels))) throw new Error('chart 各系列必须使用相同分类标签和数量');
+  }
+  if (['pie', 'doughnut'].includes(type) && series.length !== 1) throw new Error(`${type} 仅支持一个数据系列；多个系列请拆成多个图表`);
+  const values = series.flatMap(s => s.values);
+  if (['pie', 'doughnut', 'radar'].includes(type) && values.some(v => v < 0)) throw new Error(`${type} 不支持负数，请选择柱状图或折线图`);
+  if (['pie', 'doughnut'].includes(type) && !values.some(v => v > 0)) throw new Error(`${type} 合计必须大于 0`);
+  return { type, series, labels, nativeData: series.map(s => ({ name: s.name, labels, values: s.values })), yDomain: domain(values) };
+}
+
+function combinedTransparency(color, opacity = 1) {
+  return Math.round((1 - (1 - (color?.transparency || 0) / 100) * opacity) * 100);
+}
+
 function convertShadow(elop) {
   const has = elop.shadowColor || elop.shadowBlur || elop.shadow;
   if (!has) return {};
@@ -319,13 +371,13 @@ function convertFill(elop) {
     // 渐变：pptxgenjs 不直接支持任意渐变，用首 stop 近似（可编辑性优先；多 stop 时校验器会提示）
     const first = elop.fill.stops[0];
     const p = parseColor(first?.color);
-    if (p) out.fill = { color: p.color, transparency: opacity != null ? Math.round((1 - opacity) * 100) : p.transparency };
+    if (p) out.fill = { color: p.color, transparency: combinedTransparency(p, opacity) };
     return out;
   }
   const p = parseColor(elop.fill);
   if (p) {
     out.fill = { color: p.color };
-    const t = opacity != null ? Math.round((1 - opacity) * 100) : p.transparency;
+    const t = combinedTransparency(p, opacity);
     if (t) out.fill.transparency = t;
   } else if (opacity != null && opacity < 1) {
     out.fill = { color: '000000', transparency: 100 };
@@ -339,7 +391,7 @@ function convertStroke(elop) {
   const p = parseColor(colorRaw || '#000000');
   if (!p) return {};
   const line = { color: p.color, width: pxToPt(elop.strokeWidth ?? elop.lineWidth ?? 2) };
-  if (p.transparency) line.transparency = p.transparency;
+  line.transparency = combinedTransparency(p, elop.opacity);
   const dash = elop.dashType || elop.dash;
   if (dash === 'dash' || dash === true || (Array.isArray(dash) && dash.length)) line.dashType = 'dash';
   if (elop.lineEndArrowType) line.endArrowType = elop.lineEndArrowType;
@@ -389,19 +441,19 @@ function textOptions(elop, theme) {
   delete opt.fill;
   if (elop.bgFill != null) {
     const bf = parseColor(elop.bgFill);
-    if (bf) opt.fill = { color: bf.color, ...(bf.transparency ? { transparency: bf.transparency } : {}) };
+    if (bf) opt.fill = { color: bf.color, transparency: combinedTransparency(bf, elop.bgOpacity) };
   }
   const fontScale = theme.fontScale;
-  if (typeof elop.fontSize === 'number') opt.fontSize = Math.max(6, Math.round(elop.fontSize * fontScale * 10) / 10);
+  opt.fontSize = Math.round((elop.fontSize ?? 18) * fontScale * 10) / 10;
+  opt.margin = opt.margin ?? 0;
   const fontStyle = String(elop.fontStyle || '');
   if (elop.bold || fontStyle.includes('bold')) opt.bold = true;
   if (elop.italic || fontStyle.includes('italic')) opt.italic = true;
   const color = parseColor(elop.fill ?? elop.color);
   if (color) {
     opt.color = color.color;
-    if (color.transparency) opt.transparency = color.transparency;
+    opt.transparency = combinedTransparency(color, elop.opacity);
   }
-  if (elop.opacity != null && elop.opacity < 1) opt.transparency = Math.round((1 - elop.opacity) * 100);
   if (elop.fontFamily || theme.fontFamily) opt.fontFace = String(elop.fontFamily || theme.fontFamily).split(',')[0].trim().replace(/^["']|["']$/g, '');
   const alignMap = { left: 'left', center: 'center', right: 'right', justify: 'justify' };
   if (elop.align && alignMap[elop.align]) opt.align = alignMap[elop.align];
@@ -461,6 +513,7 @@ export function applyElement(pptx, slide, elop, theme) {
     slide.addText(String(elop.text ?? ''), textOptions(elop, theme));
   } else if (t === 'image') {
     const opt = baseOptions(elop);
+    opt.transparency = combinedTransparency(null, elop.opacity);
     if (elop._data) opt.data = elop._data;
       else if (elop.data) opt.data = elop.data; // 直接内嵌 data URI（预览/校验器同样支持）
     else if (elop.path || elop.url) opt.path = elop.path || elop.url; // 兜底：未预取时让 pptxgenjs 自行处理
@@ -474,6 +527,7 @@ export function applyElement(pptx, slide, elop, theme) {
   } else if (t === 'image-svg') {
     if (!elop._data && !elop.svgXml) throw new Error('image-svg 缺少 svgXml');
     const opt = baseOptions(elop);
+    opt.transparency = combinedTransparency(null, elop.opacity);
     if (elop._data) {
       opt.data = elop._data; // Node 端：已预栅格化为 PNG（pptxgenjs 的 SVG 支持是纯浏览器功能）
     } else {
@@ -552,12 +606,48 @@ export function applyElement(pptx, slide, elop, theme) {
     opt.showLegend = elop.showLegend === true; // 两端统一：缺省隐藏
     if (elop.showTitle && (elop.chartTitle || elop.title)) { opt.showTitle = true; opt.title = elop.chartTitle || elop.title; } // pptxgenjs 的标题字段是 title
     opt.showValue = elop.showValue ?? false;
-    const data = (elop.data || []).map(s => ({
-      name: s.name || '',
-      labels: s.labels || elop.labels || [],
-      values: s.values || [],
-    }));
-    slide.addChart(chartType, data, opt);
+    const model = chartModel(elop);
+    const isPie = ['pie', 'doughnut'].includes(typeKey);
+    const titleH = opt.showTitle ? 22 : 0;
+    const legendH = opt.showLegend ? 26 : 0;
+    const labelH = !isPie && model.labels.length ? 18 : 0;
+    opt.layout = { x: 10 / elop.width, y: (titleH + legendH + 6) / elop.height,
+      w: (elop.width - 20) / elop.width, h: (elop.height - titleH - legendH - 6 - labelH - 8) / elop.height };
+    opt.dataLabelFormatCode = 'General';
+    opt.dataLabelFontFace = theme.fontFamily;
+    opt.dataLabelFontSize = 6.75;
+    opt.dataLabelColor = theme.textSecondary;
+    opt.dataLabelPosition = isPie ? 'ctr' : typeKey === 'bar' ? 'outEnd' : 't';
+    opt.catAxisLabelFontSize = 7.5;
+    opt.catAxisLabelColor = theme.textSecondary;
+    opt.catAxisLabelPos = 'low';
+    opt.catAxisLineColor = 'CBD5E1';
+    opt.catAxisLineSize = 0.75;
+    opt.catAxisMajorTickMark = opt.catAxisMinorTickMark = 'none';
+    opt.valAxisHidden = true;
+    opt.valGridLine = opt.catGridLine = { style: 'none' };
+    opt.legendFontSize = 8.25;
+    opt.legendColor = theme.textSecondary;
+    opt.legendPos = 't';
+    opt.titleFontFace = theme.fontFamily;
+    opt.titleFontSize = 10.5;
+    opt.lineSize = 1.5;
+    opt.lineDataSymbolSize = 5; // OOXML marker size is an integer, even when other sizes are points.
+    opt.holeSize = 55;
+    opt.valAxisMinVal = model.yDomain.min;
+    opt.valAxisMaxVal = model.yDomain.max;
+    opt.lineSmooth = false;
+    opt.showMarker = true;
+    opt.chartColorsOpacity = (elop.opacity ?? 1) * 100;
+    if (typeKey === 'area') opt.chartColorsOpacity *= 0.2;
+    if (typeKey === 'scatter') {
+      opt.catAxisMinVal = model.xDomain.min;
+      opt.catAxisMaxVal = model.xDomain.max;
+      opt.lineSize = 0;
+    }
+    if (typeKey === 'bar') { opt.barDir = 'col'; opt.barGapWidthPct = 150; opt.catAxisLabelPos = 'low'; }
+    opt.catAxisLabelFontFace = opt.valAxisLabelFontFace = opt.legendFontFace = theme.fontFamily;
+    slide.addChart(chartType, model.nativeData, opt);
   } else if (t === 'table') {
     if (!Array.isArray(elop.rows) || !elop.rows.length) throw new Error('table 缺少 rows');
     const opt = baseOptions(elop);

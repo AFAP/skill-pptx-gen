@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { box-sizing: border-box; } body { margin: 0; }
+.ppt-slide { position: relative; width: 1280px; height: 720px; }
+.shape { position: absolute; background: #123456; }
+</style></head><body><section class="ppt-slide">
+<div id="rotated" data-ppt="shape" class="shape" style="left:100px;top:100px;width:200px;height:100px;transform:rotate(30deg)"></div>
+<div id="pill" data-ppt="shape" class="shape" style="left:400px;top:100px;width:300px;height:60px;border-radius:30px"></div>
+<div id="ellipse" data-ppt="shape" class="shape" style="left:400px;top:200px;width:300px;height:60px;border-radius:50%"></div>
+<div style="opacity:.2;position:absolute;left:100px;top:300px"><div id="faded" data-ppt="shape" style="width:100px;height:50px;background:#123456"></div></div>
+<div style="position:absolute;left:400px;top:300px;width:50px;height:50px;overflow:hidden"><div id="clipped" data-ppt="shape" style="width:200px;height:100px;background:#123456"></div></div>
+<div style="display:none"><div id="hidden" data-ppt="shape" style="width:100px;height:100px"></div></div>
+</section></body></html>

@@ -45,8 +45,8 @@
         "fontScale": { "type": "number", "exclusiveMinimum": 0 },
         "radius": { "type": "number", "minimum": 0 },
         "pagePadding": { "type": "number", "minimum": 0 },
-        "titleMarker": { "type": ["string", "boolean"] },
-        "footer": { "type": ["boolean", "object"] }
+        "titleMarker": { "enum": ["bar", "line"] },
+        "footer": { "type": "boolean" }
       },
       "additionalProperties": true
     },
@@ -101,6 +101,7 @@
         },
         "role": { "type": "string" },
         "sourcePath": { "type": "string" },
+        "originPath": { "type": "string", "description": "编译器生成的追踪路径，不代表文字可回写" },
         "x": { "$ref": "#/$defs/numberOrBinding" },
         "y": { "$ref": "#/$defs/numberOrBinding" },
         "width": { "$ref": "#/$defs/positiveNumberOrBinding" },
@@ -112,7 +113,7 @@
         "scale": { "$ref": "#/$defs/positiveNumberOrBinding" },
         "stepX": { "$ref": "#/$defs/numberOrBinding" },
         "stepY": { "$ref": "#/$defs/numberOrBinding" },
-        "columns": { "type": "integer", "minimum": 1 },
+        "columns": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "$ref": "#/$defs/binding" }] },
         "defaults": { "type": "object" },
         "anchor": {
           "type": "object",
@@ -121,21 +122,21 @@
             "to": { "type": "string", "minLength": 1 },
             "edge": { "enum": ["left", "right", "top", "bottom", "center"] },
             "align": { "enum": ["left", "right", "top", "bottom", "center"] },
-            "gap": { "type": "number" },
-            "dx": { "type": "number" },
-            "dy": { "type": "number" }
+            "gap": { "$ref": "#/$defs/numberOrBinding" },
+            "dx": { "$ref": "#/$defs/numberOrBinding" },
+            "dy": { "$ref": "#/$defs/numberOrBinding" }
           },
           "additionalProperties": false
         },
         "elements": { "type": "array", "items": { "$ref": "#/$defs/element" }, "minItems": 1 },
-        "items": { "type": "array", "minItems": 1 },
+        "items": { "oneOf": [{ "type": "array", "minItems": 1 }, { "$ref": "#/$defs/binding" }] },
         "template": {
           "oneOf": [
             { "$ref": "#/$defs/element" },
             { "type": "array", "items": { "$ref": "#/$defs/element" }, "minItems": 1 }
           ]
         },
-        "text": { "type": ["string", "number"] },
+        "text": { "type": ["string", "number", "boolean"] },
         "path": { "type": "string" },
         "url": { "type": "string" },
         "data": {},

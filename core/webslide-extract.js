@@ -20,14 +20,6 @@
     return px(v) * Math.min(base._sx, base._sy);
   }
 
-  function rotationDeg(transform) {
-    if (!transform || transform === 'none') return 0;
-    const m = transform.match(/^matrix\(([^)]+)\)$/);
-    if (!m) return 0;
-    const parts = m[1].split(',').map(Number);
-    return Math.round(Math.atan2(parts[1], parts[0]) * 180 / Math.PI * 100) / 100;
-  }
-
   function boxShadow(cs) {
     const v = cs.boxShadow;
     if (!v || v === 'none') return {};
@@ -40,13 +32,43 @@
   function geom(node, slideRect) {
     const r = node.getBoundingClientRect();
     const sx = 1280 / slideRect.width, sy = 720 / slideRect.height;
+    const slide = node.closest('[data-ppt-slide], .ppt-slide');
+    let matrix = new DOMMatrix(), opacity = 1;
+    const warnings = [];
+    for (let current = node; current && current !== slide; current = current.parentElement) {
+      const style = getComputedStyle(current);
+      opacity *= Number(style.opacity || 1);
+      if (style.transform !== 'none') matrix = new DOMMatrix(style.transform).multiply(matrix);
+      if (['rotate', 'scale', 'translate'].some(k => style[k] && style[k] !== 'none')) warnings.push('individual-transform-properties');
+      if (current !== node) {
+        if (['filter', 'clipPath', 'maskImage', 'mixBlendMode'].some(k => style[k] && !['none', 'normal'].includes(style[k]))) warnings.push('ancestor-visual-effect');
+        if (Number(style.opacity) < 1 && current.querySelectorAll('[data-ppt]').length > 1) warnings.push('group-opacity-compositing');
+        if (style.zIndex !== 'auto' || style.isolation === 'isolate') warnings.push('nested-stacking-context');
+        if (!current.hasAttribute('data-ppt') && (cleanColor(style.backgroundColor) || style.backgroundImage !== 'none')) warnings.push('unmarked-container-background');
+        const clip = current.getBoundingClientRect();
+        const clipsX = ['hidden', 'clip', 'scroll', 'auto'].includes(style.overflowX);
+        const clipsY = ['hidden', 'clip', 'scroll', 'auto'].includes(style.overflowY);
+        if ((clipsX && (r.left < clip.left - 0.5 || r.right > clip.right + 0.5)) || (clipsY && (r.top < clip.top - 0.5 || r.bottom > clip.bottom + 0.5))) warnings.push('ancestor-overflow-clip');
+      }
+    }
+    const cs = getComputedStyle(node);
+    const borderWidth = px(cs.width) + (cs.boxSizing === 'border-box' ? 0 : px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth));
+    const borderHeight = px(cs.height) + (cs.boxSizing === 'border-box' ? 0 : px(cs.paddingTop) + px(cs.paddingBottom) + px(cs.borderTopWidth) + px(cs.borderBottomWidth));
+    const scaleX = Math.hypot(matrix.a, matrix.b), scaleY = Math.hypot(matrix.c, matrix.d);
+    const orthogonal = Math.abs(matrix.a * matrix.c + matrix.b * matrix.d) < 0.0001;
+    if (!matrix.is2D || !orthogonal || matrix.a * matrix.d - matrix.b * matrix.c <= 0) warnings.push('transform-skew-reflection-or-3d');
+    if (Math.abs(sx - sy) > 0.0001) warnings.push('non-uniform-slide-scale');
+    const rotation = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+    // A rotated rectangle's bounding-box centre is its transformed centre.
+    // Recover edge lengths; never rotate the already-expanded bounding box again.
+    const width = (borderWidth || r.width) * scaleX * sx;
+    const height = (borderHeight || r.height) * scaleY * sy;
     return {
-      x: Math.round((r.left - slideRect.left) * sx * 100) / 100,
-      y: Math.round((r.top - slideRect.top) * sy * 100) / 100,
-      width: Math.round(r.width * sx * 100) / 100,
-      height: Math.round(r.height * sy * 100) / 100,
-      _sx: sx,
-      _sy: sy,
+      x: Math.round(((r.left + r.width / 2 - slideRect.left) * sx - width / 2) * 100) / 100,
+      y: Math.round(((r.top + r.height / 2 - slideRect.top) * sy - height / 2) * 100) / 100,
+      width: Math.round(width * 100) / 100, height: Math.round(height * 100) / 100,
+      rotation: Math.round(rotation * 100) / 100, opacity,
+      _sx: sx * scaleX, _sy: sy * scaleY, _warnings: warnings,
     };
   }
 
@@ -56,8 +78,9 @@
     return {
       id: node.id || node.dataset.pptId || `web-${index}`,
       x: g.x, y: g.y, width: g.width, height: g.height,
-      opacity: Number(cs.opacity || 1),
-      rotation: rotationDeg(cs.transform),
+      opacity: g.opacity,
+      rotation: g.rotation,
+      _warnings: g._warnings,
       _sx: g._sx, _sy: g._sy,
       _z: Number.parseInt(cs.zIndex, 10) || 0,
       _order: index,
@@ -91,6 +114,8 @@
     }
     const borderWidths = [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].map(px);
     if (Math.max(...borderWidths) - Math.min(...borderWidths) > 0.5) out.push('non-uniform-border');
+    if (new Set([cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius]).size > 1) out.push('non-uniform-radius');
+    if (node.tagName === 'IMG' && cs.objectPosition !== '50% 50%') out.push('image-object-position');
     return out;
   }
 
@@ -121,7 +146,8 @@
   function shapeElement(node, base, cs) {
     const fill = cleanColor(cs.backgroundColor) || '#00000000';
     const radius = radiusPx(cs.borderTopLeftRadius, base);
-    const isEllipse = radius >= Math.min(base.width, base.height) / 2 - 0.5;
+    const percentageRadius = String(cs.borderTopLeftRadius).includes('%') && px(cs.borderTopLeftRadius) >= 50;
+    const isEllipse = percentageRadius || (Math.abs(base.width - base.height) < 0.5 && radius >= base.width / 2);
     return {
       ...base,
       ...(isEllipse ? { elType: 'shape-circle', x: base.x + base.width / 2, y: base.y + base.height / 2 } : { elType: 'shape-rect' }),
@@ -182,9 +208,9 @@
     else if (kind === 'chart') out = chartElement(node, base);
     else if (kind === 'line') out = { ...base, elType: 'shape-line', role: node.dataset.role || 'line', pointArr: [{ x: base.x, y: base.y }, { x: base.x + base.width, y: base.y + base.height }], lineColor: cs.color, lineWidth: Math.max(1, px(cs.borderTopWidth) * base._sx) };
     else throw new Error(`${base.id}: 未知 data-ppt 类型 "${kind || '(empty)'}"`);
-    const unsupported = visualWarnings(node, cs);
+    const unsupported = [...(base._warnings || []), ...visualWarnings(node, cs)];
     if (unsupported.length || out.webUnsupported?.length) out.webUnsupported = [...new Set([...(out.webUnsupported || []), ...unsupported])];
-    delete out._sx; delete out._sy;
+    delete out._sx; delete out._sy; delete out._warnings;
     return out;
   }
 
@@ -205,7 +231,15 @@
       const slideRect = slideNode.getBoundingClientRect();
       if (!slideRect.width || !slideRect.height) throw new Error(`第 ${si + 1} 个 slide 尺寸为 0`);
       const marked = Array.from(slideNode.querySelectorAll('[data-ppt]'));
-      const elements = marked.map((node, i) => nodeToElement(node, slideRect, i)).filter(Boolean)
+      const omitted = [];
+      const elements = marked.map((node, i) => {
+        const cs = getComputedStyle(node);
+        if (!node.getClientRects().length || ['hidden', 'collapse'].includes(cs.visibility)) {
+          omitted.push({ id: node.id || node.dataset.pptId || `web-${i}`, reason: 'css-hidden' });
+          return null;
+        }
+        return nodeToElement(node, slideRect, i);
+      }).filter(Boolean)
         .sort((a, b) => a._z - b._z || a._order - b._order)
         .map(el => { delete el._z; delete el._order; return el; });
       const slideWarnings = visualWarnings(slideNode, getComputedStyle(slideNode));
@@ -214,6 +248,7 @@
         background: backgroundFrom(getComputedStyle(slideNode)),
         notes: slideNode.dataset.notes,
         ...(slideWarnings.length ? { webUnsupported: slideWarnings } : {}),
+        ...(omitted.length ? { webOmitted: omitted } : {}),
         elements,
       };
     });

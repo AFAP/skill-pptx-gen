@@ -34,7 +34,7 @@ function lookup(data, path) {
   const parts = String(path || '').split('.').filter(Boolean);
   let value = data;
   for (const part of parts) {
-    if (value == null || typeof value !== 'object' || !(part in value)) return undefined;
+    if (value == null || typeof value !== 'object' || !Object.hasOwn(value, part)) return undefined;
     value = value[part];
   }
   return value;
@@ -45,11 +45,13 @@ function interpolate(value, vars) {
     const exact = value.match(/^\{\{\s*([\w.]+)\s*\}\}$/);
     if (exact) {
       const found = lookup(vars, exact[1]);
-      return found === undefined ? value : structuredClone(found);
+      if (found === undefined) throw new Error(`未定义的插值变量: ${exact[1]}`);
+      return structuredClone(found);
     }
     return value.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key) => {
       const found = lookup(vars, key);
-      return found === undefined ? match : String(found);
+      if (found === undefined) throw new Error(`未定义的插值变量: ${key}`);
+      return String(found);
     });
   }
   if (Array.isArray(value)) return value.map(item => interpolate(item, vars));
@@ -190,9 +192,12 @@ export function expandCreativeElements(elements, { styleClasses = {}, slideIndex
   let autoId = 0;
 
   const expandNode = (raw, ctx, options = {}) => {
-    const sourceText = raw?.text;
-    const interpolated = options.vars ? interpolate(raw, options.vars) : structuredClone(raw);
-    const el = applyStyleClasses(interpolated, styleClasses, ctx.defaults);
+    const styled = applyStyleClasses(raw, styleClasses, ctx.defaults);
+    const sourceText = styled.text;
+    // Child templates have their own lexical scope. Do not interpolate them yet.
+    const el = Object.fromEntries(Object.entries(styled).map(([key, value]) => [key,
+      ['elements', 'template', 'defaults'].includes(key) ? structuredClone(value) : interpolate(value, options.vars || {}),
+    ]));
     if (!el || typeof el !== 'object') throw new Error('组合元素必须是对象');
 
     if (el.elType === 'group') {
@@ -239,13 +244,15 @@ export function expandCreativeElements(elements, { styleClasses = {}, slideIndex
           prefix: `${basePrefix}-${index}`,
           defaults: { ...ctx.defaults, ...(el.defaults || {}) },
         };
-        const vars = { item, index, number: index + 1, ...(item && typeof item === 'object' && !Array.isArray(item) ? item : { value: item }) };
-        const bindingBase = options.sourcePathBase ? `${options.sourcePathBase}/items/${index}` : undefined;
+        const vars = { ...options.vars, ...(item && typeof item === 'object' && !Array.isArray(item) ? item : { value: item }), item, index, number: index + 1 };
+        const itemsPath = exactBindingPath(styled.items, options.bindingBase, options.vars || {})
+          || (options.sourcePathBase ? `${options.sourcePathBase}/items` : undefined);
+        const bindingBase = itemsPath ? `${itemsPath}/${index}` : undefined;
         return template.flatMap((child, childIndex) => expandNode(child, next, {
           vars,
           bindingBase,
           suppressAutoSourcePath: true,
-          sourcePathBase: options.sourcePathBase ? `${options.sourcePathBase}/template/${childIndex}` : undefined,
+          sourcePathBase: options.sourcePathBase ? `${options.sourcePathBase}/template${Array.isArray(styled.template) ? `/${childIndex}` : ''}` : undefined,
         }));
       });
     }
@@ -259,8 +266,9 @@ export function expandCreativeElements(elements, { styleClasses = {}, slideIndex
       // repeat 中的固定、拼接或 index/number 文本没有唯一可安全回写的源字段。
       // 用内部标记阻止 compile-deck 为它伪造展开后数组索引；标记在编译阶段移除。
       else if (options.suppressAutoSourcePath) el._sourcePathDerived = true;
-      else if (!options.suppressAutoSourcePath && options.sourcePathBase) el.sourcePath = `${options.sourcePathBase}/text`;
+      else if (!options.suppressAutoSourcePath && options.sourcePathBase && Object.hasOwn(raw, 'text')) el.sourcePath = `${options.sourcePathBase}/text`;
     }
+    el.originPath = options.sourcePathBase;
     return [transformPrimitive(el, ctx)];
   };
 

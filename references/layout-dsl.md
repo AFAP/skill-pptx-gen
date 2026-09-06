@@ -1,6 +1,6 @@
 # 紧凑语义版式
 
-这是低 token 的 Compact 层，适合目录、章节、普通列表、低价值过渡页和快速交付。重要结论页与内容关系复杂的页面优先使用 `creative-authoring.md` 中的 Creative DSL 或 WebSlide。`core/layouts.mjs` 会把本层展开为 1280×720 primitive DSL。
+这是低 token 的 Compact 层，适合目录、章节、普通列表和快速交付。需要自由构图时使用 `creative-authoring.md` 中的 Creative DSL 或 WebSlide。`core/layouts.mjs` 会把本层展开为 1280×720 primitive DSL。
 
 ## 顶层
 
@@ -13,7 +13,7 @@
 }
 ```
 
-`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整示例见 `examples/南京埃斯顿深度研究报告-29页展示版.deck.json`。
+`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整工程字段用例见 `tests/fixtures/deck.mjs`。
 
 编辑器需要机器可读约束时，可使用 [deck.schema.json](deck.schema.json)；命令行仍以 `tools/check_deck.mjs` 的严格检查为准。
 
@@ -30,7 +30,11 @@
 - `elements`：可选 primitive 覆盖层，编译后置于语义版式上方。
 - `id`：可选稳定页 ID；未提供时自动生成。
 
-生成的文本元素会携带 `sourcePath`。预览页双击改字会同时更新浏览器内的编译稿和原始语义稿；“导出 deck.json”会下载一份保留主题令牌和宏的新文件，不会自动覆盖磁盘原件。
+可回写的文本元素会携带 `sourcePath`。双击改字先更新原始语义稿，再重新编译并刷新关联对象；派生默认文字只读。“导出 deck.json”保留主题令牌和宏，不会自动覆盖磁盘原件。
+
+## 容量边界
+
+`cover.metrics` 最多 4 项；`agenda.items` 最多 8 项；`cards/metrics/timeline.items` 最多 6 项；`split.bullets` 和 `comparison` 每侧 `items` 最多 5 项；`chart-insight.insights` 最多 6 项。超限是严格错误，诊断包含源路径。请拆页或改用自由构图，编译器不会裁掉尾项。
 
 ## 版式
 

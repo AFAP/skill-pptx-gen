@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /** Render constrained WebSlide HTML in Chromium/Edge and extract computed layout to deck.json. */
-import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
+import { dumpDOM, findBrowser } from './lib/browser.mjs';
 
-const execFileAsync = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
@@ -23,26 +20,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function browserCandidates(explicit) {
-  const env = process.env.PPT_BROWSER;
-  if (process.platform === 'win32') {
-    const pf = process.env.ProgramFiles || 'C:\\Program Files';
-    const pfx = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-    const local = process.env.LOCALAPPDATA || '';
-    return [explicit, env,
-      join(pf, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-      join(pfx, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-      join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-      join(local, 'Google', 'Chrome', 'Application', 'chrome.exe')].filter(Boolean);
-  }
-  if (process.platform === 'darwin') return [explicit, env, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'].filter(Boolean);
-  return [explicit, env, '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/microsoft-edge'].filter(Boolean);
-}
-
-function findBrowser(explicit) {
-  return browserCandidates(explicit).find(existsSync);
-}
-
 const args = parseArgs(process.argv);
 if (!args.input || process.argv.includes('--help')) {
   console.log('用法: node tools/html_to_deck.mjs slides.html [-o deck.json] [--theme clean-minimal] [--browser path]');
@@ -51,9 +28,10 @@ if (!args.input || process.argv.includes('--help')) {
 
 const input = resolve(args.input);
 const output = resolve(args.output || input.replace(/\.html?$/i, '') + '.deck.json');
-const browser = findBrowser(args.browser);
-if (!browser) {
-  console.error('❌ 未找到 Chrome/Edge。可用 --browser <path> 或 PPT_BROWSER 指定。');
+let browser;
+try { browser = findBrowser(args.browser); }
+catch (error) {
+  console.error(`❌ ${error.message}`);
   process.exit(1);
 }
 
@@ -87,11 +65,7 @@ const tempDir = await mkdtemp(join(tmpdir(), 'webslide-'));
 const tempHtml = join(tempDir, basename(input));
 try {
   await writeFile(tempHtml, html, 'utf-8');
-  const { stdout, stderr } = await execFileAsync(browser, [
-    '--headless=new', '--disable-gpu', '--disable-extensions', '--no-first-run',
-    '--allow-file-access-from-files', '--window-size=1400,900', '--virtual-time-budget=5000',
-    '--dump-dom', pathToFileURL(tempHtml).href,
-  ], { maxBuffer: 50 * 1024 * 1024, windowsHide: true });
+  const { stdout, stderr } = await dumpDOM(pathToFileURL(tempHtml).href, { browser });
   const err = stdout.match(/<pre id="__PPT_ERROR__">([^<]*)<\/pre>/i);
   if (err) throw new Error(decodeURIComponent(err[1]));
   const match = stdout.match(/<pre id="__PPT_DECK__">([^<]*)<\/pre>/i);

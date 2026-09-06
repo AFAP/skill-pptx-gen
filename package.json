@@ -13,7 +13,8 @@
     "build:all": "node tools/build_all.mjs",
     "html": "node tools/html_to_deck.mjs",
     "preview": "node tools/make_preview.mjs",
-    "test": "node tests/smoke.mjs && node tests/semantic-layouts.mjs && node tests/integration.mjs"
+    "test": "node tests/smoke.mjs && node tests/semantic-layouts.mjs && node tests/integration.mjs && node tests/regressions.mjs",
+    "test:browser": "node tests/browser.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.1",

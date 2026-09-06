@@ -20,22 +20,22 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 
 - **Creative DSL（默认）**：重要结论页、机制图、关系图、数据故事和需要独特构图的页面。读取 [references/dsl-schema.md](references/dsl-schema.md)；用 `styleClass`、`group`、`repeat`、`anchor` 和路径宏降低自由构图的 token 成本。
 - **Creative WebSlide**：用户给网页、参考图，或 HTML/CSS 更适合表达页面结构时使用。读取 [references/webslide.md](references/webslide.md)。Flex/Grid 只负责帮助 AI 排版，提取后的 primitive scene 才是最终视觉契约。
-- **Compact**：目录、章节、普通列表、低价值过渡页，或用户明确要求快速、低 token 时使用。读取 [references/layout-dsl.md](references/layout-dsl.md)。不要让同一语义版式主导整套 deck。
+- **Compact**：目录、章节、普通列表，或语义版式已经能准确表达内容时使用。读取 [references/layout-dsl.md](references/layout-dsl.md)。按表达需要选择，不把效率模式当成创作上限。
 - **Hybrid**：摄影、3D、纹理和复杂渐变可以局部转为图片；标题、正文、数据、图表、表格和关键关系默认保持可编辑。
 
 按输入再读取对应参考：
 
 - 长文档、研究报告或多章节材料：[references/content-to-deck.md](references/content-to-deck.md)。
 - 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。提取视觉语法后重新创作，不把单张截图当作整套母版。
-- 配色、字体、曲线和空间节奏：[references/styles.md](references/styles.md)。样式是视觉语法，不是整页布局。
+- 配色、字体、曲线和空间节奏：[references/styles.md](references/styles.md)。默认色板详见 [references/builtin-template.md](references/builtin-template.md)。样式是视觉语法，不是整页布局。
 - 脑图、弧形轨道、四象限、金字塔、SWOT 等几何配方：[references/design-system.md](references/design-system.md)，只读取当前页面所需部分。
 - 转换边界与降级：[references/parity-contract.md](references/parity-contract.md)。
 - 构建故障：[references/troubleshooting.md](references/troubleshooting.md)。
 
 ## 标准工作流
 
-1. 先做页面计划。每页写清 `message`、证据、视觉隐喻、信息层级和导出策略；先完成整套叙事，再开始排版。
-2. 逐页决定 Creative DSL、WebSlide、Compact 或 Hybrid。关键页面优先自由构图，普通页面才使用语义版式。
+1. 多页或长文档先做简短页面计划，写清 `message`、证据和导出策略；简单单页无需额外规划文件。
+2. 逐页决定 Creative DSL、WebSlide、Compact 或 Hybrid，选择能准确表达内容、返工最少的入口。构图与视觉风格由 AI 和用户决定。
 3. 先建立全局主题、`styleClasses` 或共享 CSS；复用视觉语言，不复制整页几何。
 4. 若使用 HTML，先提取为 deck：
 
@@ -53,24 +53,27 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 6. 检查 `*.preview.html`、`*.pptx`、`*.report.json`。最终交付的 `failed` 和 `skipped` 必须同时为 0；warning 要逐条处理或证明属于预期行为。
 7. 先看整套缩略图判断节奏，再逐页全尺寸检查。不要因为校验通过就认定页面内容或构图已经合格。
 
+有 Chrome/Edge 时给 `build_all` 加 `--check-browser`，执行实际预览渲染检查。也可运行 `node tools/check_preview.mjs preview.html --json` 检查实测文字溢出，或加 `--screenshots output-dir` 导出逐页 PNG。最终仍需实际渲染 PPTX 核对，浏览器检查不能替代 PowerPoint/WPS。
+
 首次使用缺依赖时在技能目录执行 `npm ci`。Node.js 需 ≥18。
 
 ## 转换契约
 
 - 默认严格构建：未知类型、无法导出的路径、未生成的图片 prompt、图片读取失败都会中止，不允许“成功但缺元素”。
+- Compact 容量超限会给出源路径并报错；自行拆页或转 Creative DSL，工具不会截断内容。图表数据必须为有限数字，分类标签与数值逐项对应。
 - `styleClass`、`group`、`repeat`、`anchor` 仅存在于源文件；构建前统一展开为 primitive，不进入两个渲染器的分支逻辑。
 - 网页预览与 PPTX 共用编译后的 primitive DSL，但文字排版和原生图表仍受浏览器、PowerPoint/WPS 字体度量影响；不要声称像素级完全相同。
 - HTML 仅转换带 `data-ppt` 的叶子元素。Flex/Grid 可用于计算位置；滤镜、遮罩、混合模式、复杂渐变等必须报告或局部栅格化。
 - 不把含中文文字的整页生图当作默认降级。优先生成无文字背景/插画，再叠加可编辑文字。
 - 图片属于媒体对象，报告标记为 `rasterized`；文本、形状、图表和表格应标记为 `editable`。
 - primitive DSL 画布固定 1280×720；`shape-circle` 的 x/y 是圆心，其余几何通常以左上角为原点。
+- 矩形、文字、图片和路径的 `rotation` 围绕元素框中心。字体默认按 `px × 0.75` 导出为 pt；旧稿需要旧字号时显式设置 `theme.fontScale:0.6666666667`，不再默认缩小全部文字。
 - 浅色表面上的强调文字使用 `$accentText`；`$accent` 用于装饰、描边和填充；accent 色块上的文字使用 `$onAccent`。
 
-## 创作质量底线
+## 内容与创作
 
 - 视觉来自内容关系。先寻找冲突、因果、层级、流向、尺度、时间或不确定性，再选择图形语言。
-- 每页保留一个明确主角，并同时交代结论、证据和意义；不要把所有信息压成同权重卡片。
-- 连续页面避免重复同一几何骨架。复用色彩、字号、线条和留白节奏，而不是复制布局。
+- 字数、配色数量和版式配方都是可选建议，不是转换约束；不要为了套配方删掉用户要求保留的内容。
 - 不为“看起来丰富”编造事实。推断、情景和假设必须与已知事实分开。
 - 参考图提供视觉语法；除非用户要求逐页复刻，否则继续让 AI 根据新内容创造构图。
 
@@ -85,13 +88,17 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 
 `repeat` 中直接绑定 `{{field}}` 或 `{{value}}` 的文本可回写；序号、固定模板文字和混合插值是派生结果，只读以防写错源数据。
 
+改字先更新源数据、保留数字/布尔类型，再用同一编译器刷新所有关联文字和几何；校验失败则不保存。嵌套 `repeat/group` 同样适用。不要直接修改编译稿、内嵌 HTML 或 `sourcePath`。降低 token 应优先复用源数据和样式类，只读取报错指向的页面与字段，避免把生成的 HTML 重新喂给模型。
+
 ## 常用命令
 
 ```bash
 node tools/check_deck.mjs deck.json --json
 node tools/make_preview.mjs deck.json -o preview.html
 node tools/build_pptx.mjs deck.json -o out.pptx --report out.report.json
+node tools/check_preview.mjs preview.html --json
 npm test
+npm run test:browser
 ```
 
 只有用户明确接受不完整输出时才使用 `--allow-partial`。不要用 `--no-validate` 掩盖转换错误。
@@ -105,7 +112,8 @@ npm test
 - `core/dsl-to-pptx.mjs`：primitive DSL → PptxGenJS。
 - `core/ppt-preview-core.js`：primitive DSL → Konva 预览。
 - `core/pptx-sanitize.mjs`：Node 与浏览器共用的 OOXML 修复。
+- `core/source-edit.mjs`：类型安全的源数据修改与重新编译。
+- `core/presentation.mjs`：Node/浏览器共用的 PPTX 构建与转换报告。
 - `tools/build_all.mjs`：推荐的一键严格管线。
 - `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
 - `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。
-- `examples/埃斯顿2026中期报.html`：受约束 WebSlide 输入示例。

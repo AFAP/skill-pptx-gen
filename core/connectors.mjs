@@ -27,7 +27,7 @@ export function arcPoint(cx, cy, r, angleDeg) {
 // 否则预览端可定位的元素在导出前会丢失 id，越界装饰也无法显式声明。
 function inheritMacroMetadata(el) {
   const out = {};
-  for (const key of ['id', 'name', 'role', 'sourcePath', 'allowOverflow', 'allowOverlap']) {
+  for (const key of ['id', 'name', 'role', 'sourcePath', 'originPath', 'allowOverflow', 'allowOverlap']) {
     if (el[key] != null) out[key] = el[key];
   }
   return out;
@@ -222,6 +222,11 @@ function normalizePathArcCurves(el) {
 /** 展开单个元素；非宏类型原样返回 */
 export function expandElement(el) {
   const fn = EXPANDERS[el?.elType];
+  if (fn) {
+    const keys = el.elType === 'arc-segment' ? ['cx', 'cy', 'rOuter', 'startAngle', 'endAngle'] : ['x1', 'y1', 'x2', 'y2'];
+    for (const key of keys) if (!Number.isFinite(el[key])) throw new Error(`${el.originPath || el.id || el.elType}/${key}: 必须是有限数字`);
+    if (el.elType === 'arc-segment' && (el.rOuter <= 0 || (el.rInner != null && (!Number.isFinite(el.rInner) || el.rInner < 0 || el.rInner > el.rOuter)))) throw new Error(`${el.originPath}: 弧形半径不合法`);
+  }
   const expanded = fn ? fn(el) : el;
   return (expanded?.elType === 'shape-path' || expanded?.elType === 'curve-quadratic')
     ? normalizePathArcCurves(expanded)

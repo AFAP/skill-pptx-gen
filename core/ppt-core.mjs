@@ -9,19 +9,17 @@ import { readFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
-import {
-  parseColor, applyElement, slideBackground,
-  INCH_W, INCH_H,
-} from './dsl-to-pptx.mjs';
+import { parseColor } from './dsl-to-pptx.mjs';
 import { compileDeck } from './compile-deck.mjs';
 import { sanitizePptxData } from './pptx-sanitize.mjs';
+import { presentationFromScene } from './presentation.mjs';
 
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const MAX_IMAGE_MB = 5; // 单图体积守卫：超出告警（防止 pptx 静默膨胀到几十 MB）
 
 /**
  * 修复 pptxgenjs 产出的已知 OOXML 不合规点；同一修复器也嵌入浏览器导出：
- * 1. image-svg 的 PNG 回退槽：Node 无法栅格化 SVG 时会塞入 SVG 文本（现由 sharp 预栅格化，此为兜底）
+ * 1. 检查 image-svg 的 PNG 回退槽：无效媒体中止导出，不能伪装为空白图
  * 2. 图片 sizing cover/contain 生成空的 <a:stretch/>——OOXML 要求必须有 <a:fillRect/> 子元素，
  *    否则 PowerPoint 直接拒绝打开整个文件
  * 3. <p:pic> 元素内部带缩进空白文本节点——OOXML 严格序列不允许，PowerPoint 拒绝加载
@@ -50,7 +48,7 @@ async function fetchAsDataUri(src, baseDir) {
  * 处理：elements[].elType=image 的 path/url；elType=image-svg 的 svgXml（Node 端经 sharp 栅格化为 PNG）；
  * slide.background 为图片 URL/本地路径。
  */
-export async function prefetchImages(deck, { baseDir = '', logger = console } = {}) {
+export async function prefetchImages(deck, { baseDir = '', logger = console, svgMode = 'node' } = {}) {
   const tasks = [];
   const attach = async (el, src) => {
     if (!src || typeof src !== 'string' || src.startsWith('data:')) return;
@@ -69,7 +67,7 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
 
   // SVG → PNG 栅格化（pptxgenjs 的 SVG 支持是纯浏览器功能，Node 端必须预栅格化）
   let rasterizeSvg = null;
-  try {
+  if (svgMode === 'node' && deck.slides.some(s => s.elements?.some(e => e.elType === 'image-svg'))) try {
     const sharp = (await import('sharp')).default;
     rasterizeSvg = async (svgXml, w, h) => {
       const scale = 2; // 2 倍分辨率保证清晰
@@ -92,13 +90,14 @@ export async function prefetchImages(deck, { baseDir = '', logger = console } = 
             .then(data => { el._data = data; })
             .catch(err => { logger.warn(`[image-svg] 栅格化失败: ${err.message}（已记录为转换失败）`); el._error = err.message; })
         );
-      } else if (el.elType === 'image-svg' && el.svgXml && !rasterizeSvg) {
+      } else if (svgMode === 'node' && el.elType === 'image-svg' && el.svgXml && !rasterizeSvg) {
         el._error = 'sharp 未安装';
       }
     }
     // 图片背景（字符串且不是颜色）：包一层载体对象以复用 attach
     if (typeof slide.background === 'string' && !parseColor(slide.background)) {
       const carrier = { path: slide.background };
+      slide._backgroundSource = slide.background;
       slide._backgroundMedia = true;
       tasks.push(attach(carrier, slide.background).then(() => {
         if (carrier._data) slide.background = carrier._data;
@@ -121,76 +120,5 @@ export async function buildPresentation(PptxGenJS, deck, opts = {}) {
   const { deck: resolved, theme } = compileDeck(deck);
   if (opts.prefetch !== false) await prefetchImages(resolved, { baseDir: opts.baseDir, logger });
 
-  const report = {
-    mode: strict ? 'strict' : 'allow-partial',
-    slides: [],
-    summary: { total: 0, editable: 0, rasterized: 0, skipped: 0, failed: 0 },
-  };
-
-  const pptx = new PptxGenJS();
-  pptx.defineLayout({ name: 'WIDE_1280', width: INCH_W, height: INCH_H });
-  pptx.layout = 'WIDE_1280';
-  if (deck.meta?.title) pptx.title = deck.meta.title;
-  if (deck.meta?.author) pptx.author = deck.meta.author;
-
-  for (let si = 0; si < (resolved.slides || []).length; si++) {
-    const slideSpec = resolved.slides[si];
-    const slide = pptx.addSlide();
-    const slideReport = { slide: si + 1, id: slideSpec.id, elements: [] };
-    report.slides.push(slideReport);
-    if (slideSpec._backgroundMedia) {
-      report.summary.total++;
-      slideReport.background = { type: 'image-background', status: slideSpec._backgroundError ? 'failed' : 'rasterized' };
-      if (slideSpec._backgroundError) {
-        slideReport.background.message = slideSpec._backgroundError;
-        report.summary.failed++;
-        if (strict) {
-          const error = new Error(`第${si + 1}页图片背景: ${slideSpec._backgroundError}`);
-          error.report = report;
-          throw error;
-        }
-        slideSpec.background = '#' + theme.background;
-      } else report.summary.rasterized++;
-    }
-    const bg = slideBackground(slideSpec.background, theme);
-    if (bg) slide.background = bg;
-    for (const elop of slideSpec.elements || []) {
-      report.summary.total++;
-      const item = { id: elop.id, type: elop.elType, sourcePath: elop.sourcePath, status: 'editable' };
-      slideReport.elements.push(item);
-      if (elop.elType === 'image' && !elop._data && !elop.data && !elop.path && !elop.url) {
-        elop._error = elop.prompt ? '图片仍只有 prompt，尚未生成实际资源' : '图片缺少 path/url/data';
-      }
-      if (elop._error) {
-        item.status = 'failed';
-        item.message = elop._error;
-        report.summary.failed++;
-        if (strict) {
-          const error = new Error(`第${si + 1}页元素 ${elop.id || elop.elType}: ${elop._error}`);
-          error.report = report;
-          throw error;
-        }
-        continue;
-      }
-      if (elop.elType === 'image' || elop.elType === 'image-svg') item.status = 'rasterized';
-      try {
-        applyElement(pptx, slide, elop, theme);
-        if (item.status === 'rasterized') report.summary.rasterized++;
-        else report.summary.editable++;
-      } catch (err) {
-        item.status = 'failed';
-        item.message = err.message;
-        report.summary.failed++;
-        if (strict) {
-          const error = new Error(`第${si + 1}页元素 ${elop.id || elop.elType} 转换失败: ${err.message}`);
-          error.report = report;
-          throw error;
-        }
-        logger.warn(`[element] ${elop.elType} 渲染失败: ${err.message}`);
-      }
-    }
-    if (slideSpec.notes || slideSpec.speakerNotes) slide.addNotes(slideSpec.notes || slideSpec.speakerNotes);
-  }
-  report.summary.skipped = report.summary.total - report.summary.editable - report.summary.rasterized - report.summary.failed;
-  return { pptx, theme, report, compiledDeck: resolved };
+  return presentationFromScene(PptxGenJS, resolved, theme, { strict, logger });
 }

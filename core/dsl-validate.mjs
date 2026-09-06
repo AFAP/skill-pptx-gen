@@ -6,7 +6,7 @@
  * 对比度（按透明度逐层混合实际背景）、文本框疑似重叠、图表/表格数据形态、渐变压平提示。
  */
 
-import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme } from './dsl-to-pptx.mjs';
+import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartModel } from './dsl-to-pptx.mjs';
 import { MACRO_TYPES } from './connectors.mjs';
 import { COMPOSITION_TYPES } from './creative-expand.mjs';
 import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
@@ -71,6 +71,12 @@ export function validateDeck(deck, opts = {}) {
   if (!deck || typeof deck !== 'object' || Array.isArray(deck)) {
     return { ok: false, errors: ['deck 必须是 JSON 对象'], warnings };
   }
+  const inspectNumbers = (value, path = '') => {
+    if (typeof value === 'number' && !Number.isFinite(value)) errors.push(`${path}: 必须是有限数字`);
+    if (value && typeof value === 'object') Object.entries(value).forEach(([key, child]) => inspectNumbers(child, `${path}/${key}`));
+  };
+  inspectNumbers(deck);
+  const numericOrBinding = value => Number.isFinite(value) || (typeof value === 'string' && /^\{\{\s*[\w.]+\s*\}\}$/.test(value));
   if (deck.dslVersion != null && (!Number.isInteger(deck.dslVersion) || deck.dslVersion < 1)) errors.push('dslVersion 必须是正整数');
   if (Number.isInteger(deck.dslVersion) && deck.dslVersion > CURRENT_DSL_VERSION) errors.push(`dslVersion ${deck.dslVersion} 高于当前支持版本 ${CURRENT_DSL_VERSION}`);
   if (deck.style != null && typeof deck.style !== 'string') errors.push('style 必须是内置样式名称字符串');
@@ -83,7 +89,11 @@ export function validateDeck(deck, opts = {}) {
   for (const [name, spec] of Object.entries(styleClasses)) {
     if (!spec || typeof spec !== 'object' || Array.isArray(spec)) errors.push(`styleClasses.${name} 必须是对象`);
   }
-  const theme = resolveTheme(deck.theme || deck.style);
+  if (deck.theme?.palette != null && (!Array.isArray(deck.theme.palette) || !deck.theme.palette.length || deck.theme.palette.some(c => !parseColor(c)))) errors.push('/theme/palette: 必须是非空颜色数组');
+  if (errors.length) return { ok: false, errors, warnings };
+  let theme;
+  try { theme = resolveTheme(deck.theme || deck.style); }
+  catch (error) { return { ok: false, errors: [`/theme: ${error.message}`], warnings }; }
   if (deck.theme && typeof deck.theme === 'object' && deck.theme.accent && !deck.theme.accentText) {
     const accentLum = luminance(deck.theme.accent);
     const backgrounds = [deck.theme.background || theme.background, deck.theme.surface || theme.surface];
@@ -97,13 +107,13 @@ export function validateDeck(deck, opts = {}) {
     errors.push('deck.slides 必须是非空数组');
     return { ok: false, errors, warnings };
   }
-  if (deck.slides.length > 60) warnings.push(`页数 ${deck.slides.length} 较多，建议控制在 30 页以内`);
 
   // 第 0 遍（原始结构）：语义 layout、未知 elType、宏必填字段。
   const slideIds = new Set();
   deck.slides.forEach((slide, si) => {
     const where = `第${si + 1}页`;
-    if (!slide || typeof slide !== 'object') { errors.push(`${where}: slide 必须是对象`); return; }
+    if (!slide || typeof slide !== 'object' || Array.isArray(slide)) { errors.push(`${where}: slide 必须是对象`); return; }
+    if (slide.elements != null && !Array.isArray(slide.elements)) errors.push(`${where}: elements 必须是数组`);
     if (slide.id) {
       if (slideIds.has(slide.id)) errors.push(`${where}: slide id "${slide.id}" 重复`);
       slideIds.add(slide.id);
@@ -139,30 +149,30 @@ export function validateDeck(deck, opts = {}) {
         else {
           if (typeof el.anchor.to !== 'string' || !el.anchor.to) errors.push(`${at}: anchor.to 必须是非空字符串`);
           if (el.anchor.edge != null && !['left', 'right', 'top', 'bottom', 'center'].includes(el.anchor.edge)) errors.push(`${at}: anchor.edge "${el.anchor.edge}" 无法识别`);
-          for (const key of ['gap', 'dx', 'dy']) if (el.anchor[key] != null && typeof el.anchor[key] !== 'number') errors.push(`${at}: anchor.${key} 必须是数字`);
+          for (const key of ['gap', 'dx', 'dy']) if (el.anchor[key] != null && !numericOrBinding(el.anchor[key])) errors.push(`${at}: anchor.${key} 必须是数字或直接绑定`);
         }
       }
       if (el.elType === 'group') {
         if (!Array.isArray(el.elements) || !el.elements.length) errors.push(`${at}: group 需要非空 elements`);
-        if (el.scale != null && (typeof el.scale !== 'number' || el.scale <= 0)) errors.push(`${at}: group.scale 必须 > 0`);
+        if (el.scale != null && (!numericOrBinding(el.scale) || el.scale <= 0)) errors.push(`${at}: group.scale 必须 > 0`);
         if (el.defaults != null && (!el.defaults || typeof el.defaults !== 'object' || Array.isArray(el.defaults))) errors.push(`${at}: group.defaults 必须是对象`);
-        (el.elements || []).forEach((child, ci) => validateSourceElement(child, `${at}.elements[${ci}]`));
+        if (Array.isArray(el.elements)) el.elements.forEach((child, ci) => validateSourceElement(child, `${at}.elements[${ci}]`));
         return;
       }
       if (el.elType === 'repeat') {
         const template = Array.isArray(el.template) ? el.template : (el.template ? [el.template] : []);
-        if (!Array.isArray(el.items) || !el.items.length) errors.push(`${at}: repeat 需要非空 items`);
+        if ((!Array.isArray(el.items) || !el.items.length) && !(typeof el.items === 'string' && numericOrBinding(el.items))) errors.push(`${at}: repeat 需要非空 items 或直接数组绑定`);
         if (!template.length) errors.push(`${at}: repeat 需要 template`);
-        if (el.columns != null && (!Number.isInteger(el.columns) || el.columns < 1)) errors.push(`${at}: repeat.columns 必须是正整数`);
-        if (el.scale != null && (typeof el.scale !== 'number' || el.scale <= 0)) errors.push(`${at}: repeat.scale 必须 > 0`);
-        for (const key of ['x', 'y', 'stepX', 'stepY']) if (el[key] != null && typeof el[key] !== 'number') errors.push(`${at}: repeat.${key} 必须是数字`);
+        if (el.columns != null && (!numericOrBinding(el.columns) || (typeof el.columns === 'number' && (!Number.isInteger(el.columns) || el.columns < 1)))) errors.push(`${at}: repeat.columns 必须是正整数`);
+        if (el.scale != null && (!numericOrBinding(el.scale) || el.scale <= 0)) errors.push(`${at}: repeat.scale 必须 > 0`);
+        for (const key of ['x', 'y', 'stepX', 'stepY']) if (el[key] != null && !numericOrBinding(el[key])) errors.push(`${at}: repeat.${key} 必须是数字或直接绑定`);
         if (el.defaults != null && (!el.defaults || typeof el.defaults !== 'object' || Array.isArray(el.defaults))) errors.push(`${at}: repeat.defaults 必须是对象`);
         template.forEach((child, ci) => validateSourceElement(child, `${at}.template[${ci}]`));
         return;
       }
       if (MACRO_REQUIRED[el.elType]) {
         for (const k of MACRO_REQUIRED[el.elType]) {
-          if (typeof el[k] !== 'number') errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
+          if (!numericOrBinding(el[k])) errors.push(`${at}: 宏 ${el.elType} 缺少数字字段 ${k}`);
         }
         if (el.elType === 'arc-segment') {
           if (typeof el.rOuter === 'number' && el.rOuter <= 0) errors.push(`${at}: arc-segment rOuter 必须 > 0`);
@@ -236,7 +246,7 @@ export function validateDeck(deck, opts = {}) {
 
     const elementIds = new Set();
     slide.elements.forEach((el, ei) => {
-      const at = `${where} 元素${ei + 1}${el.elType ? `(${el.elType})` : ''}`;
+      const at = `${where} 元素${ei + 1}${el.elType ? `(${el.elType})` : ''}${el.originPath ? ` [${el.originPath}]` : ''}`;
         if (el.id) {
           if (elementIds.has(el.id)) errors.push(`${at}: 元素 id "${el.id}" 重复`);
           elementIds.add(el.id);
@@ -254,8 +264,8 @@ export function validateDeck(deck, opts = {}) {
             }
           });
           const ox = local ? (el.x || 0) : 0, oy = local ? (el.y || 0) : 0;
-          const xs = pa.map(p => typeof p.x === 'number' ? p.x + ox : p.x).filter(v => typeof v === 'number');
-          const ys = pa.map(p => typeof p.y === 'number' ? p.y + oy : p.y).filter(v => typeof v === 'number');
+          const xs = pa.map(p => typeof p?.x === 'number' ? p.x + ox : undefined).filter(Number.isFinite);
+          const ys = pa.map(p => typeof p?.y === 'number' ? p.y + oy : undefined).filter(Number.isFinite);
           if (xs.length && ys.length) {
             const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
             if (!el.allowOverflow && (minX < -1 || minY < -1 || maxX > PPT_WIDTH + 1 || maxY > PPT_HEIGHT + 1)) {
@@ -273,6 +283,12 @@ export function validateDeck(deck, opts = {}) {
         }
 
       // 几何检查（line/arrow/curve 用 pointArr，跳过矩形检查）
+      for (const key of ['x', 'y', 'width', 'height', 'radius', 'rotation', 'opacity', 'fontSize', 'lineHeight', 'padding', 'strokeWidth', 'lineWidth']) {
+        if (el[key] != null && !Number.isFinite(el[key])) errors.push(`${at}: ${key} 必须是有限数字`);
+      }
+      if (el.opacity != null && (el.opacity < 0 || el.opacity > 1)) errors.push(`${at}: opacity 必须在 0–1 之间`);
+      if (el.fontSize != null && el.fontSize <= 0) errors.push(`${at}: fontSize 必须 > 0`);
+      if (el.lineHeight != null && el.lineHeight <= 0) errors.push(`${at}: lineHeight 必须 > 0`);
       if (!el.allowOverflow && !['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
         for (const k of ['x', 'y', 'width', 'height']) {
           if (el[k] != null && typeof el[k] !== 'number') errors.push(`${at}: ${k} 必须是数字`);
@@ -343,6 +359,7 @@ export function validateDeck(deck, opts = {}) {
         }
         if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
         if (el.elType === 'chart') {
+          try { chartModel(el); } catch (error) { errors.push(`${at}: ${error.message}`); }
           const chartType = el.chartType || 'bar';
           if (!CHART_TYPES.has(chartType)) {
             errors.push(`${at}: chartType "${chartType}" 无法识别；禁止静默退化为 bar`);
@@ -355,7 +372,7 @@ export function validateDeck(deck, opts = {}) {
               warnings.push(`${at}: chart 缺少 labels（分类轴标签）`);
             }
             el.data.forEach((s, i2) => {
-              if (!Array.isArray(s.values) || s.values.length === 0) {
+              if (!s || !Array.isArray(s.values) || s.values.length === 0) {
                 errors.push(`${at}: chart data[${i2}].values 为空`);
               } else if (chartType === 'scatter') {
                 s.values.forEach((pt, pi) => {
@@ -372,6 +389,8 @@ export function validateDeck(deck, opts = {}) {
       if (el.elType === 'table') {
         if (!Array.isArray(el.rows) || el.rows.length === 0) {
           errors.push(`${at}: table 缺少 rows`);
+        } else if (el.rows.some(r => !Array.isArray(r) || !r.length)) {
+          errors.push(`${at}: table.rows 每行必须是非空数组`);
         } else {
           const cols = Math.max(...el.rows.map(r => r.length));
           el.rows.forEach((r, ri) => { if (r.length !== cols) warnings.push(`${at}: table 第${ri + 1}行列数(${r.length})与最多列(${cols})不一致`); });
@@ -388,7 +407,7 @@ export function validateDeck(deck, opts = {}) {
         const needsBox = ['text', 'image', 'image-svg', 'shape-rect', 'chart', 'table'].includes(el.elType);
         if (needsBox) {
           for (const key of ['x', 'y', 'width', 'height']) {
-            if (typeof el[key] !== 'number') errors.push(`${at}: ${key} 为必填数字`);
+            if (!Number.isFinite(el[key])) errors.push(`${at}: ${key} 为必填数字`);
           }
           if ((el.width || 0) <= 0 || (el.height || 0) <= 0) errors.push(`${at}: width/height 必须 > 0`);
         }

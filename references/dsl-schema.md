@@ -1,6 +1,6 @@
 # PPT-DSL primitive 规范
 
-这是编译后的底层 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。重要结论页可直接使用本规范和 Creative DSL 自由构图；目录、章节、普通清单等低价值页面再使用 [紧凑语义版式](layout-dsl.md) 节省 token。
+这是底层 JSON 中间层，同时驱动 Konva 网页预览与 PptxGenJS PPTX 导出。可直接使用本规范和 Creative DSL 自由构图；能用 [紧凑语义版式](layout-dsl.md) 准确表达的页面也可采用 Compact 节省 token。
 
 机器可读基础约束见 [deck.schema.json](deck.schema.json)；能力、资源和几何的严格检查以 `tools/check_deck.mjs` 为准。
 
@@ -11,13 +11,12 @@
   "dslVersion": 3,
   "meta":  { "title": "演示标题", "author": "作者" },
   "style": "clean-minimal",
-  "theme": "可选，字符串或主题对象；存在时覆盖 style",
-  "styleClasses": "可选，Creative DSL 的复用样式对象",
+  "styleClasses": { "body": { "fontSize": 18, "fill": "$text" } },
   "slides": [
     {
-      "background": "#FFFFFF",            // 可选，默认取 theme.background
-      "notes": "演讲者备注",               // 可选
-      "elements": [ /* elop 数组，按数组顺序叠放（后绘制在上层） */ ]
+      "background": "#FFFFFF",
+      "notes": "演讲者备注",
+      "elements": [{ "elType": "text", "styleClass": "body", "text": "正文", "x": 80, "y": 100, "width": 800, "height": 60 }]
     }
   ]
 }
@@ -29,12 +28,10 @@
 | --- | --- |
 | 画布 | 1280 × 720 **px**（16:9），原点左上 |
 | 导出尺寸 | 13.333 × 7.5 inch（PPT LAYOUT_WIDE） |
-| 换算 | 转换核心自动处理：px → inch（÷96）；fontSize px → pt（× theme.fontScale，默认 0.667） |
+| 换算 | 转换核心自动处理：px → inch（÷96）；fontSize px → pt（× theme.fontScale，默认 0.75） |
 | 安全边距 | 左右 60-80px，上下 40-60px |
 
-> fontScale 说明：视觉等大是 0.75（1280px 画布 = 960pt 宽）。默认 0.667 是经验值，
-> 为 PowerPoint 中文字体的更大行高预留约 11% 余量，防止导出后文字溢出。
-> 发现导出文字整体偏小，把 `theme.fontScale` 调到 0.72-0.75。
+默认 `fontScale:0.75` 保持视觉等大，不用全局缩小字体掩盖溢出。旧稿若需要原有大小，可显式设置 `theme.fontScale:0.6666666667`。字体、字号、行高与 padding 的默认值在共同编译层补齐；不同应用的字体度量仍需实测。
 
 ## Creative DSL 组合层
 
@@ -97,6 +94,8 @@
 - 模板中的 ID 自动变为 `milestones-0-dot` 等。
 - 文本完全等于 `{{field}}`、`{{item}}`，或 primitive item 对应的 `{{value}}` 时，会保留到 `items[n]` 对应字段的编辑回写路径。
 - `{{index}}`、`{{number}}`、固定模板文字和混合插值（如 `第 {{number}} 项`）都是派生结果，没有唯一源字段，因此在网页预览中只读；这样不会把改字错误写进模板或展开后的虚假路径。
+- `repeat` 与 `group` 可以嵌套；内层 item 的同名字段覆盖外层，`index/number/item` 是当前循环的保留变量。内层 `items:"{{children}}"` 可直接读取父 item 数组。未定义变量立即报错。
+- 网页修改绑定文字后会保留源字段类型、重新编译所有依赖对象；数字输入无效或新布局不合法时拒绝修改。嵌套模板也会保留真实 item 路径。
 
 ### anchor — 相对定位
 
@@ -134,10 +133,11 @@
 | `id` | string | 推荐，稳定元素 ID；用于报告和诊断 |
 | `role` | string | 可选，title/body/footer 等语义角色 |
 | `sourcePath` | string | 编译器生成的 JSON Pointer；预览改字时回写语义源 |
+| `originPath` | string | 编译器生成的来源位置，用于转换报告和诊断；并不表示该字段可编辑 |
 | `x` `y` | number(px) | 左上角（`shape-circle` 例外：圆心） |
 | `width` `height` | number(px) | 尺寸 |
 | `opacity` | 0-1 | 整体透明度 |
-| `rotation` | number(deg) | 旋转 |
+| `rotation` | number(deg) | 围绕元素框中心旋转；圆/椭圆绕圆心 |
 | `allowOverflow` | boolean | 明确允许元素越出 1280×720 时跳过边界告警；最终 PPTX 仍应实际渲染检查 |
 | `allowOverlap` | boolean | 明确允许该文本框与其他文本框叠放时跳过疑似重叠告警 |
 | `fill` | 颜色 / `{color, transparency}` / `{type:"gradient", stops:[{offset,color}], angle}` | 填充。**渐变仅预览显示真渐变；导出 PPTX 压平为首色**（可编辑性限制，校验器会提示），要真渐变用 `image-svg` 或图片 |
@@ -262,8 +262,10 @@ Konva 预览与 PPTX 导出自动一致：
  "chartColors":["#3182CE","#C9A96E"],"showLegend":true,"chartTitle":"标题","showTitle":true}
 ```
 - `chartColors` 缺省取 theme.palette 前 6 色。
-- pie/doughnut 只用第一个系列的 values。
-- scatter 的 `values` 为 `[[x,y],...]` 数字对。
+- pie/doughnut 只接受一个系列，必须非负且总和大于 0；多个系列会报错，不会忽略。
+- scatter 的 `values` 为 `[[x,y],...]` 有限数字对。不同系列可以具有不同 X 值及重复 X；导出适配器会保存所有点。
+- 其他图表的 values 必须是有限数字，所有系列使用相同分类标签和数量。缺省标签使用 1、2、3…；提供标签时数量必须匹配。
+- 柱、线、面积图支持负数，预览与原生图表共用坐标范围。数值标签用 General 格式保留小数，不默认四舍五入为整数。
 - `showLegend` 默认 `false`；只有显式写 `true` 才在预览和 PPTX 显示图例。
 - `showValue:true` 可在柱/线/面积图上显示数值标签；预览同步绘制。
 
@@ -283,7 +285,7 @@ Konva 预览与 PPTX 导出自动一致：
 1. `shape-circle` 圆心坐标 ≠ 其他元素的左上角坐标。
 2. 文本高度不足是最常见的导出翻车原因：估算 `行数 × fontSize × lineHeight ≤ height`。
 3. 元素叠放顺序 = 数组顺序；背景元素放最前。
-4. 每页都要有全屏背景 shape-rect（或 slide.background），否则预览默认白底、导出可能透出母版底色。
+4. 背景可使用 slide.background；省略时两端使用 theme.background，不必额外添加全屏矩形。
 5. JSON 不允许注释、尾逗号、单引号。
 6. emoji 在 Windows PowerPoint 中渲染为彩色、在部分 WPS/Mac 中风格不同；关键图标用 image-svg。
 7. 未知 `chartType`、只有 prompt 的图片、`text-path` 和 SVG path data 都是严格错误，不会回退成别的对象。

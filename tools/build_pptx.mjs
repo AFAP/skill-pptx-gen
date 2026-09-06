@@ -19,7 +19,7 @@ const { buildPresentation, sanitizePptxBuffer } = await import('../core/ppt-core
 const { validateDeck, formatReport } = await import('../core/dsl-validate.mjs');
 
 function parseArgs(argv) {
-  const args = { input: null, output: null, validate: true, prefetch: true, strict: true, report: null };
+  const args = { input: null, output: null, validate: true, prefetch: true, strict: true, report: null, baseDir: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-o' || a === '--output') args.output = argv[++i];
@@ -27,6 +27,7 @@ function parseArgs(argv) {
     else if (a === '--skip-images') args.prefetch = false;
     else if (a === '--allow-partial') args.strict = false;
     else if (a === '--report') args.report = argv[++i];
+    else if (a === '--base-dir') args.baseDir = argv[++i];
     else if (!a.startsWith('-') && !args.input) args.input = a;
   }
   return args;
@@ -44,7 +45,7 @@ if (!args.input) {
 }
 
 const inputPath = resolve(args.input);
-const baseDir = dirname(inputPath);
+const baseDir = args.baseDir ? resolve(args.baseDir) : dirname(inputPath);
 const outputPath = resolve(args.output || basename(inputPath).replace(/\.json$/i, '') + '.pptx');
 const reportPath = resolve(args.report || outputPath.replace(/\.pptx$/i, '.report.json'));
 
@@ -68,7 +69,7 @@ if (args.validate) {
 try {
   const { pptx, report } = await buildPresentation(PptxGenJS, deck, { prefetch: args.prefetch, baseDir, strict: args.strict });
   let data = await pptx.write({ outputType: 'nodebuffer' });
-  data = await sanitizePptxBuffer(data); // 修复 image-svg 在 Node 端的 PNG 回退槽
+  data = await sanitizePptxBuffer(data); // 修复 OOXML 结构；无效媒体会中止，不替换为空白图
   await writeFile(outputPath, data);
   await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8');
   const slideCount = (deck.slides || []).length;

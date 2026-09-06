@@ -1,6 +1,6 @@
 /** Compile semantic slides and primitive slides into one resolved primitive deck. */
 import { BUILTIN_THEMES, resolveTheme, resolveTokens } from './dsl-to-pptx.mjs';
-import { expandConnectors } from './connectors.mjs';
+import { expandConnectors, pointsToSvgPath } from './connectors.mjs';
 import { expandCreativeElements } from './creative-expand.mjs';
 import { expandLayoutSlide, isSemanticSlide } from './layouts.mjs';
 
@@ -12,13 +12,9 @@ function clone(value) {
 
 function annotatePrimitiveSlide(slide, si) {
   const elements = (slide.elements || []).map((el, ei) => {
-    const derivedText = el._sourcePathDerived === true;
     const annotated = {
       ...el,
       id: el.id || `s${si}-raw-${ei}`,
-      ...(el.elType === 'text' && !derivedText
-        ? { sourcePath: el.sourcePath || `/slides/${si}/elements/${ei}/text` }
-        : {}),
     };
     delete annotated._sourcePathDerived;
     return annotated;
@@ -45,9 +41,20 @@ export function compileDeck(deck, opts = {}) {
       ...slide,
       elements: expandCreativeElements(slide.elements || [], { styleClasses: source.styleClasses || {}, slideIndex: si }),
     };
-    return isSemanticSlide(prepared)
+    const result = isSemanticSlide(prepared)
       ? expandLayoutSlide(prepared, { slideIndex: si, pageCount, theme })
       : annotatePrimitiveSlide(prepared, si);
+    for (const el of result.elements) {
+      delete el._sourcePathDerived;
+      // Only real, scalar source fields may be edited. Generated defaults stay read-only.
+      if (el.sourcePath) {
+        const parts = el.sourcePath.slice(1).split('/').map(v => v.replaceAll('~1', '/').replaceAll('~0', '~'));
+        const value = parts.reduce((v, key) => v != null && Object.hasOwn(v, key) ? v[key] : undefined, source);
+        if (!['string', 'number', 'boolean'].includes(typeof value)) delete el.sourcePath;
+      }
+      el.originPath ||= el.sourcePath || `/slides/${si}`;
+    }
+    return result;
   });
   let compiled = {
     dslVersion: source.dslVersion || CURRENT_DSL_VERSION,
@@ -57,5 +64,16 @@ export function compileDeck(deck, opts = {}) {
   };
   if (opts.resolveColors !== false) compiled = resolveTokens(compiled, theme);
   if (opts.expandMacros !== false) expandConnectors(compiled);
+  for (const slide of compiled.slides) for (const el of slide.elements) {
+    if (el.elType === 'shape-path' && Array.isArray(el.pointArr)) el.data = pointsToSvgPath(el.pointArr) + (el.closePath !== false ? ' Z' : '');
+    if (el.elType === 'text') {
+      el.fontSize ??= 18;
+      el.fontFamily ||= theme.fontFamily;
+      el.lineHeight ??= 1.25;
+      el.padding ??= 0;
+      el.fill ??= '#' + theme.text;
+      el.verticalAlign ||= el.valign || 'top';
+    }
+  }
   return { deck: compiled, theme };
 }

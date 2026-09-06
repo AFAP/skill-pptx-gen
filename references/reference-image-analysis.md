@@ -26,6 +26,8 @@
     "surfaceAlt": "#EEF1F5",
     "primary": "#173B57",
     "accent": "#E86A33",
+    "accentText": "#A33A12",
+    "onAccent": "#FFFFFF",
     "text": "#1F2933",
     "textSecondary": "#667085",
     "border": "#DCE1E7",

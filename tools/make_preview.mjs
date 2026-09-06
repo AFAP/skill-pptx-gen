@@ -13,12 +13,12 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { browserBundle } from './lib/browser-bundle.mjs';
+import { sceneResourceErrors } from '../core/presentation.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = resolve(__dirname, '..');
 
-const { resolveTheme } = await import('../core/dsl-to-pptx.mjs');
-const { pointsToSvgPath } = await import('../core/connectors.mjs');
 const { compileDeck } = await import('../core/compile-deck.mjs');
 const { prefetchImages } = await import('../core/ppt-core.mjs');
 const { validateDeck, formatReport } = await import('../core/dsl-validate.mjs');
@@ -33,6 +33,7 @@ function parseArgs(argv) {
     else if (a === '--embed-images') args.prefetch = true;
     else if (a === '--no-embed-images') args.prefetch = false;
     else if (a === '--allow-partial') args.strict = false;
+    else if (a === '--base-dir') args.baseDir = argv[++i];
     else if (!a.startsWith('-') && !args.input) args.input = a;
   }
   return args;
@@ -58,29 +59,18 @@ if (!validation.ok || validation.warnings.length) console.warn(formatReport(vali
 if (!validation.ok && args.strict) process.exit(1);
 // 语义 layout → primitive DSL；主题令牌与连接线宏也在此统一展开。
 const { deck: resolved, theme } = compileDeck(deck);
-// shape-path 预合成 SVG data（预览端 Konva.Path 直接可用；闭合规则与转换层一致）
-for (const slide of resolved.slides || []) {
-  for (const el of slide.elements || []) {
-    if (el.elType === 'shape-path' && Array.isArray(el.pointArr) && !el.data) {
-      const close = el.closePath === true || el.closePath == null; // shape-path 默认闭合
-      el.data = pointsToSvgPath(el.pointArr) + (close ? ' Z' : '');
-    }
-  }
-}
-if (args.prefetch) await prefetchImages(resolved, { baseDir: dirname(inputPath) });
+if (args.prefetch) await prefetchImages(resolved, { baseDir: args.baseDir ? resolve(args.baseDir) : dirname(inputPath), svgMode: 'browser' });
+const resourceErrors = sceneResourceErrors(resolved);
+if (args.strict && resourceErrors.length) throw new Error(resourceErrors.join('\n'));
 
 // 内嵌 JS 时必须转义 </script>，否则源码注释/字符串中的 </script> 会提前闭合标签
 const safeJs = s => s.replace(/<\/script/gi, '<\\/script');
-// 纯转换模块 → 浏览器脚本：去 import 行与 export 前缀（这两个模块零三方依赖）
-const toBrowserJs = s => s.replace(/^import[^\n]*\n/gm, '').replace(/^export\s+(?=(async\s+)?(function|const|let|class))/gm, '');
 
 const konvaSrc = safeJs(await readFile(resolve(SKILL_DIR, 'assets/konva.10.0.12.min.js'), 'utf-8'));
 const pptxgenSrc = safeJs(await readFile(resolve(SKILL_DIR, 'assets/pptxgen.4.0.1.js'), 'utf-8'));
 const jszipSrc = safeJs(await readFile(resolve(SKILL_DIR, 'node_modules/jszip/dist/jszip.min.js'), 'utf-8'));
 const previewCoreSrc = safeJs(await readFile(resolve(SKILL_DIR, 'core/ppt-preview-core.js'), 'utf-8'));
-const connectorsSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/connectors.mjs'), 'utf-8')));
-const dslCoreSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/dsl-to-pptx.mjs'), 'utf-8')));
-const sanitizeSrc = safeJs(toBrowserJs(await readFile(resolve(SKILL_DIR, 'core/pptx-sanitize.mjs'), 'utf-8')));
+const runtimeSrc = safeJs(await browserBundle(SKILL_DIR, ['core/source-edit.mjs', 'core/presentation.mjs', 'core/pptx-sanitize.mjs']));
 
 const deckJson = JSON.stringify(resolved).replace(/<\//g, '<\\/');
 const deckRawJson = JSON.stringify(deck).replace(/<\//g, '<\\/');
@@ -128,38 +118,36 @@ const html = `<!DOCTYPE html>
 <script>${pptxgenSrc}</script>
 <script>${jszipSrc}</script>
 <script>${previewCoreSrc}</script>
-<script>${connectorsSrc}</script>
-<script>${dslCoreSrc}</script>
-<script>${sanitizeSrc}</script>
+<script>${runtimeSrc}</script>
 <script>
-const DECK = ${deckJson};        // 已解析令牌+已展开宏（渲染与 PPTX 导出用）
-const DECK_RAW = ${deckRawJson}; // 原始 deck（导出 deck.json 用，保留主题令牌与宏写法）
-const THEME = resolveTheme(DECK.theme);
+const { resolveTheme, chartModel } = __pptModules['core/dsl-to-pptx.mjs'];
+const { pointsToSvgPath } = __pptModules['core/connectors.mjs'];
+const { editDeckText } = __pptModules['core/source-edit.mjs'];
+const { presentationFromScene } = __pptModules['core/presentation.mjs'];
+const { sanitizePptxData } = __pptModules['core/pptx-sanitize.mjs'];
+let DECK = ${deckJson};
+let DECK_RAW = ${deckRawJson};
+let THEME = resolveTheme(DECK.theme);
 let stages = [];
 let currentScale = ${args.scale || 'null'};
 let editCount = 0;
+let previewDiagnostics = [];
 
 // 双击文本编辑 → 同时回写解析稿（PPTX 导出用）与原始稿（deck.json 导出用）
-function onTextEdit(node, newText) {
-  if (node._elop) node._elop.text = newText;
-  const sourcePath = node._elop && node._elop.sourcePath;
-  if (sourcePath) setJsonPointer(DECK_RAW, sourcePath, newText);
+async function onTextEdit(node, newText) {
+  const result = editDeckText(DECK_RAW, node._elop?.sourcePath, newText, DECK);
+  const previous = { source: DECK_RAW, deck: DECK, theme: THEME };
+  DECK_RAW = result.source; DECK = result.deck; THEME = result.theme;
+  try { await render(); }
+  catch (error) {
+    DECK_RAW = previous.source; DECK = previous.deck; THEME = previous.theme;
+    await render();
+    throw error;
+  }
   editCount++;
   const btn = document.getElementById('btn-deck');
   btn.style.display = '';
   btn.textContent = '导出 deck.json（已改 ' + editCount + ' 处）';
-}
-
-function setJsonPointer(root, pointer, value) {
-  const parts = String(pointer).split('/').slice(1).map(v => v.replaceAll('~1', '/').replaceAll('~0', '~'));
-  let cur = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (cur == null || !(parts[i] in cur)) return false;
-    cur = cur[parts[i]];
-  }
-  if (cur == null || !parts.length) return false;
-  cur[parts.at(-1)] = value;
-  return true;
 }
 
 function exportDeck() {
@@ -175,17 +163,20 @@ function fitScale() {
   return Math.min(1, (window.innerWidth - 64) / PptPreview.PPT_WIDTH);
 }
 async function render() {
+  const scroll = window.scrollY;
+  for (const old of stages) old.stage.destroy();
+  previewDiagnostics = [];
   stages = await PptPreview.renderDeck(DECK, document.getElementById('app'), {
     scale: currentScale || fitScale(),
     editable: ${args.editable},
     fontFamily: THEME.fontFamily || undefined,
     theme: THEME,
     palette: THEME.palette,
-    primary: THEME.primary,
-    text: THEME.text,
-    textSecondary: THEME.textSecondary,
+    strict: ${args.strict},
+    onDiagnostic: diagnostic => previewDiagnostics.push(diagnostic),
     onTextEdit,
   });
+  window.scrollTo(0, scroll);
 }
 function zoomIn() { currentScale = Math.min(2, (currentScale || fitScale()) + 0.1); PptPreview.applyZoom(stages, currentScale); }
 function zoomOut() { currentScale = Math.max(0.2, (currentScale || fitScale()) - 0.1); PptPreview.applyZoom(stages, currentScale); }
@@ -196,21 +187,7 @@ async function exportPptx() {
   const btn = document.querySelector('.toolbar button.primary');
   btn.disabled = true; btn.textContent = '导出中...';
   try {
-    const pptx = new PptxGenJS();
-    pptx.defineLayout({ name: 'WIDE_1280', width: 13.333, height: 7.5 });
-    pptx.layout = 'WIDE_1280';
-    if (DECK.meta?.title) pptx.title = DECK.meta.title;
-    for (const slideSpec of DECK.slides) {
-      const slide = pptx.addSlide();
-      const bg = slideBackground(slideSpec.background, THEME);
-      if (bg) slide.background = bg;
-      for (const el of slideSpec.elements) {
-        if (el._error) throw new Error((el.id || el.elType) + ': ' + el._error);
-        if (el.elType === 'image' && !el._data && !el.data && !el.path && !el.url) throw new Error((el.id || 'image') + ': 缺少实际图片资源');
-        applyElement(pptx, slide, el, THEME);
-      }
-      if (slideSpec.notes || slideSpec.speakerNotes) slide.addNotes(slideSpec.notes || slideSpec.speakerNotes);
-    }
+    const { pptx } = presentationFromScene(PptxGenJS, DECK, THEME);
     const raw = await pptx.write({ outputType: 'arraybuffer' });
     const sanitized = await sanitizePptxData(JSZip, raw, { outputType: 'blob' });
     const a = document.createElement('a');
@@ -226,7 +203,14 @@ async function exportPptx() {
 }
 
 window.addEventListener('resize', () => { if (currentScale === null) { zoomFit(); } });
-render();
+window.PPT_PREVIEW_READY = render().catch(error => {
+  document.querySelector('.toolbar button.primary').disabled = true;
+  const notice = document.createElement('pre');
+  notice.textContent = '预览失败，导出已停用：' + error.message;
+  document.getElementById('app').prepend(notice);
+  console.error(error);
+  throw error;
+});
 </script>
 </body>
 </html>`;

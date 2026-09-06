@@ -83,9 +83,9 @@
         { "elType": "shape-line", "pointArr": [{ "x": 760, "y": 510 }, { "x": 1150, "y": 395 }], "lineColor": "$accent", "lineWidth": 10 },
         { "elType": "connector-s", "x1": 520, "y1": 220, "x2": 760, "y2": 510, "orientation": "h", "stroke": "#8CA6B8", "strokeWidth": 3, "dashType": "dash" },
         { "elType": "text", "styleClass": "metricDark", "text": "10.6%", "x": 120, "y": 260, "width": 360, "height": 90 },
-        { "elType": "text", "styleClass": "bodyDark", "text": "中国市场份额\n出货量口径已经登顶", "x": 124, "y": 362, "width": 340, "height": 72 },
+        { "elType": "text", "styleClass": "bodyDark", "text": "中国市场份额\n出货量口径已经登顶", "x": 124, "y": 362, "width": 180, "height": 72 },
         { "elType": "text", "text": "约137×", "x": 810, "y": 315, "width": 340, "height": 90, "fontSize": 58, "fontStyle": "bold", "fill": "$white" },
-        { "elType": "text", "styleClass": "bodyDark", "text": "2026E一致预期PE\n需要未来利润兑现", "x": 814, "y": 420, "width": 330, "height": 72 },
+        { "elType": "text", "styleClass": "bodyDark", "text": "2026E一致预期PE\n需要未来利润兑现", "x": 814, "y": 520, "width": 330, "height": 72 },
         { "elType": "text", "text": "价值兑现距离", "x": 505, "y": 570, "width": 270, "height": 38, "fontSize": 18, "fontStyle": "bold", "fill": "$accent", "align": "center" }
       ]
     },
@@ -213,9 +213,9 @@
           { "x": 890, "y": 295, "date": "2026", "title": "A+H与具身智能", "body": "港股上市并拟收购酷卓" }
         ], "template": [
           { "elType": "shape-circle", "id": "dot", "x": "{{x}}", "y": "{{y}}", "width": 38, "height": 38, "fill": "$accent", "stroke": "$white", "strokeWidth": 4 },
-          { "elType": "text", "text": "{{date}}", "x": "{{x}}", "y": "{{y}}", "width": 190, "height": 32, "fontSize": 16, "fontStyle": "bold", "fill": "$accentText", "anchor": { "to": "#history-{{index}}-dot", "edge": "top", "align": "center", "gap": 24 } },
-          { "elType": "text", "id": "title", "text": "{{title}}", "x": "{{x}}", "y": "{{y}}", "width": 210, "height": 36, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "anchor": { "to": "#history-{{index}}-dot", "edge": "bottom", "align": "center", "gap": 26 } },
-          { "elType": "text", "text": "{{body}}", "x": "{{x}}", "y": "{{y}}", "width": 220, "height": 38, "fontSize": 14, "fill": "$text2", "anchor": { "to": "#history-{{index}}-title", "edge": "bottom", "align": "center", "gap": 4 } }
+          { "elType": "text", "text": "{{date}}", "x": "{{x}}", "y": "{{y}}", "width": 190, "height": 32, "fontSize": 16, "fontStyle": "bold", "fill": "$accentText", "align": "center", "anchor": { "to": "#history-{{index}}-dot", "edge": "top", "align": "center", "gap": 24 } },
+          { "elType": "text", "id": "title", "text": "{{title}}", "x": "{{x}}", "y": "{{y}}", "width": 210, "height": 36, "fontSize": 19, "fontStyle": "bold", "fill": "$text", "align": "center", "anchor": { "to": "#history-{{index}}-dot", "edge": "bottom", "align": "center", "gap": 26 } },
+          { "elType": "text", "text": "{{body}}", "x": "{{x}}", "y": "{{y}}", "width": 220, "height": 38, "fontSize": 14, "fill": "$text2", "align": "center", "anchor": { "to": "#history-{{index}}-title", "edge": "bottom", "align": "center", "gap": 4 } }
         ] }
       ]
     },
@@ -304,7 +304,7 @@
         { "elType": "text", "text": "14.12亿港元", "x": 855, "y": 255, "width": 270, "height": 78, "fontSize": 42, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
         { "elType": "text", "text": "2026年3月H股净募资", "x": 860, "y": 352, "width": 260, "height": 44, "fontSize": 17, "fontStyle": "bold", "fill": "$white", "bgFill": "$accent", "align": "center" },
         { "elType": "shape-arrow", "pointArr": [{ "x": 990, "y": 465 }, { "x": 770, "y": 560 }], "lineColor": "$accent", "lineWidth": 5 },
-        { "elType": "text", "styleClass": "body", "text": "2026H1资产负债率降至68.2%，货币资金升至10.89亿元。财务费用随借款规模下降。", "x": 825, "y": 510, "width": 340, "height": 112 }
+        { "elType": "text", "styleClass": "body", "text": "2026H1资产负债率降至68.2%，货币资金升至10.89亿元。财务费用随借款规模下降。", "x": 825, "y": 574, "width": 340, "height": 112 }
       ]
     },
     {
@@ -464,9 +464,9 @@
           { "x": 660, "title": "人形订单", "body": "商业化和复购不及预期\n投入拖累短期利润", "color": "$4" },
           { "x": 950, "title": "客户集中", "body": "大客户资本开支变化\n收入与回款波动", "color": "$5" }
         ], "template": [
-          { "elType": "shape-line", "pointArr": [{ "x": "{{x}}", "y": 420 }, { "x": "{{x}}", "y": 610 }], "lineColor": "{{color}}", "lineWidth": 6 },
-          { "elType": "text", "text": "{{title}}", "x": "{{x}}", "y": 442, "width": 220, "height": 42, "fontSize": 22, "fontStyle": "bold", "fill": "$text" },
-          { "elType": "text", "text": "{{body}}", "x": "{{x}}", "y": 505, "width": 220, "height": 82, "fontSize": 15, "fill": "$text2", "lineHeight": 1.45 }
+          { "elType": "shape-rect", "id": "risk-bar", "x": "{{x}}", "y": 420, "width": 6, "height": 190, "fill": "{{color}}" },
+          { "elType": "text", "text": "{{title}}", "anchor": { "to": "risk-bar", "edge": "right", "align": "top", "gap": 16, "dy": 22 }, "width": 220, "height": 42, "fontSize": 22, "fontStyle": "bold", "fill": "$text" },
+          { "elType": "text", "text": "{{body}}", "anchor": { "to": "risk-bar", "edge": "right", "align": "top", "gap": 16, "dy": 85 }, "width": 220, "height": 82, "fontSize": 15, "fill": "$text2", "lineHeight": 1.45 }
         ] }
       ]
     },

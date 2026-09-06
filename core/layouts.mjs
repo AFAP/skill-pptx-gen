@@ -29,6 +29,21 @@ export function isSemanticSlide(slide) {
   return Boolean(slide && typeof slide === 'object' && slide.layout);
 }
 
+// Capacity is an explicit authoring boundary, never a content truncation rule.
+export function assertLayoutCapacity(slide, si) {
+  const name = normalizeLayoutName(slide.layout);
+  const limits = {
+    cover: { metrics: 4 }, agenda: { items: 8 }, cards: { items: 6 },
+    metrics: { items: 6 }, split: { bullets: 5 }, timeline: { items: 6 },
+    comparison: { 'left.items': 5, 'right.items': 5 }, 'chart-insight': { insights: 6 },
+  }[name] || {};
+  for (const [field, limit] of Object.entries(limits)) {
+    const values = field.split('.').reduce((value, key) => value?.[key], slide);
+    if (values != null && !Array.isArray(values)) throw new Error(`/slides/${si}/${field.replaceAll('.', '/')}: 必须是数组`);
+    if (values?.length > limit) throw new Error(`/slides/${si}/${field.replaceAll('.', '/')}: ${name} 容量 ${limit}，实际 ${values.length}；请拆页或改用 Creative DSL，不会截断内容`);
+  }
+}
+
 function ptr(...parts) {
   return '/' + parts.map(p => String(p).replaceAll('~', '~0').replaceAll('/', '~1')).join('/');
 }
@@ -108,13 +123,13 @@ function footer(slide, si, pageCount, theme) {
       { x: 1080, y: 691, width: 1280 - p - 1080, height: 18 },
       { fontSize: 10, fill: '$text2', opacity: 0.8, align: 'right' }),
   ];
-  if (label) out.splice(1, 0, text(`s${si}-footer-label`, 'footer', label, { x: p, y: 691, width: 760, height: 18 }, { fontSize: 10, fill: '$text2', opacity: 0.8 }, ptr('slides', si, 'footerLabel')));
+  if (label) out.splice(1, 0, text(`s${si}-footer-label`, 'footer', label, { x: p, y: 691, width: 760, height: 18 }, { fontSize: 10, fill: '$text2', opacity: 0.8 }, ptr('slides', si, slide.footerLabel ? 'footerLabel' : 'brand')));
   return out;
 }
 
 function cover(slide, si, pageCount, theme) {
   const p = Math.max(72, theme.pagePadding + 12);
-  const metrics = Array.isArray(slide.metrics) ? slide.metrics.slice(0, 4) : [];
+  const metrics = slide.metrics || [];
   const dark = slide.dark !== false;
   const bg = slide.background || (dark ? '$primary' : '$bg');
   const fg = dark ? '#FFFFFF' : '$text';
@@ -149,7 +164,7 @@ function section(slide, si, pageCount, theme) {
 }
 
 function agenda(slide, si, pageCount, theme) {
-  const items = Array.isArray(slide.items) ? slide.items.slice(0, 8) : [];
+  const items = slide.items || [];
   const out = [...header(slide, si, theme, slide.title || '目录', slide.eyebrow || 'CONTENTS')];
   const p = theme.pagePadding, top = 150, rowH = Math.min(74, 470 / Math.max(1, items.length));
   items.forEach((item, i) => {
@@ -164,7 +179,7 @@ function agenda(slide, si, pageCount, theme) {
 }
 
 function cards(slide, si, pageCount, theme) {
-  const items = Array.isArray(slide.items) ? slide.items.slice(0, 6) : [];
+  const items = slide.items || [];
   const out = [...header(slide, si, theme)];
   const p = theme.pagePadding;
   const cols = slide.columns || (items.length <= 2 ? 2 : items.length === 4 ? 2 : 3);
@@ -192,7 +207,7 @@ function cards(slide, si, pageCount, theme) {
 }
 
 function metrics(slide, si, pageCount, theme) {
-  const items = Array.isArray(slide.items) ? slide.items.slice(0, 6) : [];
+  const items = slide.items || [];
   const out = [...header(slide, si, theme)];
   const p = theme.pagePadding, gap = 18, top = 180;
   const w = (1280 - p * 2 - gap * Math.max(0, items.length - 1)) / Math.max(1, items.length);
@@ -216,12 +231,12 @@ function split(slide, si, pageCount, theme) {
   const imageRight = slide.imageSide === 'right';
   const ix = imageRight ? 1280 - p - imageW : p;
   const tx = imageRight ? p : p + imageW + gap;
-  const tw = 1280 - p - tx;
+  const tw = 1280 - p * 2 - imageW - gap;
   const img = slide.image || {};
   out.push(el(`s${si}-image`, 'image', { elType: 'image', x: ix, y: top, width: imageW, height: h, path: img.path, url: img.url, data: img.data, prompt: img.prompt, sizing: { type: img.sizing || 'cover' } }));
   out.push(text(`s${si}-content-title`, 'item-title', slide.contentTitle || slide.heading || '', { x: tx, y: top + 32, width: tw, height: 58 }, { fontSize: 30, fontStyle: 'bold', verticalAlign: 'middle' }, ptr('slides', si, slide.contentTitle != null ? 'contentTitle' : 'heading')));
   if (slide.body) out.push(text(`s${si}-body`, 'body', slide.body, { x: tx, y: top + 110, width: tw, height: 120 }, { fontSize: 16, fill: '$text2', lineHeight: 1.6 }, ptr('slides', si, 'body')));
-  const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice(0, 5) : [];
+  const bullets = slide.bullets || [];
   bullets.forEach((b, i) => {
     const y = top + 250 + i * 48;
     out.push(circle(`s${si}-bullet-${i}-dot`, 'bullet', tx + 8, y + 13, 8, { fill: '$accent' }));
@@ -237,7 +252,7 @@ function comparison(slide, si, pageCount, theme) {
     const x = p + i * (w + gap), dark = i === 1 && slide.contrast !== false;
     out.push(rect(`s${si}-side-${i}-box`, 'card', { x, y: top, width: w, height: h }, { fill: dark ? '$primary' : surface(theme), stroke: dark ? '$primary' : border(theme), strokeWidth: 1, cornerRadius: theme.radius }));
     out.push(text(`s${si}-side-${i}-title`, 'item-title', side.title, { x: x + 34, y: top + 34, width: w - 68, height: 48 }, { fontSize: 26, fontStyle: 'bold', fill: dark ? '#FFFFFF' : '$text', verticalAlign: 'middle' }, ptr('slides', si, i ? 'right' : 'left', 'title')));
-    (side.items || []).slice(0, 5).forEach((item, j) => {
+    (side.items || []).forEach((item, j) => {
       const v = typeof item === 'string' ? item : item.text || item.title;
       const y = top + 112 + j * 64;
       out.push(circle(`s${si}-side-${i}-${j}-dot`, 'bullet', x + 42, y + 13, 10, { fill: dark ? '$accent' : '$primary' }));
@@ -250,7 +265,7 @@ function comparison(slide, si, pageCount, theme) {
 }
 
 function timeline(slide, si, pageCount, theme) {
-  const items = Array.isArray(slide.items) ? slide.items.slice(0, 6) : [];
+  const items = slide.items || [];
   const out = [...header(slide, si, theme)];
   const p = theme.pagePadding, yLine = 320;
   const left = Math.max(p + 60, 110), right = Math.min(1280 - p - 60, 1170);
@@ -273,7 +288,7 @@ function chartInsight(slide, si, pageCount, theme) {
   out.push(el(`s${si}-chart`, 'chart', { elType: 'chart', x: p + 26, y: 178, width: 668, height: 430, ...chart }));
   out.push(rect(`s${si}-insights-box`, 'card', { x: p + 750, y: 150, width: 1280 - p * 2 - 750, height: 490 }, { fill: surfaceAlt(theme), stroke: border(theme), strokeWidth: 1, cornerRadius: theme.radius }));
   out.push(text(`s${si}-insights-title`, 'item-title', slide.insightTitle || '关键解读', { x: p + 780, y: 184, width: 330, height: 40 }, { fontSize: 22, fontStyle: 'bold', verticalAlign: 'middle' }, slide.insightTitle ? ptr('slides', si, 'insightTitle') : undefined));
-  (slide.insights || []).slice(0, 6).forEach((v, i) => {
+  (slide.insights || []).forEach((v, i) => {
     const y = 250 + i * 58;
     out.push(circle(`s${si}-insight-${i}-dot`, 'bullet', p + 790, y + 12, 8, { fill: i % 2 ? '$accent' : '$primary' }));
     out.push(text(`s${si}-insight-${i}`, 'bullet-text', v, { x: p + 810, y, width: 310, height: 44 }, { fontSize: 14, lineHeight: 1.45 }, ptr('slides', si, 'insights', i)));
@@ -309,12 +324,12 @@ function annotateRawElements(elements, si) {
   return (elements || []).map((raw, ei) => ({
     ...raw,
     id: raw.id || `s${si}-raw-${ei}`,
-    ...(raw.elType === 'text' ? { sourcePath: raw.sourcePath || ptr('slides', si, 'elements', ei, 'text') } : {}),
   }));
 }
 
 /** Expand one semantic slide; raw overlays are appended after generated elements. */
 export function expandLayoutSlide(slide, { slideIndex, pageCount, theme }) {
+  assertLayoutCapacity(slide, slideIndex);
   const name = normalizeLayoutName(slide.layout);
   if (name === 'raw') {
     return { ...slide, layout: undefined, background: slide.background || '$bg', elements: annotateRawElements(slide.elements, slideIndex) };
