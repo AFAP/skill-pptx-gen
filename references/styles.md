@@ -26,11 +26,27 @@ AI 应复用一套字体、颜色、描边、圆角和曲线习惯，同时让�
 
 未指定样式时使用 `navy-report`。`navy-brief` 是相同色值的旧名称兼容项，不再用于新示例。其他兼容旧名称：`business`、`tech`、`health`、`education`、`nature`、`creative`、`minimal`、`warm`、`dark`。
 
+还有一个内部预设 `default`（白底 + 蓝绿 8 色 palette，无字体族）。它只在直接调用 `resolveTheme()` 且未传主题时生效；`compileDeck` 与校验器都会先回退到 `navy-report`，因此正常构建不会用到它。
+
+## 令牌覆盖范围（重要）
+
+预设之间的字段完整度并不相同，缺失字段由 `resolveTheme` 回退补齐。**最容易踩坑的是 `accentText` 和 `onAccent`**：
+
+| 令牌 | 明确定义它的预设 | 未定义时的回退 |
+| --- | --- | --- |
+| `accentText` | `navy-report`、`navy-brief`、`warm-editorial` | 回退为 `accent` 本身 |
+| `onAccent` | `tech-dark` | 回退为 `#FFFFFF` |
+| `surface`/`surfaceAlt`/`border`/`radius`/`pagePadding`/`titleMarker`/`footer` | 五个推荐预设 | 分别回退为 `#FFFFFF`/`#F1F5F9`/`#E2E8F0`/`12`/`60`/`bar`/`true` |
+
+因此在 `clean-minimal`、`tech-dark`、`data-dashboard` 以及 9 色旧主题上，`$accentText` **与 `$accent` 是同一个颜色**——此时“浅底强调文字”并不比 `$accent` 更可读。需要真正的可访问强调色时，显式给出 `accentText`（见下方自定义示例），或改用明确定义了该令牌的预设。
+
+`palette` 长度也不同：`navy-report`/`clean-minimal`/`tech-dark`/`warm-editorial`/`data-dashboard` 为 6 色，9 色旧主题为 9 色，`default` 为 8 色。超出长度的 `$7`～`$9` 令牌无法解析，校验器会告警。
+
 完整预设除颜色外还包含：
 
 - `surface` / `surfaceAlt` / `border`
-- `accentText`（浅色表面上的可访问强调文字色；装饰仍用 `accent`）
-- `onAccent`（位于 accent 色块之上的文字色）
+- `accentText`（浅色表面上的可访问强调文字色；装饰仍用 `accent`）——仅部分预设定义，见上表
+- `onAccent`（位于 accent 色块之上的文字色）——仅 `tech-dark` 定义，其余回退 `#FFFFFF`
 - `radius`
 - `pagePadding`
 - `titleMarker`

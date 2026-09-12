@@ -1,7 +1,7 @@
 ---
 name: ppt-gen
 description: 把内容、文档、数据或报告转为可编辑的 PPTX。当用户要求制作 PPT、幻灯片、演示文稿或 slide deck，或提供参考图要求复刻版式时使用。通过紧凑语义版式或受约束 WebSlide 生成统一 PPT-DSL，由网页预览与 PptxGenJS 共用转换层导出；文本、形状、图表和表格保持可编辑。
-version: "1.2.1"
+version: "2.2.0"
 display_name: AI PPT 生成器
 display_name_en: AI PPT Generator
 category: office
@@ -67,6 +67,7 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 - 不把含中文文字的整页生图当作默认降级。优先生成无文字背景/插画，再叠加可编辑文字。
 - 图片属于媒体对象，报告标记为 `rasterized`；文本、形状、图表和表格应标记为 `editable`。
 - primitive DSL 画布固定 1280×720；`shape-circle` 的 x/y 是圆心，其余几何通常以左上角为原点。
+- `shape-path` 必须明确坐标模式：局部坐标用 `x/y` 作原点且 `pointArr` 匹配 `width/height`；画布绝对坐标设置 `coordinateMode:"absolute"`（建议 `x=y=0`），构建器会自动重算外框并转成局部坐标。
 - 矩形、文字、图片和路径的 `rotation` 围绕元素框中心。字体默认按 `px × 0.75` 导出为 pt；旧稿需要旧字号时显式设置 `theme.fontScale:0.6666666667`，不再默认缩小全部文字。
 - 浅色表面上的强调文字使用 `$accentText`；`$accent` 用于装饰、描边和填充；accent 色块上的文字使用 `$onAccent`。
 
@@ -101,19 +102,35 @@ npm test
 npm run test:browser
 ```
 
-只有用户明确接受不完整输出时才使用 `--allow-partial`。不要用 `--no-validate` 掩盖转换错误。
+常用可选参数：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--base-dir <目录>` | 指定 `path`/`url` 相对路径的解析基准（默认 deck 文件所在目录）。`build_all` 自动传入原 deck 目录 |
+| `--scale 0.75` | 缩放预览页显示比例（不改画布与导出） |
+| `make_preview --no-edit` | 关闭双击改字，生成纯审阅预览 |
+| `make_preview --no-embed-images` | 不把图片内嵌为 data URI，预览体积更小但依赖原路径可访问 |
+| `build_pptx --skip-images` | 跳过图片预取（仅调试，缺图会记为失败） |
+| `html_to_deck --theme <名称>` | 指定 WebSlide 提取时使用的主题 |
+| `--no-validate` | 跳过校验直接构建。**不要用它掩盖转换错误**，只用于定位构建阶段问题 |
+
+只有用户明确接受不完整输出时才使用 `--allow-partial`。不要把 `--no-validate` 当成修复手段。
 
 ## 关键文件
 
 - `core/compile-deck.mjs`：语义版式、主题令牌和宏统一编译。
+- `core/shape-path.mjs`：shape-path 的局部/绝对坐标校验与自动归一化。
+- `core/dsl-validate.mjs`：严格校验器（边界、文本溢出估算、对比度、图表/表格形态、能力告警）；`check_deck` 的实现。
 - `core/creative-expand.mjs`：Creative DSL 的样式类、分组、重复器与锚点展开。
 - `core/layouts.mjs`：低 token 语义版式展开器。
 - `core/webslide-extract.js`：浏览器计算后的 HTML/CSS → primitive DSL。
-- `core/dsl-to-pptx.mjs`：primitive DSL → PptxGenJS。
+- `core/dsl-to-pptx.mjs`：primitive DSL → PptxGenJS（Node 与浏览器共用）。
 - `core/ppt-preview-core.js`：primitive DSL → Konva 预览。
+- `core/ppt-core.mjs`：Node 专有适配层（图片/背景预取、SVG 栅格化、构建编排）。
 - `core/pptx-sanitize.mjs`：Node 与浏览器共用的 OOXML 修复。
 - `core/source-edit.mjs`：类型安全的源数据修改与重新编译。
 - `core/presentation.mjs`：Node/浏览器共用的 PPTX 构建与转换报告。
+- `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏展开。
 - `tools/build_all.mjs`：推荐的一键严格管线。
 - `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
 - `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。

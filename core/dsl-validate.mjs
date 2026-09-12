@@ -10,6 +10,7 @@ import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartM
 import { MACRO_TYPES } from './connectors.mjs';
 import { COMPOSITION_TYPES } from './creative-expand.mjs';
 import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
+import { validateShapePathElement } from './shape-path.mjs';
 import { LAYOUT_TYPES, normalizeLayoutName } from './layouts.mjs';
 
 const EL_TYPES = new Set([
@@ -77,10 +78,19 @@ export function validateDeck(deck, opts = {}) {
   };
   inspectNumbers(deck);
   const numericOrBinding = value => Number.isFinite(value) || (typeof value === 'string' && /^\{\{\s*[\w.]+\s*\}\}$/.test(value));
+  /**
+   * 形如 `{{...}}` 但未通过 numericOrBinding 的值：只支持直接字段绑定，
+   * 不支持算式/函数/过滤器。单独给出可操作的诊断，避免下游再报
+   * “必须是数字 / 为必填数字”等重复且无信息量的错误。
+   */
+  const unresolvedBinding = value => typeof value === 'string' && value.includes('{{') && !numericOrBinding(value);
   if (deck.dslVersion != null && (!Number.isInteger(deck.dslVersion) || deck.dslVersion < 1)) errors.push('dslVersion 必须是正整数');
   if (Number.isInteger(deck.dslVersion) && deck.dslVersion > CURRENT_DSL_VERSION) errors.push(`dslVersion ${deck.dslVersion} 高于当前支持版本 ${CURRENT_DSL_VERSION}`);
   if (deck.style != null && typeof deck.style !== 'string') errors.push('style 必须是内置样式名称字符串');
-  const selectedTheme = deck.theme ?? deck.style;
+  // 与 compile-deck.mjs 保持一致：未指定样式时统一回退到 navy-report。
+  // 若这里用 resolveTheme 的内部 general 默认值，对比度与背景检查会按另一套
+  // 调色板计算，与最终导出结果不符。
+  const selectedTheme = deck.theme ?? deck.style ?? 'navy-report';
   if (typeof selectedTheme === 'string' && !BUILTIN_THEMES[selectedTheme]) errors.push(`未知样式/主题 "${selectedTheme}"`);
   if (deck.theme != null && typeof deck.theme !== 'string' && (typeof deck.theme !== 'object' || Array.isArray(deck.theme))) errors.push('theme 必须是内置名称或主题对象');
   if (deck.theme && typeof deck.theme === 'object' && deck.theme.extends && !BUILTIN_THEMES[deck.theme.extends]) errors.push(`theme.extends 引用了未知样式 "${deck.theme.extends}"`);
@@ -92,7 +102,7 @@ export function validateDeck(deck, opts = {}) {
   if (deck.theme?.palette != null && (!Array.isArray(deck.theme.palette) || !deck.theme.palette.length || deck.theme.palette.some(c => !parseColor(c)))) errors.push('/theme/palette: 必须是非空颜色数组');
   if (errors.length) return { ok: false, errors, warnings };
   let theme;
-  try { theme = resolveTheme(deck.theme || deck.style); }
+  try { theme = resolveTheme(selectedTheme); }
   catch (error) { return { ok: false, errors: [`/theme: ${error.message}`], warnings }; }
   if (deck.theme && typeof deck.theme === 'object' && deck.theme.accent && !deck.theme.accentText) {
     const accentLum = luminance(deck.theme.accent);
@@ -139,6 +149,10 @@ export function validateDeck(deck, opts = {}) {
     const validateSourceElement = (el, at) => {
       if (!el || !el.elType) { errors.push(`${at}: 缺少 elType`); return; }
       if (!EL_TYPES.has(el.elType)) { errors.push(`${at}: 未知 elType "${el.elType}"`); return; }
+        if (el.elType === 'shape-path') {
+          const spErr = validateShapePathElement(el);
+          if (spErr) errors.push(`${at}: ${spErr}`);
+        }
       if (el.styleClass != null) {
         const names = Array.isArray(el.styleClass) ? el.styleClass : (typeof el.styleClass === 'string' ? el.styleClass.split(/\s+/).filter(Boolean) : []);
         if (!names.length || names.some(name => typeof name !== 'string')) errors.push(`${at}: styleClass 必须是字符串或字符串数组`);
@@ -283,16 +297,23 @@ export function validateDeck(deck, opts = {}) {
         }
 
       // 几何检查（line/arrow/curve 用 pointArr，跳过矩形检查）
-      for (const key of ['x', 'y', 'width', 'height', 'radius', 'rotation', 'opacity', 'fontSize', 'lineHeight', 'padding', 'strokeWidth', 'lineWidth']) {
-        if (el[key] != null && !Number.isFinite(el[key])) errors.push(`${at}: ${key} 必须是有限数字`);
-      }
-      if (el.opacity != null && (el.opacity < 0 || el.opacity > 1)) errors.push(`${at}: opacity 必须在 0–1 之间`);
-      if (el.fontSize != null && el.fontSize <= 0) errors.push(`${at}: fontSize 必须 > 0`);
-      if (el.lineHeight != null && el.lineHeight <= 0) errors.push(`${at}: lineHeight 必须 > 0`);
-      if (!el.allowOverflow && !['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
-        for (const k of ['x', 'y', 'width', 'height']) {
-          if (el[k] != null && typeof el[k] !== 'number') errors.push(`${at}: ${k} 必须是数字`);
+      // 绑定必须先展开：编译后这里只剩字面量，所以断言的是“展开后仍不是数字”。
+      const geometryKeys = ['x', 'y', 'width', 'height', 'radius', 'rotation', 'opacity', 'fontSize', 'lineHeight', 'padding', 'strokeWidth', 'lineWidth'];
+      const numeralKeys = new Set();          // 已给出且是有效数值的字段
+      for (const key of geometryKeys) {
+        if (el[key] == null) continue;
+        if (unresolvedBinding(el[key])) {
+          errors.push(`${at}: ${key} 只支持数字或直接字段绑定（如 {{value}}）；不支持算式、函数或过滤器：${JSON.stringify(el[key])}`);
+        } else if (!Number.isFinite(el[key])) {
+          errors.push(`${at}: ${key} 必须是有限数字，当前为 ${JSON.stringify(el[key])}`);
+        } else {
+          numeralKeys.add(key);
         }
+      }
+      if (el.opacity != null && Number.isFinite(el.opacity) && (el.opacity < 0 || el.opacity > 1)) errors.push(`${at}: opacity 必须在 0–1 之间`);
+      if (el.fontSize != null && Number.isFinite(el.fontSize) && el.fontSize <= 0) errors.push(`${at}: fontSize 必须 > 0`);
+      if (el.lineHeight != null && Number.isFinite(el.lineHeight) && el.lineHeight <= 0) errors.push(`${at}: lineHeight 必须 > 0`);
+      if (!el.allowOverflow && !['shape-line', 'shape-arrow', 'curve-quadratic'].includes(el.elType)) {
         const x = el.x ?? 0, y = el.y ?? 0, w = el.width ?? 0, h = el.height ?? 0;
         if (el.elType === 'shape-circle') {
           // 圆心坐标；直径缺省 height 回退 width，与导出/预览一致
@@ -406,10 +427,15 @@ export function validateDeck(deck, opts = {}) {
       }
         const needsBox = ['text', 'image', 'image-svg', 'shape-rect', 'chart', 'table'].includes(el.elType);
         if (needsBox) {
+          // 缺字段才算“必填数字”；已给出但类型/绑定错误的字段上面已单独报过，不重复。
           for (const key of ['x', 'y', 'width', 'height']) {
-            if (!Number.isFinite(el[key])) errors.push(`${at}: ${key} 为必填数字`);
+            if (el[key] == null) errors.push(`${at}: ${key} 为必填数字`);
           }
-          if ((el.width || 0) <= 0 || (el.height || 0) <= 0) errors.push(`${at}: width/height 必须 > 0`);
+          const positive = k => Number.isFinite(el[k]) && el[k] > 0;
+          // 只为“能求值却不合法”的字段报这一条；无法求值的绑定上面已单独报过，不重复。
+          const reportable = k => el[k] != null && numeralKeys.has(k);
+          if (!positive('width') && reportable('width')) errors.push(`${at}: width 必须 > 0，当前为 ${el.width}`);
+          if (!positive('height') && reportable('height')) errors.push(`${at}: height 必须 > 0，当前为 ${el.height}`);
         }
         // 颜色格式抽查（令牌已在前面解析，残留的 $xxx 视为未解析令牌）
         for (const key of ['fill', 'stroke', 'lineColor', 'shadowColor']) {

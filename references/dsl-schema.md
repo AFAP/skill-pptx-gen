@@ -153,25 +153,27 @@
 ```json
 {"elType":"text","text":"内容\n换行","x":60,"y":60,"width":600,"height":50,
  "fontSize":20,"fontStyle":"bold|italic|bold italic","fill":"$text",
- "fontFamily":"Georgia","align":"left|center|right","verticalAlign":"top|middle|bottom",
+ "fontFamily":"Georgia","align":"left|center|right|justify","verticalAlign":"top|middle|bottom|center",
  "lineHeight":1.5,"letterSpacing":2,"padding":8,"underline":true}
 ```
 - `fontStyle` 字符串含 `bold`/`italic` 即生效；也可用布尔 `bold`/`italic`。
+- `verticalAlign` 接受 `center` 作为 `middle` 的别名（WebSlide 提取器可能产出任一种）。
 - `lineHeight` 导出为 lineSpacingMultiple（0.5-3）。
 - **`fill` 对 text 是字体颜色**（Konva 约定），不会成为文本框底色；
   需要带底色的文本框时用 `bgFill`（如 `"bgFill":"#1E3A5F"`），别用 `fill`。
 - 浅色表面上的强调文字用 `$accentText`；`$accent` 主要用于装饰和填充；accent 色块上的文字用 `$onAccent`。
-- 文本框可带 `stroke`/`shadow`。
+- 文本框可带 `shadow`（预览与导出均生效）。`stroke`/`strokeWidth` 只写入 PPTX，Konva 预览不绘制文字描边——需要预览也可见时改用 shape 叠加或图片。
 
 ### image — 图片
 ```json
-{"elType":"image","path":"URL或本地路径或留空","prompt":"AI生图描述(英文)","ratio":"16:9",
+{"elType":"image","path":"URL或本地路径或留空","prompt":"AI生图描述(英文)",
  "x":60,"y":180,"width":540,"height":300,"sizing":{"type":"cover"}}
 ```
 - 图片来源优先级：`path`/`url`（http(s) 下载、本地相对 deck.json 路径）→ 生成 base64 嵌入。
 - 只有 `prompt` 时严格构建会失败。生图完成后必须补 `path` 或 `data`，不允许最终导出静默跳过。
 - 也可直接给 `data`（data URI），预览/导出均支持。
-- `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）。
+- `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）。也接受简写字符串 `"sizing":"contain"`；语义版式 `split.image.sizing` 同样两种写法都可。
+- 图片宽高比由 `width`/`height` 与 `sizing` 决定，没有独立的 `ratio` 字段。
 - `cornerRadius` 只在网页预览中裁切；需要 PPTX 也保留图片圆角时，先把透明圆角栅格化进图片本身。
 - `rounding:true` 表示椭圆/圆形图片裁切，不等价于普通圆角矩形。
 
@@ -204,7 +206,7 @@
 - `shape-arrow` 默认带 stealth 箭头（多段折线同样生效）；`shape-line` 指定 `lineEndArrowType` 时预览与导出都会画箭头。
 - `lineEndArrowType`: `arrow|triangle|stealth|diamond|oval|none`。
 - **多点折线**：pointArr 超过 2 点时，导出端自动走 customGeometry（全程折线，箭头尾端仍生效），与预览一致；两点时走原生 line。
-- pointArr 的 x/y 为画布绝对坐标（shape-line/arrow 以点为锚；shape-path/curve-quadratic 的 x/y 是路径元素的参考原点，通常设 0,0 更直观）。
+- shape-line/arrow 的 pointArr x/y 为画布绝对坐标；curve-quadratic/shape-path 的坐标模式见各自小节，不能把绝对坐标和 x/y 混用。
 
 ### curve-quadratic — 二次贝塞尔曲线（连接线）
 ```json
@@ -217,6 +219,7 @@
 ### shape-path — 自由路径
 - `pointArr`（同上，可含 `curve:{type:"arc",hR,wR,stAng,swAng}` 圆弧；hR/wR 单位 px）→ 构建层先统一转换为 cubic，再导出自定义几何，避免 Konva 与 PowerPoint 对圆弧指令的解释差异。
 - `data`/`svgPath`（SVG path 字符串）只有预览支持，严格校验会报错；要导出 PPTX 必须改用 `pointArr` 或完整 `image-svg`。
+- 必须声明 `coordinateMode`：`local`（推荐）或 `absolute`；缺省 `auto` 会按点列是否超出声明外框自动判定。详见文末「shape-path 坐标约束」。
 
 ## 连接线与弧形宏（构建期展开，源自原项目脑图布局函数）
 
@@ -251,7 +254,10 @@ Konva 预览与 PPTX 导出自动一致：
 - 角度制：0°=正右，顺时针为正。外弧顺时针扫过、内弧返回，闭合为甜甜圈扇区；宏会在共同编译层展开为三次贝塞尔点列，两端使用同一几何。
 - 扫角自动归一化到 (0,360]：跨 0° 写法（如 startAngle:270, endAngle:25）自动按 +115° 处理；>360° 会取模。
 - `arrow`（默认 true）在段尾生成箭头尖并在段首留 V 形缺口；`arrowAngle` 默认 6°。
-- N 段轨道：startAngle 按 `i×(360/N)+缝隙角`、endAngle 按 `(i+1)×(360/N)-缝隙角` 分配，palette 循环填色。
+- 一个 `arc-segment` 元素只生成**一段**扇区；`startAngle`/`endAngle` 是必填字段，宏不会自行等分圆环。
+  多段轨道由调用方自己按 `i×(360/N)+缝隙角` … `(i+1)×(360/N)-缝隙角` 计算每段角度，并逐段指定 `fill`
+  （建议用 `$1`…`$9` 或显式色值；宏不会循环取 palette）。
+- `rInner` 缺省为 `rOuter × 0.72`；`fill` 缺省为硬编码的 `#4A90E2`（不是主题色），建议显式指定。
 
 ### chart — 图表（导出为真实可编辑图表）
 ```json
@@ -280,13 +286,72 @@ Konva 预览与 PPTX 导出自动一致：
 ### text-path — 路径文字
 - 仅 Konva 预览支持，严格校验会报错。改用普通 `text`；若外观必须固定，将不含关键可编辑文字的局部预合成为 SVG/PNG。
 
+## 字段别名与次要属性
+
+转换层接受以下别名与附加字段；新文件建议使用左列的主名称。
+
+| 主名称 | 可用别名 / 附加字段 | 说明 |
+| --- | --- | --- |
+| `width` / `height` | `w` / `h` | 通用几何简写 |
+| `rotation` | `rotate` | 同上，度 |
+| `fill`（text） | `color` | text 的字体颜色两种写法都接受 |
+| `verticalAlign` | `valign` | `center` 等价 `middle` |
+| `dashType` | `dash` | 虚线 |
+| `cornerRadius` | `rectRadius` | 矩形圆角 |
+| `padding` | `inset` | 通用内边距 |
+| `shadowColor`/`shadowBlur`/… | `shadow:{type,blur,offset,angle,color,opacity}`、`shadowType` | Konva 风格标量字段与对象式任选其一 |
+| — | `flipH` / `flipV` | 水平/垂直翻转 |
+| — | `lineBeginArrowType` | 线段起点箭头；**仅导出生效，预览只画终点箭头** |
+| — | `closePath` | `shape-path` 是否闭合，默认闭合 |
+| — | `bgOpacity` | `bgFill` 底色的不透明度（预览与导出均生效） |
+| — | `bgRadius` / `strikethrough` / `wrap` / `ellipsis` | **仅预览生效**，导出忽略 |
+
+`table` 额外支持 `header.enabled`（是否输出表头行）与 `height`（作为 `rowH`）；`borderColor` 仅预览生效。
+
+`x`/`y`/`width`/`height`/`stepX`/`stepY`/`columns`/`scale`/`gap`/`dx`/`dy` 都接受**直接字段绑定**（如 `"height":"{{value}}"`），但只支持单个字段名——**不支持算式、函数或过滤器**（`{{320 - value}}` 会报错）。绑定只写在源文件，编译后即展开为字面量。
+
 ## 常见陷阱
 
 1. `shape-circle` 圆心坐标 ≠ 其他元素的左上角坐标。
 2. 文本高度不足是最常见的导出翻车原因：估算 `行数 × fontSize × lineHeight ≤ height`。
 3. 元素叠放顺序 = 数组顺序；背景元素放最前。
-4. 背景可使用 slide.background；省略时两端使用 theme.background，不必额外添加全屏矩形。
-5. JSON 不允许注释、尾逗号、单引号。
-6. emoji 在 Windows PowerPoint 中渲染为彩色、在部分 WPS/Mac 中风格不同；关键图标用 image-svg。
-7. 未知 `chartType`、只有 prompt 的图片、`text-path` 和 SVG path data 都是严格错误，不会回退成别的对象。
-8. `webUnsupported` 表示已知降级，必须逐条判断是接受、重做为原生元素，还是局部栅格化。
+4. `slide.background` 可以是颜色**或图片路径/URL**（后者同样预取并计入报告的 `rasterized`）；省略时两端使用 theme.background，不必额外添加全屏矩形。
+5. 图片 `sizing` 两种写法等价：`"contain"` 与 `{"type":"contain"}`；语义版式 `split.image.sizing` 亦然。
+6. JSON 不允许注释、尾逗号、单引号。
+7. emoji 在 Windows PowerPoint 中渲染为彩色、在部分 WPS/Mac 中风格不同；关键图标用 image-svg。
+8. 未知 `chartType`、只有 prompt 的图片、`text-path` 和 SVG path data 都是严格错误，不会回退成别的对象。
+9. `webUnsupported` 表示已知降级，必须逐条判断是接受、重做为原生元素，还是局部栅格化。
+
+
+## shape-path 坐标约束
+
+`shape-path` 同时有外框和路径几何，必须明确坐标模式：
+
+- `local`（推荐）：`pointArr` 是相对 `x/y` 的局部坐标；`minX≈0`、`minY≈0`、`maxX≈width`、`maxY≈height`。描边会向外扩 `strokeWidth/2`，要让选中框包住描边，`width/height` 应包含这部分。
+- `absolute`：`pointArr` 是 1280×720 画布绝对坐标；建议 `x=0,y=0`。构建器会自动按点列包围盒 + `strokeWidth/2` 重算 `x/y/width/height`，并把点列转成局部坐标。
+- 缺省 `auto`：点列在声明外框内时按 local；`x=0,y=0` 且点列超出声明外框时按 absolute 自动归一化；其余歧义直接报错。
+绝对坐标示例（构建器会自动归一化）：
+
+```json
+{
+  "elType": "shape-path",
+  "coordinateMode": "absolute",
+  "x": 0,
+  "y": 0,
+  "width": 0,
+  "height": 0,
+  "fill": "$primary",
+  "strokeWidth": 16,
+  "pointArr": [
+    { "x": 68, "y": 144 },
+    { "x": 210, "y": 144 },
+    { "x": 260, "y": 202 },
+    { "x": 210, "y": 260 },
+    { "x": 68, "y": 260 }
+  ]
+}
+```
+
+编译后会得到：`x=60, y=136, width=208, height=132`，`pointArr` 变为 `(8,8),(150,8),(200,66),(150,124),(8,124)`。
+
+常见错误：x/y=0 但 pointArr 使用画布绝对坐标，且 width/height 与包围盒不一致。请设置 coordinateMode:"absolute"，或把 pointArr 改成局部坐标。

@@ -140,7 +140,10 @@
     }
     try {
       const img = await loadImage(src);
-      const sizing = elop.sizing?.type === 'contain' ? 'contain' : 'cover'; // 默认 cover，与导出一致
+      // 与导出端 imageSizing 保持一致：兼容 "contain" 与 {type:"contain"}，并容忍多层包装
+      let sizingType = elop.sizing;
+      while (sizingType && typeof sizingType === 'object') sizingType = sizingType.type;
+      const sizing = sizingType === 'contain' ? 'contain' : 'cover'; // 默认 cover，与导出一致
       const cfg = {
         x: elop.x, y: elop.y, rotation: elop.rotation || elop.rotate || 0,
         opacity: elop.opacity ?? 1, cornerRadius: elop.cornerRadius || 0, stroke: elop.stroke, strokeWidth: elop.strokeWidth,

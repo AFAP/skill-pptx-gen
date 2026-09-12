@@ -163,3 +163,25 @@ assert.equal(captured[0].opt.showLegend, false);
 assert.throws(() => applyElement(mockPptx, mockSlide, { elType: 'chart', chartType: 'waterfall', x: 0, y: 0, width: 200, height: 100, data: [] }, resolveTheme('clean-minimal')), /未知 chartType/);
 
 console.log('✅ smoke tests passed');
+
+// shape-path coordinate constraints
+const absoluteShape = compileDeck({ slides: [{ elements: [{
+  elType: 'shape-path', id: 'ab1', x: 0, y: 0, width: 208, height: 132,
+  fill: '#0E5FA3', stroke: '#0E5FA3', strokeWidth: 16, closePath: true,
+  pointArr: [
+    { x: 68, y: 144 }, { x: 210, y: 144 }, { x: 260, y: 202 },
+    { x: 210, y: 260 }, { x: 68, y: 260 },
+  ],
+}] }] }).deck.slides[0].elements[0];
+assert.equal(absoluteShape.x, 60);
+assert.equal(absoluteShape.y, 136);
+assert.equal(absoluteShape.width, 208);
+assert.equal(absoluteShape.height, 132);
+assert.deepEqual(absoluteShape.pointArr.map(p => [p.x, p.y]), [[8, 8], [150, 8], [200, 66], [150, 124], [8, 124]]);
+
+const ambiguous = validateDeck({ slides: [{ elements: [{
+  elType: 'shape-path', x: 10, y: 10, width: 50, height: 50,
+  pointArr: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }],
+}] }] });
+assert.equal(ambiguous.ok, false);
+assert.ok(ambiguous.errors.some(e => e.includes('ambiguous shape-path')));

@@ -56,6 +56,7 @@
 - `connector-s`、`connector-elbow`、`arc-segment` 表达曲线和轨道。
 
 这些宏会在颜色解析和渲染前消失，因此不会削弱两端一致性。
+- `shape-path` 必须声明坐标模式：局部坐标用 `x/y` 作原点且 `pointArr` 匹配声明外框；画布绝对坐标写 `coordinateMode:"absolute"`（建议 `x=y=0`），构建器会自动重算外框。
 
 ### Creative WebSlide
 

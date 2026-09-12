@@ -1,6 +1,7 @@
 /** Compile semantic slides and primitive slides into one resolved primitive deck. */
 import { BUILTIN_THEMES, resolveTheme, resolveTokens } from './dsl-to-pptx.mjs';
 import { expandConnectors, pointsToSvgPath } from './connectors.mjs';
+import { normalizeShapePaths } from './shape-path.mjs';
 import { expandCreativeElements } from './creative-expand.mjs';
 import { expandLayoutSlide, isSemanticSlide } from './layouts.mjs';
 
@@ -64,6 +65,7 @@ export function compileDeck(deck, opts = {}) {
   };
   if (opts.resolveColors !== false) compiled = resolveTokens(compiled, theme);
   if (opts.expandMacros !== false) expandConnectors(compiled);
+  if (opts.normalizeShapePaths !== false) normalizeShapePaths(compiled);
   for (const slide of compiled.slides) for (const el of slide.elements) {
     if (el.elType === 'shape-path' && Array.isArray(el.pointArr)) el.data = pointsToSvgPath(el.pointArr) + (el.closePath !== false ? ' Z' : '');
     if (el.elType === 'text') {

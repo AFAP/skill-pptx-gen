@@ -23,7 +23,7 @@ WebSlide 用浏览器计算 HTML/CSS 布局，再把显式标记的叶子节点�
 </html>
 ```
 
-完整示例：`examples/埃斯顿2026中期报.html`。
+完整可运行示例见 `tests/fixtures/webslide.html`（工程用例），成品展示见 `examples/南京埃斯顿深度研究报告-AI创意版.html`。
 
 ## 标记协议
 

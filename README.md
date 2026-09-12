@@ -105,7 +105,9 @@ npm test
 npm run test:browser
 ```
 
-`--allow-partial` 只用于用户明确接受不完整调试输出的情况。
+`--allow-partial` 只用于用户明确接受不完整调试输出的情况。`--no-validate` 会跳过校验直接构建，只用于定位构建阶段问题，不得用来掩盖转换错误。
+
+常用可选参数：`--base-dir <目录>`（图片相对路径基准，`build_all` 自动传入原 deck 目录）、`--scale 0.75`（预览显示比例）、`make_preview --no-edit`（纯审阅预览）、`make_preview --no-embed-images`（不内嵌图片）、`build_pptx --skip-images`（跳过图片预取，仅调试）、`html_to_deck --theme <名称>`（提取时使用的主题）。
 
 `npm test` 不依赖浏览器；`test:browser` 使用本机 Chrome/Edge 实测提取、改字、重编译和浏览器导出。给 `build_all` 加 `--check-browser` 可把真实预览检查纳入构建，包含运行错误与实测文字溢出。Chrome/Edge 路径可由 `PPT_BROWSER` 指定。
 
@@ -122,14 +124,18 @@ npm run test:browser
 ## 目录
 
 - `core/compile-deck.mjs`：所有创作入口到统一 primitive scene 的编译入口。
+- `core/shape-path.mjs`：shape-path 的坐标模式校验与自动归一化。
+- `core/dsl-validate.mjs`：严格校验器（结构、边界、文本溢出估算、对比度、图表/表格形态、能力告警）。
 - `core/creative-expand.mjs`：样式类、分组、重复器与锚点展开。
 - `core/layouts.mjs`：紧凑语义版式。
 - `core/webslide-extract.js`：浏览器计算后的 HTML/CSS 提取。
-- `core/dsl-to-pptx.mjs`：primitive DSL 到 PptxGenJS。
+- `core/dsl-to-pptx.mjs`：primitive DSL 到 PptxGenJS（Node/浏览器共用）。
 - `core/ppt-preview-core.js`：primitive DSL 到 Konva。
+- `core/ppt-core.mjs`：Node 专有适配层（图片预取、SVG 栅格化、构建编排）。
 - `core/pptx-sanitize.mjs`：Node/浏览器共用 OOXML 修复。
 - `core/source-edit.mjs`：保留类型的源数据修改与重新编译。
 - `core/presentation.mjs`：Node/浏览器共用 PPTX 构建与转换报告。
+- `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏。
 - `tools/build_all.mjs`：推荐的一键管线。
 - `tools/check_preview.mjs`：真实浏览器渲染诊断与逐页截图。
 - `tests/fixtures/`：独立的版式、图表和 HTML 工程测试，不依赖公开示例的命名或页数。

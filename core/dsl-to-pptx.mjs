@@ -25,6 +25,21 @@ export function pxToPt(px) {
   return Number((px * PX2PT).toFixed(2));
 }
 
+/**
+ * 图片 sizing 统一解析为类型名。
+ *
+ * 历史上存在两种等价写法，都必须支持，否则 `{type:'contain'}` 会被包装成
+ * `{type:{type:'contain'}}`，比对失败后静默退化为 cover 裁切：
+ *   - 字符串：`sizing: "contain"`（raw primitive、layout-dsl.md）
+ *   - 对象：  `sizing: { type: "contain" }`（dsl-schema.md 的示例）
+ * 同时容忍已双层包装的输入，避免旧编译产物或手工 primitive 静默裁切。
+ */
+export function imageSizing(value) {
+  let type = value;
+  while (type && typeof type === 'object') type = type.type;
+  return type === 'contain' ? 'contain' : 'cover';
+}
+
 /** 跨端 UTF-8 → base64（Node 用 Buffer，浏览器用 TextEncoder+btoa） */
 function utf8ToBase64(str) {
   if (typeof Buffer !== 'undefined') return Buffer.from(str, 'utf-8').toString('base64');
@@ -519,7 +534,8 @@ export function applyElement(pptx, slide, elop, theme) {
     else if (elop.path || elop.url) opt.path = elop.path || elop.url; // 兜底：未预取时让 pptxgenjs 自行处理
     else throw new Error('image 缺少 path/url/data');
     // 默认 cover 裁满（与 Konva 预览一致），显式 contain 才完整容纳；不再默认 stretch 变形
-    const sizingType = elop.sizing?.type === 'contain' ? 'contain' : 'cover';
+    // 兼容 `sizing:"contain"` 与 `sizing:{type:"contain"}` 两种写法（见 layouts.mjs imageSizing）
+    const sizingType = imageSizing(elop.sizing) === 'contain' ? 'contain' : 'cover';
     opt.sizing = { type: sizingType, w: opt.w, h: opt.h };
     // PptxGenJS 的 rounding 是椭圆裁切，不等价于网页圆角；仅在显式 rounding=true 时启用。
     if (elop.rounding === true) opt.rounding = true;

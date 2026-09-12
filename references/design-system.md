@@ -26,6 +26,8 @@
 
 ## 配色规则
 
+**令牌写法约定**：本文件用 `$primary`、`$accent`、`$text`、`$text2`、`$bg`、`$surface` 等命名令牌，以及 `$1`…`$9` 指向 `theme.palette` 的第 N 色（注意是 `$1` 起、不是 `$0`）。`$light:<色值或令牌>` 是**合法语法**，会在构建时把该色 HSL 提亮（如 `$light:$primary`、`$light:#E86A33`）。但 `$i`、`$i+1` 这类**循环变量不是合法令牌**——它们只表示"第 i 段"，落地时必须展开成具体下标（`$1`、`$2`…）或显式色值。
+
 - 常规页面可以从少量主色起步；多系列数据等情境按需扩充，不必顺序轮换颜色。
 - 卡片编号/图标底色交替 `$primary` ↔ `$accent`。
 - 卡片底色三选一：纯白 + 边框 + 柔和阴影（浅色背景）｜`$light:$primary` 浅填充（白底）｜比背景亮/暗一阶的纯色（深色背景）。
@@ -131,7 +133,7 @@ y 从 180 起，每条高 90-110
 ```
 主卡: shape-rect (60, 362-50, 200,100) $light:$primary 填充+主色描边+圆角16
       图标 emoji 30px (左 64px 宽) + 标题 20 bold
-子卡: shape-rect (340, cy-30, 210,60) × N, $light:$i 马卡龙填充 + $i 描边 + 圆角12
+子卡: shape-rect (340, cy-30, 210,60) × N, 浅色调 palette[i] 填充 + $i 描边 + 圆角12
       图标 22px + 标题 16 bold
 主卡→子卡: connector-s (260,362)→(340,cy), orientation:"h", dashType:"dash", strokeWidth 1.5
 子卡右侧文本: text (620, cy±, 600, 34) 13px $text2 —— 每条子卡挂 1-2 行
@@ -152,7 +154,7 @@ y 从 180 起，每条高 90-110
 ```
 圆心: (640,390); 环: rOuter=200, rInner=140
 N 段: 每段扫角 = (360 - N×缝隙角5°) / N，从 -90°(顶部) 起顺时针
-  arc-segment(cx,cy,rOuter,rInner, start=-85+i×(step+5), end=start+step, fill=$i+1)
+  arc-segment(cx,cy,rOuter,rInner, start=-85+i×(step+5), end=start+step, fill=$1+i)
   —— 默认自带段尾箭头（arrowAngle 6°），探入下一段缝隙指示流向
 数字徽章: 每段中角 mid=(start+end)/2，中环半径 rMid=(rOuter+rInner)/2
   位置 = arcPoint(cx, cy, rMid, mid)  →  shape-circle 40px + 白底彩边数字

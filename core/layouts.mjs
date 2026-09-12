@@ -6,6 +6,8 @@
  * remains inspectable and can still be extended with raw `elements` overlays.
  */
 
+import { imageSizing } from './dsl-to-pptx.mjs';
+
 export const LAYOUT_TYPES = [
   'cover', 'section', 'agenda', 'cards', 'metrics', 'split',
   'comparison', 'timeline', 'chart-insight', 'quote', 'ending', 'raw',
@@ -233,7 +235,7 @@ function split(slide, si, pageCount, theme) {
   const tx = imageRight ? p : p + imageW + gap;
   const tw = 1280 - p * 2 - imageW - gap;
   const img = slide.image || {};
-  out.push(el(`s${si}-image`, 'image', { elType: 'image', x: ix, y: top, width: imageW, height: h, path: img.path, url: img.url, data: img.data, prompt: img.prompt, sizing: { type: img.sizing || 'cover' } }));
+  out.push(el(`s${si}-image`, 'image', { elType: 'image', x: ix, y: top, width: imageW, height: h, path: img.path, url: img.url, data: img.data, prompt: img.prompt, sizing: { type: imageSizing(img.sizing) } }));
   out.push(text(`s${si}-content-title`, 'item-title', slide.contentTitle || slide.heading || '', { x: tx, y: top + 32, width: tw, height: 58 }, { fontSize: 30, fontStyle: 'bold', verticalAlign: 'middle' }, ptr('slides', si, slide.contentTitle != null ? 'contentTitle' : 'heading')));
   if (slide.body) out.push(text(`s${si}-body`, 'body', slide.body, { x: tx, y: top + 110, width: tw, height: 120 }, { fontSize: 16, fill: '$text2', lineHeight: 1.6 }, ptr('slides', si, 'body')));
   const bullets = slide.bullets || [];
