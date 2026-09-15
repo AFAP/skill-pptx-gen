@@ -104,3 +104,5 @@ node tools/build_all.mjs deck.json -o output --check-browser
 要求：文字/KPI/正文/图表/表格可编辑；只把照片、Logo、复杂图标局部栅格化。
 先做页面结构分析，再选择 Creative DSL 或 WebSlide；用 group/repeat/styleClass 复用重复结构。
 运行 build_all，检查 failed=0 和 skipped=0，并逐页做视觉对比，最后在 PowerPoint/WPS 打开确认。
+
+> 敏感项目的实际截图、deck 和产物不要提交到仓库；需要时在本地 output/ 或 .tmp/ 中生成并自行清理。

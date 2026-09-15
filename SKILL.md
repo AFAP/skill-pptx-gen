@@ -135,5 +135,4 @@ npm run test:browser
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏展开。
 - `tools/build_all.mjs`：推荐的一键严格管线。
 - `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
-- `examples/deck-industrial-excellence.json` 与 `examples/industrial-excellence-out/`：从图片截图重建单页可编辑 PPT 的演示。
 - `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。
