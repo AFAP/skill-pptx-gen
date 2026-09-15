@@ -160,7 +160,9 @@ function exportDeck() {
 }
 
 function fitScale() {
-  return Math.min(1, (window.innerWidth - 64) / PptPreview.PPT_WIDTH);
+  const w = window.innerWidth || document.documentElement.clientWidth || 1344;
+    if (w < 320) return 1;
+    return Math.max(0.2, Math.min(1, (w - 64) / PptPreview.PPT_WIDTH));
 }
 async function render() {
   const scroll = window.scrollY;
@@ -202,7 +204,7 @@ async function exportPptx() {
   }
 }
 
-window.addEventListener('resize', () => { if (currentScale === null) { zoomFit(); } });
+window.addEventListener('resize', () => { if (currentScale === null && stages.length) { zoomFit(); } });
 window.PPT_PREVIEW_READY = render().catch(error => {
   document.querySelector('.toolbar button.primary').disabled = true;
   const notice = document.createElement('pre');

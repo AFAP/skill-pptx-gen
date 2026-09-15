@@ -118,6 +118,7 @@ npm run test:browser
 默认字号换算已校正为 `px × 0.75 = pt`，避免导出后文字整体缩小。旧稿需要保持原字号时，在主题对象中显式设置 `fontScale: 0.6666666667`。文字换行和原生图表仍需实际打开 PPTX 核对。
 
 参考截图默认采用“可编辑元素 + 局部无文字图片”的混合策略；不会把含中文和关键数据的整页生图作为常规方案。见 [参考图分析协议](references/reference-image-analysis.md)。
+- 图片版 PPT 或截图还原为可编辑 PPTX：见 [图片版 PPT 还原指南](references/image-to-editable-deck.md)。
 
 构建报错、缺少浏览器或可选 SVG 能力时，先查 [故障排查](references/troubleshooting.md)。复杂 primitive 构图按需查 [设计系统与版式配方](references/design-system.md)，不要在普通语义版式任务中整份加载。
 

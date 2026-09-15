@@ -27,6 +27,7 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 
 - 长文档、研究报告或多章节材料：[references/content-to-deck.md](references/content-to-deck.md)。
 - 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。提取视觉语法后重新创作，不把单张截图当作整套母版。
+- 图片版 PPT、PPT 截图或拍屏要还原成可编辑 PPTX：[references/image-to-editable-deck.md](references/image-to-editable-deck.md)。先做结构与元素分类，再按 Creative DSL / WebSlide / Hybrid 重建。
 - 配色、字体、曲线和空间节奏：[references/styles.md](references/styles.md)。默认色板详见 [references/builtin-template.md](references/builtin-template.md)。样式是视觉语法，不是整页布局。
 - 脑图、弧形轨道、四象限、金字塔、SWOT 等几何配方：[references/design-system.md](references/design-system.md)，只读取当前页面所需部分。
 - 转换边界与降级：[references/parity-contract.md](references/parity-contract.md)。
@@ -120,6 +121,7 @@ npm run test:browser
 
 - `core/compile-deck.mjs`：语义版式、主题令牌和宏统一编译。
 - `core/shape-path.mjs`：shape-path 的局部/绝对坐标校验与自动归一化。
+- `references/image-to-editable-deck.md`：图片版 PPT / 截图还原为可编辑 deck 的流程、元素分类和验收清单。
 - `core/dsl-validate.mjs`：严格校验器（边界、文本溢出估算、对比度、图表/表格形态、能力告警）；`check_deck` 的实现。
 - `core/creative-expand.mjs`：Creative DSL 的样式类、分组、重复器与锚点展开。
 - `core/layouts.mjs`：低 token 语义版式展开器。
@@ -133,4 +135,5 @@ npm run test:browser
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏展开。
 - `tools/build_all.mjs`：推荐的一键严格管线。
 - `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
+- `examples/deck-industrial-excellence.json` 与 `examples/industrial-excellence-out/`：从图片截图重建单页可编辑 PPT 的演示。
 - `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。
