@@ -1,0 +1,10 @@
+{
+  "source": "D:\\workspace\\Project\\aippt\\skill\\ppt-gen\\examples\\党史学习-参考图还原.deck.json",
+  "sourceSha256": "eb4d1bde80c2116d391a1d375418ff43c6580c8ddffe9358d711f229c172c9dc",
+  "artifacts": {
+    "党史学习-参考图还原.deck.preview.html": "f822f7374580440bbe460c15894319367ae32d7019d761a0632d8f8fa56816c5",
+    "党史学习-参考图还原.deck.pptx": "cc19326703fab8d920e0a3dc2fe1ea276a90aa1021dd2168dfb353c711534ff6",
+    "党史学习-参考图还原.deck.report.json": "38ebb5c252502c87a266aed0d6c88c4f4dd45caab9012e2da7be79a84e39285a"
+  },
+  "browserChecked": false
+}

@@ -107,6 +107,8 @@ function expandConnectorS(el) {
     stroke: el.stroke || '#666666',
     strokeWidth: el.strokeWidth ?? 2,
     ...(el.dashType ? { dashType: el.dashType } : {}),
+    ...(el.lineEndArrowType ? { lineEndArrowType: el.lineEndArrowType } : {}),
+    ...(el.lineBeginArrowType ? { lineBeginArrowType: el.lineBeginArrowType } : {}),
     ...(el.opacity != null ? { opacity: el.opacity } : {}),
     fill: '#00000000',
   };
@@ -134,6 +136,8 @@ function expandConnectorElbow(el) {
     stroke: el.stroke || '#666666',
     strokeWidth: el.strokeWidth ?? 2,
     ...(el.dashType ? { dashType: el.dashType } : {}),
+    ...(el.lineEndArrowType ? { lineEndArrowType: el.lineEndArrowType } : {}),
+    ...(el.lineBeginArrowType ? { lineBeginArrowType: el.lineBeginArrowType } : {}),
     ...(el.opacity != null ? { opacity: el.opacity } : {}),
     fill: '#00000000',
   };

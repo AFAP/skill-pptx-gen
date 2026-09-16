@@ -1,0 +1,212 @@
+{
+  "dslVersion": 3,
+  "meta": {
+    "title": "说课：教材与学生分析",
+    "author": "ppt-gen 还原示例",
+    "subject": "参考图版式还原"
+  },
+  "theme": {
+    "extends": "clean-minimal",
+    "background": "#F1F2F4",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#E9EDF2",
+    "border": "#DDE2E8",
+    "primary": "#17375E",
+    "accent": "#2E6DA4",
+    "accentText": "#1B4B7A",
+    "onAccent": "#FFFFFF",
+    "text": "#2B2F36",
+    "textSecondary": "#5C6470",
+    "palette": ["#17375E", "#2E6DA4", "#8FB3D9", "#D6DEE8", "#9AA5B1", "#E8EBEF"],
+    "fontFamily": "Microsoft YaHei",
+    "radius": 10
+  },
+  "styleClasses": {
+    "cnTitle": { "fontSize": 30, "fontStyle": "bold", "fill": "$text" },
+    "enSub": { "fontSize": 12, "fontStyle": "italic", "fill": "$text2", "letterSpacing": 0.4 },
+    "headRight": { "fontSize": 16, "fontStyle": "bold", "fill": "$text", "letterSpacing": 2.5 },
+    "watermark": { "fontSize": 44, "fontStyle": "bold", "fill": "#E7EAEE", "letterSpacing": 12 },
+    "body": { "fontSize": 12.5, "fill": "$text2", "lineHeight": 1.75 },
+    "itemTitle": { "fontSize": 15.5, "fontStyle": "bold", "fill": "$text" },
+    "nodeLabel": { "fontSize": 17, "fontStyle": "bold", "fill": "$white" }
+  },
+  "slides": [
+    {
+      "id": "materials-map",
+      "notes": "参考图第 1 页：教材分析六边形脑图 + 三条要点。",
+      "elements": [
+        { "elType": "shape-polygon", "id": "node-top", "sides": 6, "x": 285, "y": 77, "width": 170, "height": 146, "fill": "$primary" },
+        { "elType": "text", "styleClass": "nodeLabel", "text": "教材分析", "x": 285, "y": 134, "width": 170, "height": 32, "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-polygon", "id": "node-left", "sides": 6, "x": 162, "y": 283, "width": 156, "height": 134, "fill": "$primary" },
+        { "elType": "text", "styleClass": "nodeLabel", "text": "教材分析", "x": 162, "y": 336, "width": 156, "height": 28, "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-polygon", "id": "node-right", "sides": 6, "x": 402, "y": 283, "width": 156, "height": 134, "fill": "$primary" },
+        { "elType": "text", "styleClass": "nodeLabel", "text": "教材分析", "x": 402, "y": 336, "width": 156, "height": 28, "align": "center", "verticalAlign": "middle" },
+
+        { "elType": "connector-s", "id": "arc-a", "x1": 327, "y1": 205, "x2": 279, "y2": 298, "orientation": "v",
+          "stroke": "#9AA5B1", "strokeWidth": 1.6, "dashType": "dash", "lineEndArrowType": "triangle" },
+        { "elType": "connector-s", "id": "arc-b", "x1": 320, "y1": 350, "x2": 400, "y2": 350, "orientation": "h",
+          "stroke": "#9AA5B1", "strokeWidth": 1.6, "dashType": "dash", "lineEndArrowType": "triangle" },
+        { "elType": "connector-s", "id": "arc-c", "x1": 517, "y1": 298, "x2": 414, "y2": 205, "orientation": "v",
+          "stroke": "#9AA5B1", "strokeWidth": 1.6, "dashType": "dash", "lineEndArrowType": "triangle" },
+
+        { "elType": "repeat", "id": "points", "x": 760, "y": 96, "stepY": 150,
+          "items": [
+            { "title": "教材分析", "body": "梳理教材的单元结构与知识主线，明确每一单元在课程体系中的位置与作用。" },
+            { "title": "学情分析", "body": "结合前期测评与课堂观察，判断学生已有的知识基础与常见认知障碍。" },
+            { "title": "教学目标", "body": "依据课程标准拆解知识、能力与素养三维目标，并转化为可观测的课堂表现。" }
+          ],
+          "template": [
+            { "elType": "shape-preset", "id": "mark", "shape": "ellipse", "x": 0, "y": 4, "width": 48, "height": 48, "fill": "$surface", "stroke": "$border", "strokeWidth": 1.2 },
+            { "elType": "text", "text": "✓", "x": 0, "y": 4, "width": 48, "height": 48, "fontSize": 22, "fontStyle": "bold", "fill": "$primary", "align": "center", "verticalAlign": "middle" },
+            { "elType": "text", "text": "{{title}}", "x": 68, "y": 6, "width": 400, "height": 28, "fontSize": 16, "fontStyle": "bold", "fill": "$text" },
+            { "elType": "text", "text": "{{body}}", "x": 68, "y": 40, "width": 400, "height": 74, "fontSize": 12.5, "fill": "$text2", "lineHeight": 1.75 }
+          ] }
+      ]
+    },
+
+    {
+      "id": "task-focus",
+      "notes": "参考图第 2 页：白卡 + 藏青标签 + 白卡 的三栏行。",
+      "elements": [
+        { "elType": "repeat", "id": "rows", "x": 90, "y": 150, "stepY": 210,
+          "items": [
+            { "label": "教材任务", "left": "本章以岗位典型工作任务为载体，围绕设备安装、调试与维护三条主线组织内容，每个任务都指向一项可考核的操作能力。", "right": "配套实训手册提供 6 个递进任务，覆盖 12 学时，可直接用于项目化教学与分组实施。" },
+            { "label": "教学重点", "left": "重点在于控制回路的接线规范与参数设定，需要学生通过反复实操形成稳定的操作习惯。", "right": "难点是故障排查的逻辑顺序，建议用真实故障案例引导学生建立从现象到原因的排查路径。" }
+          ],
+          "template": [
+            { "elType": "shape-rect", "id": "card-left", "x": 0, "y": 0, "width": 340, "height": 128, "fill": "$surface", "stroke": "$border", "strokeWidth": 1, "cornerRadius": 8 },
+            { "elType": "text", "text": "{{left}}", "x": 22, "y": 26, "width": 296, "height": 80, "fontSize": 12, "fill": "$text2", "lineHeight": 1.7 },
+            { "elType": "shape-rect", "id": "label", "x": 370, "y": 0, "width": 190, "height": 128, "fill": "$primary", "cornerRadius": 8 },
+            { "elType": "text", "text": "{{label}}", "x": 370, "y": 0, "width": 190, "height": 128, "fontSize": 19, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle", "letterSpacing": 1.5 },
+            { "elType": "shape-rect", "id": "card-right", "x": 590, "y": 0, "width": 400, "height": 128, "fill": "$surface", "stroke": "$border", "strokeWidth": 1, "cornerRadius": 8 },
+            { "elType": "text", "text": "{{right}}", "x": 612, "y": 26, "width": 356, "height": 80, "fontSize": 12, "fill": "$text2", "lineHeight": 1.7 }
+          ] }
+      ]
+    },
+
+    {
+      "id": "talk-materials",
+      "notes": "参考图第 3 页：说教材页头 + 四节点流程 + 四栏正文。",
+      "elements": [
+        { "elType": "shape-polygon", "id": "badge", "sides": 6, "x": 58, "y": 38, "width": 76, "height": 68, "fill": "$primary" },
+        { "elType": "text", "text": "01", "x": 58, "y": 38, "width": 76, "height": 68, "fontSize": 24, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 46, "y": 66, "width": 7, "height": 7, "fill": "$primary" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 106, "y": 104, "width": 6, "height": 6, "fill": "#A8C0DC" },
+        { "elType": "text", "styleClass": "cnTitle", "text": "说教材", "x": 152, "y": 44, "width": 124, "height": 44 },
+        { "elType": "text", "styleClass": "enSub", "text": "Teaching of nursing", "x": 284, "y": 62, "width": 220, "height": 22 },
+        { "elType": "text", "styleClass": "watermark", "role": "decoration", "text": "TEACHING", "x": 470, "y": 48, "width": 400, "height": 56, "align": "center" },
+        { "elType": "text", "styleClass": "headRight", "text": "以说促教 共研共学", "x": 940, "y": 56, "width": 282, "height": 30, "align": "right" },
+        { "elType": "shape-line", "pointArr": [{ "x": 58, "y": 124 }, { "x": 1222, "y": 124 }], "lineColor": "#E1E5EA", "lineWidth": 1 },
+
+        { "elType": "shape-line", "pointArr": [{ "x": 120, "y": 290 }, { "x": 1180, "y": 290 }], "lineColor": "#DCE1E7", "lineWidth": 2 },
+        { "elType": "repeat", "id": "nodes", "x": 208, "y": 238, "stepX": 260, "items": [1, 2, 3, 4],
+          "template": [
+            { "elType": "shape-preset", "id": "ring", "shape": "ellipse", "x": 0, "y": 0, "width": 104, "height": 104, "fill": "$surface", "stroke": "$border", "strokeWidth": 1 },
+            { "elType": "shape-preset", "id": "core", "shape": "ellipse", "x": 15, "y": 15, "width": 74, "height": 74, "fill": "$primary" },
+            { "elType": "text", "id": "name", "text": "学情分析", "x": 15, "y": 15, "width": 74, "height": 74, "fontSize": 15, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" }
+          ] },
+        { "elType": "repeat", "id": "cols", "x": 164, "y": 366, "stepX": 260,
+          "items": [
+            { "body": "教材以岗位能力为主线组织内容，理论知识与实操任务交替推进，避免长时间脱离情境的纯讲授。" },
+            { "body": "单元之间呈递进关系，前一单元的操作技能是后一单元的必要基础，教学顺序不宜随意调整。" },
+            { "body": "教材配有案例库与实训手册，可支撑项目化教学，也便于按学生水平设计分层任务。" },
+            { "body": "教材例题偏重原理推导，需补充贴近岗位情境的实践案例，帮助学生建立迁移能力。" }
+          ],
+          "template": [
+            { "elType": "text", "text": "{{body}}", "x": 0, "y": 0, "width": 196, "height": 170, "fontSize": 12, "fill": "$text2", "lineHeight": 1.8 }
+          ] }
+      ]
+    },
+
+    {
+      "id": "divider",
+      "background": "#FFFFFF",
+      "notes": "参考图第 4 页：章节隔页，大号编号六边形 + 装饰六边形。",
+      "elements": [
+        { "elType": "shape-polygon", "sides": 6, "x": -56, "y": 24, "width": 216, "height": 190, "fill": "#C3D5E9", "allowOverflow": true },
+        { "elType": "shape-polygon", "sides": 6, "x": 1146, "y": 536, "width": 206, "height": 182, "fill": "#C3D5E9", "allowOverflow": true },
+
+        { "elType": "shape-polygon", "id": "big-badge", "sides": 6, "x": 250, "y": 268, "width": 162, "height": 146, "fill": "$primary" },
+        { "elType": "text", "text": "02", "x": 250, "y": 268, "width": 162, "height": 146, "fontSize": 46, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "text": "说学生", "x": 452, "y": 288, "width": 420, "height": 60, "fontSize": 42, "fontStyle": "bold", "fill": "$text" },
+        { "elType": "text", "text": "A dream need to work out a summary report dream need to work out a summary report need to work out summary", "x": 454, "y": 356, "width": 560, "height": 56, "fontSize": 12.5, "fontStyle": "italic", "fill": "$text2", "lineHeight": 1.6 },
+        { "elType": "repeat", "id": "checks", "x": 454, "y": 438, "stepX": 132, "items": ["教学目标", "教学设计", "教学任务"],
+          "template": [
+            { "elType": "text", "text": "✓", "x": 0, "y": 0, "width": 18, "height": 20, "fontSize": 13, "fill": "$primary", "verticalAlign": "middle" },
+            { "elType": "text", "text": "{{value}}", "x": 22, "y": 0, "width": 104, "height": 20, "fontSize": 13.5, "fill": "$text", "verticalAlign": "middle" }
+          ] }
+      ]
+    },
+
+    {
+      "id": "talk-students",
+      "notes": "参考图第 5 页：说学生页头 + 四个图标节点 + 四栏正文。图标用 image-svg。",
+      "elements": [
+        { "elType": "shape-polygon", "id": "badge", "sides": 6, "x": 58, "y": 38, "width": 76, "height": 68, "fill": "$primary" },
+        { "elType": "text", "text": "02", "x": 58, "y": 38, "width": 76, "height": 68, "fontSize": 24, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 46, "y": 66, "width": 7, "height": 7, "fill": "$primary" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 106, "y": 104, "width": 6, "height": 6, "fill": "#A8C0DC" },
+        { "elType": "text", "styleClass": "cnTitle", "text": "说学生", "x": 152, "y": 44, "width": 124, "height": 44 },
+        { "elType": "text", "styleClass": "enSub", "text": "Teaching of nursing", "x": 284, "y": 62, "width": 220, "height": 22 },
+        { "elType": "text", "styleClass": "headRight", "text": "以说促教 共研共学", "x": 940, "y": 56, "width": 282, "height": 30, "align": "right" },
+        { "elType": "shape-line", "pointArr": [{ "x": 58, "y": 124 }, { "x": 1222, "y": 124 }], "lineColor": "#E1E5EA", "lineWidth": 1 },
+
+        { "elType": "shape-line", "id": "axis", "pointArr": [{ "x": 108, "y": 292 }, { "x": 1176, "y": 292 }], "lineColor": "#C9D1DA", "lineWidth": 2, "lineEndArrowType": "triangle" },
+        { "elType": "repeat", "id": "iconNodes", "x": 175, "y": 248, "stepX": 262, "items": [
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M3 10h18M8 3v4M16 3v4M7 14h3M14 14h3M7 18h3'/></svg>" },
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3.2'/><path d='M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9'/></svg>" },
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M3 12h18M12 3c2.6 3 2.6 15 0 18M12 3c-2.6 3-2.6 15 0 18'/></svg>" },
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z'/><path d='M9.2 12.3l2 2 3.6-3.9'/></svg>" }
+          ],
+          "template": [
+            { "elType": "shape-preset", "id": "ring", "shape": "ellipse", "x": 0, "y": 0, "width": 132, "height": 132, "fill": "$surface", "stroke": "$border", "strokeWidth": 1 },
+            { "elType": "shape-preset", "id": "core", "shape": "ellipse", "x": 33, "y": 16, "width": 66, "height": 66, "fill": "$primary" },
+            { "elType": "image-svg", "id": "icon", "svgXml": "{{svg}}", "x": 49, "y": 32, "width": 34, "height": 34 },
+            { "elType": "text", "id": "name", "text": "学情分析", "x": 6, "y": 92, "width": 120, "height": 26, "fontSize": 15, "fontStyle": "bold", "fill": "$text", "align": "center", "verticalAlign": "middle" }
+          ] },
+        { "elType": "repeat", "id": "iconCols", "x": 165, "y": 402, "stepX": 262,
+          "items": [
+            { "title": "添加您的标题", "body": "在此录入上述图表的解释说明性文字，突出图表中的关键结论。" },
+            { "title": "添加您的标题", "body": "在此录入上述图表的解释说明性文字，突出图表中的关键结论。" },
+            { "title": "添加您的标题", "body": "在此录入上述图表的解释说明性文字，突出图表中的关键结论。" },
+            { "title": "添加您的标题", "body": "在此录入上述图表的解释说明性文字，突出图表中的关键结论。" }
+          ],
+          "template": [
+            { "elType": "text", "text": "{{title}}", "x": 0, "y": 0, "width": 152, "height": 26, "fontSize": 14.5, "fontStyle": "bold", "fill": "$text", "align": "center" },
+            { "elType": "text", "text": "{{body}}", "x": 0, "y": 32, "width": 152, "height": 100, "fontSize": 11.5, "fill": "$text2", "lineHeight": 1.7, "align": "center" }
+          ] }
+      ]
+    },
+
+    {
+      "id": "talk-students-metrics",
+      "notes": "参考图第 6 页：四个环形进度（donut + blockArc 双段实现跨 0° 扫角）。",
+      "elements": [
+        { "elType": "shape-polygon", "id": "badge", "sides": 6, "x": 58, "y": 38, "width": 76, "height": 68, "fill": "$primary" },
+        { "elType": "text", "text": "02", "x": 58, "y": 38, "width": 76, "height": 68, "fontSize": 24, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 46, "y": 66, "width": 7, "height": 7, "fill": "$primary" },
+        { "elType": "shape-preset", "shape": "ellipse", "x": 106, "y": 104, "width": 6, "height": 6, "fill": "#A8C0DC" },
+        { "elType": "text", "styleClass": "cnTitle", "text": "说学生", "x": 152, "y": 44, "width": 124, "height": 44 },
+        { "elType": "text", "styleClass": "enSub", "text": "Teaching of nursing", "x": 284, "y": 62, "width": 220, "height": 22 },
+        { "elType": "text", "styleClass": "headRight", "text": "以说促教 共研共学", "x": 940, "y": 56, "width": 282, "height": 30, "align": "right" },
+        { "elType": "shape-line", "pointArr": [{ "x": 58, "y": 124 }, { "x": 1222, "y": 124 }], "lineColor": "#E1E5EA", "lineWidth": 1 },
+
+        { "elType": "repeat", "id": "rings", "x": 110, "y": 244, "columns": 2, "stepX": 570, "stepY": 196,
+          "items": [
+            { "pct": "80%", "a1": 270, "b1": 360, "a2": 0, "b2": 198, "title": "教学学情分析", "body": "超过八成的学生已具备前置课程的操作基础，可直接进入综合任务训练。" },
+            { "pct": "60%", "a1": 270, "b1": 360, "a2": 0, "b2": 126, "title": "教学学情分析", "body": "约六成学生能独立完成接线与参数设定，其余需要示范与结对帮扶。" },
+            { "pct": "70%", "a1": 270, "b1": 360, "a2": 0, "b2": 162, "title": "教学学情分析", "body": "七成学生对故障现象有判断意识，但排查顺序仍缺少系统方法。" },
+            { "pct": "40%", "a1": 270, "b1": 360, "a2": 0, "b2": 54, "title": "教学学情分析", "body": "仅四成学生能规范记录检修过程，是本单元需要重点补强的环节。" }
+          ],
+          "template": [
+            { "elType": "shape-preset", "id": "track", "shape": "donut", "x": 0, "y": 0, "width": 124, "height": 124, "fill": "#DCE3EB" },
+            { "elType": "shape-preset", "id": "arc1", "shape": "blockArc", "x": 0, "y": 0, "width": 124, "height": 124, "fill": "$primary", "angleRange": [270, 360], "arcThicknessRatio": 1 },
+            { "elType": "shape-preset", "id": "arc2", "shape": "blockArc", "x": 0, "y": 0, "width": 124, "height": 124, "fill": "$primary", "angleRange": ["{{a2}}", "{{b2}}"], "arcThicknessRatio": 1 },
+            { "elType": "text", "id": "pct", "text": "{{pct}}", "x": 0, "y": 0, "width": 124, "height": 124, "fontSize": 26, "fontStyle": "bold", "fill": "$text", "align": "center", "verticalAlign": "middle" },
+            { "elType": "text", "id": "ringTitle", "text": "{{title}}", "x": 148, "y": 26, "width": 380, "height": 28, "fontSize": 15, "fontStyle": "bold", "fill": "$text" },
+            { "elType": "text", "id": "ringBody", "text": "{{body}}", "x": 148, "y": 58, "width": 380, "height": 62, "fontSize": 12, "fill": "$text2", "lineHeight": 1.7 }
+          ] }
+      ]
+    }
+  ]
+}

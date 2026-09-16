@@ -9,6 +9,9 @@
  * 字体换算：pt = px × fontScale（默认 0.75，视觉等大；旧稿可显式设为 2/3）
  */
 
+import { buildShape, isShapeElement, resolveShape } from './shape-geometry.mjs';
+import { resolveDash, resolveArrowHead, resolveWrap, DEFAULT_LINE_COLOR, LINE_ELEMENT_TYPES } from './style-map.mjs';
+
 export const PPT_WIDTH = 1280;
 export const PPT_HEIGHT = 720;
 export const INCH_W = 13.333;
@@ -37,7 +40,9 @@ export function pxToPt(px) {
 export function imageSizing(value) {
   let type = value;
   while (type && typeof type === 'object') type = type.type;
-  return type === 'contain' ? 'contain' : 'cover';
+  if (type === 'contain') return 'contain';
+  if (type === 'crop') return 'crop';
+  return 'cover';
 }
 
 /** 跨端 UTF-8 → base64（Node 用 Buffer，浏览器用 TextEncoder+btoa） */
@@ -344,6 +349,11 @@ function combinedTransparency(color, opacity = 1) {
   return Math.round((1 - (1 - (color?.transparency || 0) / 100) * opacity) * 100);
 }
 
+function clamp01(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+}
+
 function convertShadow(elop) {
   const has = elop.shadowColor || elop.shadowBlur || elop.shadow;
   if (!has) return {};
@@ -401,16 +411,24 @@ function convertFill(elop) {
 }
 
 function convertStroke(elop) {
-  const colorRaw = elop.stroke ?? elop.lineColor;
-  if (colorRaw == null && elop.strokeWidth == null && elop.lineWidth == null) return {};
+  // 线条/连接线必须可见：缺色时补默认色，与预览使用同一个常量（未编译的 deck 也一致）
+  const isLine = LINE_ELEMENT_TYPES.includes(elop.elType);
+  const colorRaw = elop.stroke ?? elop.lineColor ?? (isLine ? DEFAULT_LINE_COLOR : null);
+  const dash = resolveDash(elop.dashType ?? elop.dash);
+  const hasArrow = elop.lineEndArrowType != null || elop.lineBeginArrowType != null;
+  if (colorRaw == null && elop.strokeWidth == null && elop.lineWidth == null && !hasArrow) return {};
   const p = parseColor(colorRaw || '#000000');
   if (!p) return {};
   const line = { color: p.color, width: pxToPt(elop.strokeWidth ?? elop.lineWidth ?? 2) };
   line.transparency = combinedTransparency(p, elop.opacity);
-  const dash = elop.dashType || elop.dash;
-  if (dash === 'dash' || dash === true || (Array.isArray(dash) && dash.length)) line.dashType = 'dash';
-  if (elop.lineEndArrowType) line.endArrowType = elop.lineEndArrowType;
-  if (elop.lineBeginArrowType) line.beginArrowType = elop.lineBeginArrowType;
+  if (dash.pptx && dash.pptx !== 'solid') line.dashType = dash.pptx;
+  const end = resolveArrowHead(elop.lineEndArrowType);
+  const begin = resolveArrowHead(elop.lineBeginArrowType);
+  // 未识别的箭头类型不静默丢弃：严格模式直接失败。
+  if (elop.lineEndArrowType != null && end === null) throw new Error(`未知 lineEndArrowType: ${elop.lineEndArrowType}`);
+  if (elop.lineBeginArrowType != null && begin === null) throw new Error(`未知 lineBeginArrowType: ${elop.lineBeginArrowType}`);
+  if (end && end !== 'none') line.endArrowType = end;
+  if (begin && begin !== 'none') line.beginArrowType = begin;
   return { line };
 }
 
@@ -446,6 +464,11 @@ function baseOptions(elop) {
   if (elop.flipV) opt.flipV = true;
   const pad = elop.padding ?? elop.inset;
   if (typeof pad === 'number') opt.margin = Math.round(pad * 0.75 * 10) / 10; // margin 单位 pt：px × 0.75
+  // 选择窗格可读性：默认用元素 id 作为对象名，便于在 PowerPoint 里定位对象。
+  const objName = elop.objectName || elop.id;
+  if (objName) opt.objectName = String(objName);
+  if (elop.altText) opt.altText = String(elop.altText);
+  if (elop.hyperlink && typeof elop.hyperlink === 'object') opt.hyperlink = elop.hyperlink;
   Object.assign(opt, convertFill(elop), convertStroke(elop), convertShadow(elop));
   return normalizeRect(opt);
 }
@@ -478,6 +501,20 @@ function textOptions(elop, theme) {
   if (typeof elop.lineHeight === 'number') opt.lineSpacingMultiple = Math.min(3, Math.max(0.5, elop.lineHeight));
   if (typeof elop.letterSpacing === 'number') opt.charSpacing = Math.max(0, Math.round(elop.letterSpacing * fontScale));
   if (elop.underline) opt.underline = { style: 'sng' };
+  // 删除线：PPT 原生支持（过去只在预览实现，属单向渲染）
+  const strike = elop.strike ?? elop.strikethrough;
+  if (strike) opt.strike = strike === 'dblStrike' ? 'dblStrike' : true;
+  // 换行开关：与预览共用 resolveWrap，避免 wrap:false 在两端表现不同
+  if (!resolveWrap(elop.wrap).pptx) opt.wrap = false;
+  // 文本框底色圆角：映射到 PPT 原生圆角矩形（过去只在预览实现）
+  // 注意 rectRadius 单位是**英寸**：pptxgenjs 计算 adj = rectRadius × EMU × 100000 / min(cx,cy)，
+  // 因此取值需与 shape-rect 保持一致用 pxToInch；adj 上限 50000 对应半径 min(w,h)/2。
+  if (elop.bgRadius > 0 && opt.fill) {
+    const cap = Math.min(opt.w ?? 0, opt.h ?? 0) / 2;
+    const r = pxToInch(elop.bgRadius);
+    opt.shape = 'roundRect';
+    opt.rectRadius = cap > 0 ? Math.min(r, cap) : r;
+  }
   return opt;
 }
 
@@ -528,15 +565,37 @@ export function applyElement(pptx, slide, elop, theme) {
     slide.addText(String(elop.text ?? ''), textOptions(elop, theme));
   } else if (t === 'image') {
     const opt = baseOptions(elop);
-    opt.transparency = combinedTransparency(null, elop.opacity);
+    opt.transparency = elop.transparency != null
+      ? Math.min(100, Math.max(0, elop.transparency))
+      : combinedTransparency(null, elop.opacity);
     if (elop._data) opt.data = elop._data;
       else if (elop.data) opt.data = elop.data; // 直接内嵌 data URI（预览/校验器同样支持）
     else if (elop.path || elop.url) opt.path = elop.path || elop.url; // 兜底：未预取时让 pptxgenjs 自行处理
     else throw new Error('image 缺少 path/url/data');
-    // 默认 cover 裁满（与 Konva 预览一致），显式 contain 才完整容纳；不再默认 stretch 变形
+    // 默认 cover 裁满（与 Konva 预览一致），contain 完整容纳，crop 按源图像素精确裁切。
     // 兼容 `sizing:"contain"` 与 `sizing:{type:"contain"}` 两种写法（见 layouts.mjs imageSizing）
-    const sizingType = imageSizing(elop.sizing) === 'contain' ? 'contain' : 'cover';
-    opt.sizing = { type: sizingType, w: opt.w, h: opt.h };
+    const sizingType = imageSizing(elop.sizing);
+    const sizingSpec = elop.sizing && typeof elop.sizing === 'object' ? elop.sizing : {};
+    if (sizingType === 'crop') {
+      // 裁剪框用 0–1 比例表达（相对源图）。原因：pptxgenjs 在 Node 下拿不到图片自然尺寸
+      // （其 getSizeFromImage 未启用），crop 的 x/y/w/h 实际以**图片框**英寸尺寸为参照换算
+      // srcRect 百分比；比例表达与图片框相乘后，两端裁切的是同一块区域，且无需知道图片像素数。
+      if (!(sizingSpec.width > 0) || !(sizingSpec.height > 0)) {
+        throw new Error('image sizing.crop 需要 width/height（相对源图的 0–1 比例）');
+      }
+      const fx = clamp01(sizingSpec.x ?? 0), fy = clamp01(sizingSpec.y ?? 0);
+      const fw = Math.min(clamp01(sizingSpec.width), 1 - fx);
+      const fh = Math.min(clamp01(sizingSpec.height), 1 - fy);
+      opt.sizing = {
+        type: 'crop',
+        x: pxToInch((elop.width || 0) * fx),
+        y: pxToInch((elop.height || 0) * fy),
+        w: pxToInch((elop.width || 0) * fw),
+        h: pxToInch((elop.height || 0) * fh),
+      };
+    } else {
+      opt.sizing = { type: sizingType, w: opt.w, h: opt.h };
+    }
     // PptxGenJS 的 rounding 是椭圆裁切，不等价于网页圆角；仅在显式 rounding=true 时启用。
     if (elop.rounding === true) opt.rounding = true;
     slide.addImage(opt);
@@ -608,6 +667,25 @@ export function applyElement(pptx, slide, elop, theme) {
     } else if (elop.data || elop.svgPath) {
       throw new Error(`shape-path 的 SVG data 需预转为 pointArr（或改用 image-svg）`);
     } else throw new Error(`${t} 缺少 pointArr`);
+  } else if (isShapeElement(t)) {
+    // 形状库：DSL 形状名 → OOXML preset（PowerPoint 按 preset 公式绘制），
+    // 预览侧使用同一套几何（见 core/shape-geometry.mjs），两端不再各写形状逻辑。
+    const built = buildShape(elop);
+    if (!built) throw new Error(`未知或不支持的形状: ${resolveShape(elop) ?? elop.shape ?? '(缺少 shape)'}`);
+    const opt = baseOptions(elop);
+    // 形状库的 x/y 为左上角（与 shape-rect 一致；shape-circle 的圆心约定不在此列）
+    if (built.angleRange) opt.angleRange = built.angleRange;
+    if (built.arcThicknessRatio != null) opt.arcThicknessRatio = built.arcThicknessRatio;
+    if (built.pptx) {
+      slide.addShape(pptx.ShapeType[built.pptx] ?? built.pptx, opt);
+    } else if (Array.isArray(built.points)) {
+      // 无 preset 对应的自由多边形（如任意边数正多边形）：两端共用同一顶点列
+      opt.points = toGeometryPoints(built.points, 0, 0);
+      opt.points.push({ close: true });
+      slide.addShape(pptx.shapes.CUSTOM_GEOMETRY, opt); // 注意：ShapeType.customGeometry 是 undefined
+    } else {
+      throw new Error(`形状 ${built.shape} 既无 preset 也无顶点列`);
+    }
   } else if (t === 'chart') {
     const typeMap = { bar: 'bar', line: 'line', pie: 'pie', doughnut: 'doughnut', area: 'area', radar: 'radar', scatter: 'scatter' };
     const typeKey = elop.chartType || 'bar';

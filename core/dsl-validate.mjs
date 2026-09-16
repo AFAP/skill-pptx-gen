@@ -6,16 +6,26 @@
  * 对比度（按透明度逐层混合实际背景）、文本框疑似重叠、图表/表格数据形态、渐变压平提示。
  */
 
-import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartModel } from './dsl-to-pptx.mjs';
+import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartModel, imageSizing } from './dsl-to-pptx.mjs';
 import { MACRO_TYPES } from './connectors.mjs';
 import { COMPOSITION_TYPES } from './creative-expand.mjs';
 import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
 import { validateShapePathElement } from './shape-path.mjs';
 import { LAYOUT_TYPES, normalizeLayoutName } from './layouts.mjs';
+import { isShapeElement, isSupportedShape, shapeInfo, resolveShape } from './shape-geometry.mjs';
+import { capabilityIssues } from './capabilities.mjs';
+import { resolveArrowHead, ARROW_HEADS } from './style-map.mjs';
+
+/** 形状库元素类型（几何来自 core/shape-geometry.mjs，与 PPTX preset 双端对齐） */
+export const SHAPE_ELEMENT_TYPES = [
+  'shape-preset', 'shape-ellipse', 'shape-star', 'shape-polygon',
+  'shape-wedge', 'shape-arc', 'shape-ring',
+];
 
 const EL_TYPES = new Set([
   'text', 'image', 'image-svg', 'shape-rect', 'shape-circle',
   'shape-line', 'shape-arrow', 'shape-path', 'curve-quadratic', 'chart', 'table', 'text-path',
+  ...SHAPE_ELEMENT_TYPES,
   ...MACRO_TYPES, ...COMPOSITION_TYPES,
 ]);
 
@@ -64,6 +74,26 @@ function blendColor(bottomHex, topHex, alpha) {
   if (!b || !t) return topHex || bottomHex;
   const ch = i => Math.round(parseInt(t.color.slice(i, i + 2), 16) * alpha + parseInt(b.color.slice(i, i + 2), 16) * (1 - alpha));
   return [0, 2, 4].map(i => ch(i).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+/**
+ * 中空形状的孔：环形/圆框/斜面/环扇的中心并不是实心区域。
+ * 若按包围盒参与背景混合，环内的文字会被算成"深色环上"的文字而得到错误的对比度
+ * （实测圆环中心的百分比文字被报成 1.12 对比度）。
+ */
+function isHoleAt(el, px, py) {
+  if (!SHAPE_ELEMENT_TYPES.includes(el.elType)) return false;
+  const w = el.width ?? 0, h = el.height ?? 0;
+  if (!(w > 0) || !(h > 0)) return false;
+  const name = resolveShape(el);
+  const min = Math.min(w, h);
+  let inner;
+  if (name === 'donut') inner = min * (0.5 - (Number.isFinite(el.adjust) ? el.adjust : 25000) / 100000);
+  else if (name === 'blockArc') inner = (min / 2) * (1 - Math.min(1, Math.max(0.05, Number.isFinite(el.arcThicknessRatio) ? el.arcThicknessRatio : 0.5)) / 2);
+  else if (name === 'frame' || name === 'bevel') inner = min * (Number.isFinite(el.adjust) ? el.adjust : 12500) / 100000;
+  else return false;
+  const cx = (el.x ?? 0) + w / 2, cy = (el.y ?? 0) + h / 2;
+  return Math.hypot(px - cx, py - cy) < inner;
 }
 
 export function validateDeck(deck, opts = {}) {
@@ -153,6 +183,66 @@ export function validateDeck(deck, opts = {}) {
           const spErr = validateShapePathElement(el);
           if (spErr) errors.push(`${at}: ${spErr}`);
         }
+      // 形状库：形状名与参数在源结构阶段校验，未知形状不静默退化成别的图形
+      if (isShapeElement(el.elType)) {
+        const name = resolveShape(el);
+        if (el.elType === 'shape-preset' && !el.shape) {
+          errors.push(`${at}: shape-preset 缺少 shape`);
+        } else if (!isSupportedShape(el)) {
+          if (el.elType === 'shape-star') errors.push(`${at}: shape-star 的参数无法映射到已知形状（points=${el.points ?? 5}，仅支持 4/5/6/7/8/10/12/16/24/32 角）`);
+          else if (el.elType === 'shape-polygon') errors.push(`${at}: shape-polygon 需要 sides ≥ 3`);
+          else if (name && !shapeInfo(name)) errors.push(`${at}: 未知形状 "${name}"；可选形状见 references/shape-library.md`);
+          else errors.push(`${at}: ${el.elType} 的参数无法映射到已知形状`);
+        }
+        // 结构阶段允许直接字段绑定（repeat/group 模板里 {{field}} 尚未展开），
+        // 展开后的字面量再由编译后阶段复核——与其它数字字段的处理保持一致。
+        if (el.angleRange != null) {
+          if (!Array.isArray(el.angleRange) || el.angleRange.length !== 2 || !el.angleRange.every(v => numericOrBinding(v))) {
+            errors.push(`${at}: angleRange 必须是两个数字或直接字段绑定 [起始角, 结束角]`);
+          } else if (el.angleRange.every(Number.isFinite) && el.angleRange.some(v => v < 0 || v > 360)) {
+            errors.push(`${at}: angleRange 的每个角度必须在 0–360 之间（当前 [${el.angleRange.join(', ')}]）；扫角取有符号差 end-start`);
+          }
+        }
+        if (el.arcThicknessRatio != null) {
+          if (!numericOrBinding(el.arcThicknessRatio)) errors.push(`${at}: arcThicknessRatio 必须是数字或直接字段绑定`);
+          else if (Number.isFinite(el.arcThicknessRatio) && !(el.arcThicknessRatio > 0 && el.arcThicknessRatio <= 1)) {
+            errors.push(`${at}: arcThicknessRatio 必须在 (0,1]`);
+          }
+        }
+        if (el.sides != null) {
+          if (!numericOrBinding(el.sides)) errors.push(`${at}: sides 必须是数字或直接字段绑定`);
+          else if (Number.isFinite(el.sides) && !(Number.isInteger(el.sides) && el.sides >= 3)) errors.push(`${at}: sides 必须是 ≥3 的整数`);
+        }
+        if (el.points != null) {
+          if (!numericOrBinding(el.points)) errors.push(`${at}: points 必须是数字或直接字段绑定`);
+          else if (Number.isFinite(el.points) && !(Number.isInteger(el.points) && el.points >= 3)) errors.push(`${at}: points 必须是 ≥3 的整数`);
+        }
+        if (el.adjust != null) {
+          const okAdjust = numericOrBinding(el.adjust) || (Array.isArray(el.adjust) && el.adjust.length && el.adjust.every(v => numericOrBinding(v)));
+          if (!okAdjust) errors.push(`${at}: adjust 必须是数字或数字数组（支持直接字段绑定）`);
+        }
+      }
+      // 图片精确裁切：结构阶段校验 0–1 比例，源错误时也能一次性报全
+      if (el.elType === 'image' && imageSizing(el.sizing) === 'crop') {
+        const spec = el.sizing && typeof el.sizing === 'object' ? el.sizing : {};
+        const f = v => (Number.isFinite(v) ? v : null);
+        const [cx, cy, cw, ch] = [f(spec.x ?? 0), f(spec.y ?? 0), f(spec.width), f(spec.height)];
+        if (cx === null || cy === null || cw === null || ch === null) {
+          errors.push(`${at}: sizing.crop 的 x/y/width/height 必须是数字（相对源图的 0–1 比例）`);
+        } else if (!(cw > 0) || !(ch > 0)) {
+          errors.push(`${at}: sizing.crop 需要 width/height（相对源图的 0–1 比例）`);
+        } else if (cx < 0 || cy < 0 || cw > 1 || ch > 1) {
+          errors.push(`${at}: sizing.crop 的 x/y/width/height 必须落在 0–1`);
+        } else if (cx + cw > 1.001 || cy + ch > 1.001) {
+          errors.push(`${at}: sizing.crop 的 x+width 与 y+height 不能超过 1`);
+        }
+      }
+      // 箭头头部类型在结构阶段校验：未知值不允许静默退化
+      for (const key of ['lineBeginArrowType', 'lineEndArrowType']) {
+        if (el[key] != null && resolveArrowHead(el[key]) === null) {
+          errors.push(`${at}: ${key} "${el[key]}" 无法识别；可选 ${ARROW_HEADS.join(' / ')}`);
+        }
+      }
       if (el.styleClass != null) {
         const names = Array.isArray(el.styleClass) ? el.styleClass : (typeof el.styleClass === 'string' ? el.styleClass.split(/\s+/).filter(Boolean) : []);
         if (!names.length || names.some(name => typeof name !== 'string')) errors.push(`${at}: styleClass 必须是字符串或字符串数组`);
@@ -242,12 +332,14 @@ export function validateDeck(deck, opts = {}) {
       let bg = bgHex;
       for (let j = 0; j < upto; j++) {
         const s = slide.elements[j];
-        if (!s || (s.elType !== 'shape-rect' && s.elType !== 'shape-circle' && s.elType !== 'image')) continue;
+        if (!s || (s.elType !== 'shape-rect' && s.elType !== 'shape-circle' && s.elType !== 'image'
+          && !SHAPE_ELEMENT_TYPES.includes(s.elType))) continue;
           const sw = s.elType === 'shape-circle' ? (s.width ?? (s.radius ? s.radius * 2 : 0)) : (s.width ?? 0);
           const sh = s.elType === 'shape-circle' ? (s.height ?? sw) : (s.height ?? 0);
           const sx = s.elType === 'shape-circle' ? (s.x ?? 0) - sw / 2 : (s.x ?? 0);
           const sy = s.elType === 'shape-circle' ? (s.y ?? 0) - sh / 2 : (s.y ?? 0);
           if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) {
+            if (isHoleAt(s, cx, cy)) continue; // 中心落在孔里 → 该形状不构成背景
             const p = parseColor(fillOf(s.fill) || '');
             if (!p) continue;
           const a = (1 - (p.transparency ?? 0) / 100) * (s.opacity ?? 1); // 元素级 opacity 也参与混合
@@ -328,12 +420,25 @@ export function validateDeck(deck, opts = {}) {
         }
       }
 
-      // 渐变压平提示（预览显示真渐变，导出为可编辑首色）
-      if (el.fill && typeof el.fill === 'object' && el.fill.type === 'gradient' && Array.isArray(el.fill.stops) && el.fill.stops.length > 1) {
-        warnings.push(`${at}: 渐变填充导出 PPTX 时压平为首色（${el.fill.stops[0]?.color}），如需保留渐变请改用图片`);
-      }
       if (Array.isArray(el.webUnsupported) && el.webUnsupported.length) {
         warnings.push(`${at}: HTML 使用了 PPTX 无等价实现的 CSS：${el.webUnsupported.join(', ')}`);
+      }
+      // 两端一致性由能力注册表（core/capabilities.mjs）统一派生：
+      // "哪些字段是单向渲染"这一知识不再散落在文档与两个渲染器里。
+      for (const issue of capabilityIssues(el)) {
+        if (issue.parity === 'error') errors.push(`${at}: ${issue.message}`);
+        else warnings.push(`${at}: ${issue.message}`);
+      }
+      // 展开后的角度复核：结构阶段的值可能来自 {{field}} 绑定
+      if (Array.isArray(el.angleRange) && el.angleRange.length === 2 && el.angleRange.every(Number.isFinite)
+        && el.angleRange.some(v => v < 0 || v > 360)) {
+        errors.push(`${at}: angleRange 的每个角度必须在 0–360 之间（当前 [${el.angleRange.join(', ')}]）；扫角取有符号差 end-start`);
+      }
+      // 箭头头部类型：未知值必须报错，不允许静默退化
+      for (const key of ['lineBeginArrowType', 'lineEndArrowType']) {
+        if (el[key] != null && resolveArrowHead(el[key]) === null) {
+          errors.push(`${at}: ${key} "${el[key]}" 无法识别；可选 ${ARROW_HEADS.join(' / ')}`);
+        }
       }
 
       // 类型特定检查
@@ -375,7 +480,6 @@ export function validateDeck(deck, opts = {}) {
             errors.push(`${at}: image 缺少 path/url/data（或用于 AI 生图的 prompt）`);
           }
           if (el.prompt && !el.path && !el.url && !el._data && !el.data) errors.push(`${at}: image 仍只有 prompt，构建前必须生成并填写 path/data`);
-          if (el.cornerRadius && !el.rounding) warnings.push(`${at}: 可编辑 PPTX 不支持普通图片圆角；将按直角图片导出，或先把圆角栅格化到图片本身`);
           if ((el.width || 0) < 20 || (el.height || 0) < 20) warnings.push(`${at}: 图片尺寸过小`);
         }
         if (el.elType === 'image-svg' && !el.svgXml) errors.push(`${at}: image-svg 缺少 svgXml`);
@@ -425,7 +529,7 @@ export function validateDeck(deck, opts = {}) {
           }));
         }
       }
-        const needsBox = ['text', 'image', 'image-svg', 'shape-rect', 'chart', 'table'].includes(el.elType);
+        const needsBox = ['text', 'image', 'image-svg', 'shape-rect', 'chart', 'table', ...SHAPE_ELEMENT_TYPES].includes(el.elType);
         if (needsBox) {
           // 缺字段才算“必填数字”；已给出但类型/绑定错误的字段上面已单独报过，不重复。
           for (const key of ['x', 'y', 'width', 'height']) {

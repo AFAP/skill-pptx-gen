@@ -25,6 +25,7 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 
 按输入再读取对应参考：
 
+- 需要标准图形（流程、层级、对比、汇聚、星形、扇形、括号等）：[references/shape-library.md](references/shape-library.md)。优先用形状库而不是手拼路径。
 - 长文档、研究报告或多章节材料：[references/content-to-deck.md](references/content-to-deck.md)。
 - 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。提取视觉语法后重新创作，不把单张截图当作整套母版。
 - 图片版 PPT、PPT 截图或拍屏要还原成可编辑 PPTX：[references/image-to-editable-deck.md](references/image-to-editable-deck.md)。先做结构与元素分类，再按 Creative DSL / WebSlide / Hybrid 重建。
@@ -61,6 +62,15 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 ## 转换契约
 
 - 默认严格构建：未知类型、无法导出的路径、未生成的图片 prompt、图片读取失败都会中止，不允许“成功但缺元素”。
+- 未知形状名、未知箭头类型、越界 `angleRange`、非法图片裁切框同样中止，不会静默退化成别的图形。
+- **一致性由 `core/capabilities.mjs` 派生**：任何只在单侧生效的字段都会被校验器自动告警，
+  不要靠记忆维护这份清单。单向能力要显式接受，不要让它静默存在。
+- 标准图形优先用形状库（`shape-preset` 及糖衣类型），而不是自己拼路径：它对应 OOXML preset，
+  两端共用同一套几何构造，可编辑性与"PPT 原生图形"识别度都更好。见 [references/shape-library.md](references/shape-library.md)。
+- 形状可信度分三级：`preset` 两端严格一致；`aspect`（星形族、pentagon）在非等比包围盒下有差异；
+  `approximate` 为等价构造。后两级会告警，不要对用户宣称这些形状像素一致。
+- 弧类形状的 `angleRange` 角度必须在 0–360，扫角取**有符号差** `end - start`；跨 0° 请拆成两段。
+- `adjust` 只影响预览（PptxGenJS 无通用调整值入口），PPTX 使用 preset 默认几何。
 - Compact 容量超限会给出源路径并报错；自行拆页或转 Creative DSL，工具不会截断内容。图表数据必须为有限数字，分类标签与数值逐项对应。
 - `styleClass`、`group`、`repeat`、`anchor` 仅存在于源文件；构建前统一展开为 primitive，不进入两个渲染器的分支逻辑。
 - 网页预览与 PPTX 共用编译后的 primitive DSL，但文字排版和原生图表仍受浏览器、PowerPoint/WPS 字体度量影响；不要声称像素级完全相同。
@@ -120,6 +130,12 @@ npm run test:browser
 ## 关键文件
 
 - `core/compile-deck.mjs`：语义版式、主题令牌和宏统一编译。
+- `core/capabilities.mjs`：**两端一致性能力注册表**——"哪些字段两端一致"的唯一真相源，
+  校验器据此自动生成单向渲染告警。新增能力时改这里，不要只改文档。
+- `core/shape-geometry.mjs`：形状库。OOXML preset 名 ↔ 同一套几何构造，双端对齐；
+  含 `preset`/`aspect`/`approximate` 三级可信度。
+- `core/style-map.mjs`：虚线族、箭头头部、换行与默认线色的共享映射（编译期解析，渲染器不做样式分支）。
+- `references/shape-library.md`：91 个可用形状清单、参数与可信度分级。
 - `core/shape-path.mjs`：shape-path 的局部/绝对坐标校验与自动归一化。
 - `references/image-to-editable-deck.md`：图片版 PPT / 截图还原为可编辑 deck 的流程、元素分类和验收清单。
 - `core/dsl-validate.mjs`：严格校验器（边界、文本溢出估算、对比度、图表/表格形态、能力告警）；`check_deck` 的实现。
@@ -134,5 +150,8 @@ npm run test:browser
 - `core/presentation.mjs`：Node/浏览器共用的 PPTX 构建与转换报告。
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏展开。
 - `tools/build_all.mjs`：推荐的一键严格管线。
+- `tests/shapes.mjs`：91 个形状的几何自检与形状文档防漂移。
+- `tests/parity.mjs`：选项映射 + 能力注册表 + **真实 OOXML 断言**（preset 名、adj、srcRect、
+  strike、wrap、对象名、虚线、箭头），是"原生文件正确"的证据。
 - `examples/南京埃斯顿深度研究报告-AI创意版.deck.json`：以 Creative DSL 为主的内容驱动构图示例。
 - `examples/南京埃斯顿深度研究报告-AI创意版.html`、`examples/南京埃斯顿深度研究报告-AI创意版.pptx`、`examples/南京埃斯顿深度研究报告-AI创意版-总览.png`：创意版的可编辑预览、成品与 23 页视觉总览。

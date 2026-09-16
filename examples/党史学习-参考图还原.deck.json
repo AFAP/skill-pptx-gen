@@ -1,0 +1,374 @@
+{
+  "dslVersion": 3,
+  "meta": {
+    "title": "党史学习：光辉历程回顾",
+    "author": "ppt-gen 还原示例",
+    "subject": "参考图版式还原（党建主题）"
+  },
+  "theme": {
+    "extends": "clean-minimal",
+    "background": "#FDF6EC",
+    "surface": "#FFFFFF",
+    "surfaceAlt": "#FBEEDD",
+    "border": "#E9D9C4",
+    "primary": "#C8161D",
+    "accent": "#E8552F",
+    "accentText": "#A8121A",
+    "onAccent": "#FFFFFF",
+    "text": "#3B2B22",
+    "textSecondary": "#6F6055",
+    "palette": ["#C8161D", "#E8552F", "#F2A65A", "#AE8329", "#8C1A16", "#F6E3CE"],
+    "fontFamily": "Microsoft YaHei",
+    "radius": 6
+  },
+  "styleClasses": {
+    "goldLetter": { "fontSize": 80, "fontStyle": "bold", "fill": "#AE8329" },
+    "redLetter": { "fontSize": 100, "fontStyle": "bold", "fill": "$accentText" },
+    "barTitle": { "fontSize": 19, "fontStyle": "bold", "fill": "$accentText" },
+    "h1": { "fontSize": 22, "fontStyle": "bold", "fill": "$accentText" },
+    "itemTitle": { "fontSize": 15.5, "fontStyle": "bold", "fill": "$accentText", "underline": true },
+    "body": { "fontSize": 12, "fill": "$text2", "lineHeight": 1.65 },
+    "pillText": { "fontSize": 17, "fontStyle": "bold", "fill": "$white" },
+    "bigNum": { "fontSize": 34, "fontStyle": "bold", "fill": "$primary" }
+  },
+  "slides": [
+    {
+      "id": "contents",
+      "notes": "参考图第 1 页：CONTENTS 目录页。CO/TS 为金色装饰字母，目录二字承载语义。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "closePath": false, "allowOverflow": true,
+          "stroke": "#E8C87A", "strokeWidth": 2.2, "pointArr": [
+          { "x": 0, "y": 650, "moveTo": true },
+          { "x": 640, "y": 657, "curve": { "type": "cubic", "x1": 220, "y1": 618, "x2": 400, "y2": 680 } },
+          { "x": 1200, "y": 623, "curve": { "type": "cubic", "x1": 880, "y1": 635, "x2": 1020, "y2": 600 } }
+        ] },
+
+        { "elType": "shape-line", "pointArr": [{ "x": 70, "y": 58 }, { "x": 250, "y": 58 }], "lineColor": "#E8552F", "lineWidth": 2 },
+        { "elType": "shape-line", "pointArr": [{ "x": 1030, "y": 58 }, { "x": 1210, "y": 58 }], "lineColor": "#E8552F", "lineWidth": 2 },
+        { "elType": "image-svg", "x": 1150, "y": 24, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "text", "styleClass": "goldLetter", "text": "CO", "x": 411, "y": 22, "width": 120, "height": 120, "align": "center", "verticalAlign": "bottom" },
+        { "elType": "text", "styleClass": "redLetter", "text": "目录", "x": 535, "y": 10, "width": 210, "height": 132, "align": "center", "verticalAlign": "bottom" },
+        { "elType": "text", "styleClass": "goldLetter", "text": "TS", "x": 749, "y": 22, "width": 120, "height": 120, "align": "center", "verticalAlign": "bottom" },
+
+        { "elType": "repeat", "id": "toc", "x": 190, "y": 160, "columns": 2, "stepX": 460, "stepY": 84,
+          "items": [
+            { "no": "01", "title": "党史的光辉历程回顾" },
+            { "no": "02", "title": "传承伟大的革命精神" },
+            { "no": "03", "title": "新时代党员先锋模范" },
+            { "no": "04", "title": "共青团员使命担当" }
+          ],
+          "template": [
+            { "elType": "shape-rect", "id": "pill", "x": 0, "y": 0, "width": 430, "height": 64, "fill": "$primary", "cornerRadius": 8 },
+            { "elType": "shape-rect", "id": "noBox", "x": 0, "y": 0, "width": 74, "height": 64, "fill": "#A8121A", "cornerRadius": 8 },
+            { "elType": "text", "id": "no", "text": "{{no}}", "x": 0, "y": 0, "width": 74, "height": 64, "fontSize": 22, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+            { "elType": "text", "id": "label", "text": "{{title}}", "x": 90, "y": 0, "width": 320, "height": 64, "styleClass": "pillText", "verticalAlign": "middle" }
+          ] }
+      ]
+    },
+
+    {
+      "id": "part-one",
+      "notes": "参考图第 2 页：PART ONE 章节隔页。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+
+        { "elType": "shape-line", "pointArr": [{ "x": 80, "y": 62 }, { "x": 260, "y": 62 }], "lineColor": "#E8552F", "lineWidth": 2 },
+        { "elType": "shape-line", "pointArr": [{ "x": 1020, "y": 62 }, { "x": 1200, "y": 62 }], "lineColor": "#E8552F", "lineWidth": 2 },
+        { "elType": "image-svg", "x": 1140, "y": 28, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "text", "styleClass": "goldLetter", "text": "PART", "x": 404, "y": 54, "width": 170, "height": 100, "fontSize": 58, "align": "right", "verticalAlign": "bottom" },
+        { "elType": "text", "styleClass": "redLetter", "text": "01", "x": 578, "y": 0, "width": 160, "height": 154, "fontSize": 112, "align": "center", "verticalAlign": "bottom" },
+        { "elType": "text", "styleClass": "goldLetter", "text": "ONE", "x": 742, "y": 54, "width": 170, "height": 100, "fontSize": 58, "align": "left", "verticalAlign": "bottom" },
+
+        { "elType": "shape-line", "pointArr": [{ "x": 452, "y": 224 }, { "x": 596, "y": 224 }], "lineColor": "#C8161D", "lineWidth": 2 },
+        { "elType": "text", "text": "★", "x": 604, "y": 212, "width": 22, "height": 24, "fontSize": 15, "fill": "$primary", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "text": "★", "x": 629, "y": 212, "width": 22, "height": 24, "fontSize": 15, "fill": "$primary", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "text": "★", "x": 654, "y": 212, "width": 22, "height": 24, "fontSize": 15, "fill": "$primary", "align": "center", "verticalAlign": "middle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 684, "y": 224 }, { "x": 828, "y": 224 }], "lineColor": "#C8161D", "lineWidth": 2 },
+
+        { "elType": "text", "text": "党史的光辉历程回顾", "x": 280, "y": 262, "width": 720, "height": 84, "fontSize": 62, "fontStyle": "bold", "fill": "$accentText", "align": "center", "letterSpacing": 2 },
+        { "elType": "text", "styleClass": "body", "text": "单击此处输入你的正文，文字是您思想的提炼，为了最终演示发布的良好效果，请尽量言简意赅的阐述观点。", "x": 380, "y": 364, "width": 520, "height": 52, "fontSize": 12.5, "align": "center", "lineHeight": 1.7 }
+      ]
+    },
+
+    {
+      "id": "timeline",
+      "notes": "参考图第 3 页：红框卡片 + 波浪时间轴，六节点上下交错。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+
+        { "elType": "shape-rect", "id": "card", "x": 50, "y": 44, "width": 1180, "height": 590, "fill": "$surface", "stroke": "$primary", "strokeWidth": 2, "cornerRadius": 6 },
+        { "elType": "shape-rect", "id": "tag", "x": 76, "y": 70, "width": 66, "height": 30, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "text": "01", "x": 76, "y": 70, "width": 66, "height": 30, "fontSize": 15, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "barTitle", "text": "党史的光辉历程回顾", "x": 154, "y": 70, "width": 340, "height": 30, "verticalAlign": "middle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 154, "y": 106 }, { "x": 700, "y": 106 }], "lineColor": "#C8161D", "lineWidth": 1.4, "dashType": "sysDot" },
+        { "elType": "image-svg", "x": 1120, "y": 68, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "closePath": false, "stroke": "#C8161D", "strokeWidth": 2.5, "fill": "#00000000", "pointArr": [
+          { "x": 110, "y": 310, "moveTo": true },
+          { "x": 190, "y": 296, "curve": { "type": "cubic", "x1": 137, "y1": 310, "x2": 163, "y2": 296 } },
+          { "x": 370, "y": 266, "curve": { "type": "cubic", "x1": 250, "y1": 296, "x2": 310, "y2": 266 } },
+          { "x": 550, "y": 298, "curve": { "type": "cubic", "x1": 430, "y1": 266, "x2": 490, "y2": 298 } },
+          { "x": 730, "y": 268, "curve": { "type": "cubic", "x1": 610, "y1": 298, "x2": 670, "y2": 268 } },
+          { "x": 910, "y": 300, "curve": { "type": "cubic", "x1": 790, "y1": 268, "x2": 850, "y2": 300 } },
+          { "x": 1090, "y": 270, "curve": { "type": "cubic", "x1": 970, "y1": 300, "x2": 1030, "y2": 270 } },
+          { "x": 1170, "y": 286, "curve": { "type": "cubic", "x1": 1117, "y1": 270, "x2": 1143, "y2": 286 } }
+        ] },
+        { "elType": "repeat", "id": "nodes", "x": 181, "y": 0, "stepX": 180, "items": [
+            { "y": 287 }, { "y": 257 }, { "y": 289 }, { "y": 259 }, { "y": 291 }, { "y": 261 }
+          ],
+          "template": [
+            { "elType": "shape-preset", "id": "dot", "shape": "ellipse", "x": 0, "y": "{{y}}", "width": 18, "height": 18, "fill": "$surface", "stroke": "$primary", "strokeWidth": 2 }
+          ] },
+
+        { "elType": "repeat", "id": "bottomItems", "x": 90, "y": 340, "stepX": 360, "items": [1, 2, 3],
+          "template": [
+            { "elType": "text", "id": "b", "styleClass": "body", "text": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 0, "width": 200, "height": 76 },
+            { "elType": "text", "id": "t", "styleClass": "itemTitle", "text": "添加大标题", "x": 0, "y": 82, "width": 200, "height": 28 }
+          ] },
+        { "elType": "repeat", "id": "topItems", "x": 270, "y": 146, "stepX": 360, "items": [1, 2, 3],
+          "template": [
+            { "elType": "text", "id": "t", "styleClass": "itemTitle", "text": "添加大标题", "x": 0, "y": 0, "width": 200, "height": 28 },
+            { "elType": "text", "id": "b", "styleClass": "body", "text": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 32, "width": 200, "height": 76 }
+          ] }
+      ]
+    },
+
+    {
+      "id": "chart-page",
+      "notes": "参考图第 4 页：柱状图 + 右侧三条要点。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+
+        { "elType": "shape-rect", "id": "card", "x": 50, "y": 44, "width": 1180, "height": 590, "fill": "$surface", "stroke": "$primary", "strokeWidth": 2, "cornerRadius": 6 },
+        { "elType": "shape-rect", "id": "tag", "x": 76, "y": 70, "width": 66, "height": 30, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "text": "01", "x": 76, "y": 70, "width": 66, "height": 30, "fontSize": 15, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "barTitle", "text": "党史的光辉历程回顾", "x": 154, "y": 70, "width": 340, "height": 30, "verticalAlign": "middle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 154, "y": 106 }, { "x": 700, "y": 106 }], "lineColor": "#C8161D", "lineWidth": 1.4, "dashType": "sysDot" },
+        { "elType": "image-svg", "x": 1120, "y": 68, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "text", "styleClass": "h1", "text": "单击此处添加大标题", "x": 92, "y": 134, "width": 520, "height": 32 },
+        { "elType": "text", "styleClass": "body", "text": "单击此处输入你的正文，文字是您思想的提炼，请尽量言简意赅的阐述观点；根据需要可酌情增减文字，以便观者可以准确理解您所传达的信息。", "x": 92, "y": 168, "width": 580, "height": 46 },
+
+        { "elType": "chart", "chartType": "bar", "x": 88, "y": 216, "width": 600, "height": 350,
+          "labels": ["类别 1", "类别 2", "类别 3", "类别 4"],
+          "data": [
+            { "name": "系列 A", "values": [4.5, 2.4, 4.3, 2.5] },
+            { "name": "系列 B", "values": [2.6, 2.6, 1.6, 2.1] }
+          ],
+          "chartColors": ["#C8161D", "#E8552F"], "showLegend": false },
+
+        { "elType": "repeat", "id": "sideNotes", "x": 736, "y": 150, "stepY": 118,
+          "items": [
+            { "t": "单击此处添加大标题", "b": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。" },
+            { "t": "单击此处添加大标题", "b": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。" },
+            { "t": "单击此处添加大标题", "b": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。" }
+          ],
+          "template": [
+            { "elType": "shape-rect", "id": "mark", "x": 0, "y": 4, "width": 5, "height": 22, "fill": "$primary" },
+            { "elType": "text", "id": "t", "text": "{{t}}", "x": 18, "y": 0, "width": 440, "height": 28, "fontSize": 17, "fontStyle": "bold", "fill": "$accentText" },
+            { "elType": "text", "id": "b", "text": "{{b}}", "x": 18, "y": 34, "width": 440, "height": 64, "styleClass": "body" }
+          ] }
+      ]
+    },
+
+    {
+      "id": "two-columns",
+      "notes": "参考图第 5 页：左右编号分栏 + 中间插图 + 底部三个按钮。插图用 image-svg 示意。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+
+        { "elType": "shape-rect", "id": "card", "x": 50, "y": 44, "width": 1180, "height": 590, "fill": "$surface", "stroke": "$primary", "strokeWidth": 2, "cornerRadius": 6 },
+        { "elType": "shape-rect", "id": "tag", "x": 76, "y": 70, "width": 66, "height": 30, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "text": "01", "x": 76, "y": 70, "width": 66, "height": 30, "fontSize": 15, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "barTitle", "text": "党史的光辉历程回顾", "x": 154, "y": 70, "width": 340, "height": 30, "verticalAlign": "middle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 154, "y": 106 }, { "x": 700, "y": 106 }], "lineColor": "#C8161D", "lineWidth": 1.4, "dashType": "sysDot" },
+        { "elType": "image-svg", "x": 1120, "y": 68, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "text", "styleClass": "bigNum", "text": "01", "x": 96, "y": 142, "width": 130, "height": 48 },
+        { "elType": "shape-rect", "id": "pill1", "x": 96, "y": 196, "width": 216, "height": 38, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "styleClass": "pillText", "text": "单击此处添加大标题", "x": 96, "y": 196, "width": 216, "height": 38, "fontSize": 14, "align": "center", "verticalAlign": "middle" },
+        { "elType": "repeat", "id": "bullets1", "x": 96, "y": 248, "stepY": 84, "items": [1, 2, 3],
+          "template": [
+            { "elType": "text", "id": "b", "text": "◆ 单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 0, "width": 312, "height": 78, "styleClass": "body" }
+          ] },
+
+        { "elType": "image-svg", "id": "landmark", "x": 424, "y": 142, "width": 432, "height": 336, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 320'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#FBE3B8'/><stop offset='1' stop-color='#E79A56'/></linearGradient></defs><rect width='420' height='320' fill='url(#sky)'/><rect x='0' y='196' width='420' height='124' fill='#B4402F'/><rect x='34' y='176' width='352' height='20' fill='#9E3323'/><rect x='66' y='150' width='288' height='26' fill='#C8161D'/><rect x='96' y='124' width='228' height='26' fill='#C8161D'/><rect x='130' y='100' width='160' height='24' fill='#C8161D'/><rect x='196' y='64' width='3' height='36' fill='#8C2A1E'/><path d='M199 68 L250 79 L199 92 Z' fill='#C8161D'/><rect x='168' y='240' width='44' height='80' fill='#5E1A12'/><rect x='96' y='212' width='34' height='44' fill='#7A241A'/><rect x='290' y='212' width='34' height='44' fill='#7A241A'/></svg>" },
+
+        { "elType": "text", "styleClass": "bigNum", "text": "02", "x": 884, "y": 142, "width": 130, "height": 48 },
+        { "elType": "shape-rect", "id": "pill2", "x": 884, "y": 196, "width": 216, "height": 38, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "styleClass": "pillText", "text": "单击此处添加大标题", "x": 884, "y": 196, "width": 216, "height": 38, "fontSize": 14, "align": "center", "verticalAlign": "middle" },
+        { "elType": "repeat", "id": "bullets2", "x": 884, "y": 248, "stepY": 84, "items": [1, 2, 3],
+          "template": [
+            { "elType": "text", "id": "b", "text": "◆ 单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 0, "width": 312, "height": 78, "styleClass": "body" }
+          ] },
+
+        { "elType": "repeat", "id": "btns", "x": 130, "y": 508, "stepX": 360, "items": [
+            { "t": "单击此处添加小标题", "fill": "$primary", "color": "$white" },
+            { "t": "单击此处添加小标题", "fill": "$surface", "color": "$primary" },
+            { "t": "单击此处添加小标题", "fill": "$primary", "color": "$white" }
+          ],
+          "template": [
+            { "elType": "shape-rect", "id": "btn", "x": 0, "y": 0, "width": 300, "height": 44, "fill": "{{fill}}", "stroke": "$primary", "strokeWidth": 1.4, "cornerRadius": 4 },
+            { "elType": "text", "id": "bt", "text": "{{t}}", "x": 0, "y": 0, "width": 300, "height": 44, "fontSize": 14, "fontStyle": "bold", "fill": "{{color}}", "align": "center", "verticalAlign": "middle" }
+          ] }
+      ]
+    },
+
+    {
+      "id": "image-text",
+      "notes": "参考图第 6 页：上图下文 + 底部三张图片卡片。插图用 image-svg 示意。",
+      "elements": [
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#F2A65A", "pointArr": [
+          { "x": 0, "y": 500, "moveTo": true },
+          { "x": 600, "y": 504, "curve": { "type": "cubic", "x1": 200, "y1": 460, "x2": 360, "y2": 528 } },
+          { "x": 1180, "y": 468, "curve": { "type": "cubic", "x1": 840, "y1": 480, "x2": 980, "y2": 442 } },
+          { "x": 1280, "y": 474, "curve": { "type": "cubic", "x1": 1232, "y1": 474, "x2": 1262, "y2": 478 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#E8552F", "pointArr": [
+          { "x": 0, "y": 548, "moveTo": true },
+          { "x": 640, "y": 552, "curve": { "type": "cubic", "x1": 220, "y1": 512, "x2": 400, "y2": 578 } },
+          { "x": 1200, "y": 516, "curve": { "type": "cubic", "x1": 880, "y1": 528, "x2": 1020, "y2": 492 } },
+          { "x": 1280, "y": 522, "curve": { "type": "cubic", "x1": 1242, "y1": 522, "x2": 1266, "y2": 526 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+        { "elType": "shape-path", "coordinateMode": "absolute", "x": 0, "y": 0, "width": 0, "height": 0, "fill": "#C8161D", "pointArr": [
+          { "x": 0, "y": 600, "moveTo": true },
+          { "x": 660, "y": 604, "curve": { "type": "cubic", "x1": 240, "y1": 570, "x2": 420, "y2": 628 } },
+          { "x": 1210, "y": 570, "curve": { "type": "cubic", "x1": 900, "y1": 580, "x2": 1040, "y2": 548 } },
+          { "x": 1280, "y": 577, "curve": { "type": "cubic", "x1": 1248, "y1": 576, "x2": 1268, "y2": 580 } },
+          { "x": 1280, "y": 720 }, { "x": 0, "y": 720 }
+        ] },
+
+        { "elType": "shape-rect", "id": "card", "x": 50, "y": 44, "width": 1180, "height": 590, "fill": "$surface", "stroke": "$primary", "strokeWidth": 2, "cornerRadius": 6 },
+        { "elType": "shape-rect", "id": "tag", "x": 76, "y": 70, "width": 66, "height": 30, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "text": "01", "x": 76, "y": 70, "width": 66, "height": 30, "fontSize": 15, "fontStyle": "bold", "fill": "$white", "align": "center", "verticalAlign": "middle" },
+        { "elType": "text", "styleClass": "barTitle", "text": "党史的光辉历程回顾", "x": 154, "y": 70, "width": 340, "height": 30, "verticalAlign": "middle" },
+        { "elType": "shape-line", "pointArr": [{ "x": 154, "y": 106 }, { "x": 700, "y": 106 }], "lineColor": "#C8161D", "lineWidth": 1.4, "dashType": "sysDot" },
+        { "elType": "image-svg", "x": 1120, "y": 68, "width": 76, "height": 24, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 24' fill='none' stroke='#C8161D' stroke-width='2.2' stroke-linecap='round'><path d='M2 13 Q9 4 16 11 Q23 4 30 13'/><path d='M30 20 Q35 14 40 18 Q45 14 50 20'/><path d='M48 9 Q53 3 58 8 Q63 3 68 9'/></svg>" },
+
+        { "elType": "image-svg", "id": "hero", "x": 88, "y": 130, "width": 320, "height": 180, "svgXml": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 168'><defs><linearGradient id='s2' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#FBE3B8'/><stop offset='1' stop-color='#E79A56'/></linearGradient></defs><rect width='300' height='168' fill='url(#s2)'/><rect x='0' y='104' width='300' height='64' fill='#B4402F'/><rect x='24' y='92' width='252' height='14' fill='#9E3323'/><rect x='46' y='76' width='208' height='18' fill='#C8161D'/><rect x='68' y='62' width='164' height='16' fill='#C8161D'/><rect x='94' y='48' width='112' height='16' fill='#C8161D'/><rect x='140' y='26' width='2' height='22' fill='#8C2A1E'/><path d='M142 28 L176 36 L142 45 Z' fill='#C8161D'/><rect x='120' y='132' width='32' height='36' fill='#5E1A12'/></svg>" },
+        { "elType": "shape-rect", "id": "heroTag", "x": 428, "y": 134, "width": 240, "height": 38, "fill": "$primary", "cornerRadius": 4 },
+        { "elType": "text", "styleClass": "pillText", "text": "单击此处添加大标题", "x": 428, "y": 134, "width": 240, "height": 38, "fontSize": 15, "align": "center", "verticalAlign": "middle" },
+        { "elType": "repeat", "id": "heroBullets", "x": 428, "y": 188, "stepY": 38, "items": [1, 2, 3],
+          "template": [
+            { "elType": "text", "id": "b", "text": "■ 单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 0, "width": 756, "height": 32, "fontSize": 12.5, "fill": "$text2", "lineHeight": 1.5 }
+          ] },
+
+        { "elType": "repeat", "id": "cards", "x": 88, "y": 306, "stepX": 358, "items": [
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 150'><defs><linearGradient id='t1' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#F6C9A0'/><stop offset='1' stop-color='#C8161D'/></linearGradient></defs><rect width='320' height='150' fill='url(#t1)'/><path d='M40 118 L96 62 L150 118 Z' fill='#8C1A16'/><path d='M120 118 L190 48 L262 118 Z' fill='#A8121A'/><circle cx='252' cy='42' r='20' fill='#F2A65A'/></svg>" },
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 150'><defs><linearGradient id='t2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#FBE3B8'/><stop offset='1' stop-color='#E8552F'/></linearGradient></defs><rect width='320' height='150' fill='url(#t2)'/><rect x='0' y='104' width='320' height='46' fill='#9E3323'/><rect x='56' y='76' width='208' height='30' fill='#C8161D'/><path d='M160 24 L172 52 L202 52 L178 70 L188 100 L160 82 L132 100 L142 70 L118 52 L148 52 Z' fill='#F6E3CE'/></svg>" },
+            { "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 150'><defs><linearGradient id='t3' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#F6E3CE'/><stop offset='1' stop-color='#B4402F'/></linearGradient></defs><rect width='320' height='150' fill='url(#t3)'/><path d='M40 96 Q110 56 160 92 Q210 128 280 78 L280 150 L40 150 Z' fill='#C8161D'/><path d='M40 112 Q110 76 160 108 Q210 140 280 96 L280 150 L40 150 Z' fill='#8C1A16'/></svg>" }
+          ],
+          "template": [
+            { "elType": "image-svg", "id": "thumb", "svgXml": "{{svg}}", "x": 0, "y": 0, "width": 320, "height": 150 },
+            { "elType": "text", "id": "st", "text": "单击此处添加小标题", "x": 0, "y": 160, "width": 320, "height": 28, "fontSize": 15.5, "fontStyle": "bold", "fill": "$accentText" },
+            { "elType": "text", "id": "sb", "text": "单击此处输入你的正文，文字是您思想的提炼，根据需要可酌情增减文字。", "x": 0, "y": 194, "width": 320, "height": 66, "styleClass": "body" }
+          ] }
+      ]
+    }
+  ]
+}

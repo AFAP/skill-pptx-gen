@@ -112,11 +112,111 @@
     return {};
   }
 
+  /**
+   * 虚线：数值数组由编译期（core/style-map.mjs）算好，渲染器不再自己维护一份映射表，
+   * 否则 PPTX 的命名虚线（dashDot/lgDash/...）与预览的数值虚线迟早会漂移。
+   */
   function dashArray(elop) {
-    const d = elop.dashType || elop.dash;
-    if (d === 'dash' || d === true) return [8, 6];
-    if (Array.isArray(d) && d.length) return d;
-    return undefined;
+    return Array.isArray(elop._dashArray) && elop._dashArray.length ? elop._dashArray : undefined;
+  }
+
+  /** flipH/flipV 在 Konva 中需换算为"围绕元素自身包围盒的镜像" */
+  function applyFlip(cfg, elop, width, height) {
+    if (elop.flipH) { cfg.scaleX = -1; cfg.x = (cfg.x || 0) + (width || 0); }
+    if (elop.flipV) { cfg.scaleY = -1; cfg.y = (cfg.y || 0) + (height || 0); }
+    return cfg;
+  }
+
+  /**
+   * 箭头头部：两端共用同一套语义。
+   * arrow/triangle/stealth 由 Konva.Arrow 的指针绘制；diamond/oval 需要独立节点
+   * （与 PPTX 的等价比，见 core/capabilities.mjs 的 lineBegin/EndArrowType）。
+   */
+  const POINTER_HEADS = { arrow: [2.4, 2.2], triangle: [2.2, 2.4], stealth: [3.0, 1.6] };
+
+  function headAngle(from, to) {
+    return Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+  }
+
+  function addHeadNode(group, type, point, angleDeg, stroke, strokeWidth, opacity) {
+    const size = Math.max(3, strokeWidth * 1.7);
+    const common = { x: point.x, y: point.y, fill: stroke, opacity, rotation: angleDeg };
+    if (type === 'diamond') group.add(new Konva.RegularPolygon({ ...common, sides: 4, radius: size }));
+    else if (type === 'oval') group.add(new Konva.Ellipse({ ...common, radiusX: size, radiusY: size * 0.72 }));
+    else {
+      // arrow / triangle / stealth：曲线端点上 Konva.Arrow 用不了，以三角指针等价近似
+      const len = strokeWidth * (type === 'stealth' ? 3 : 2.3);
+      const half = strokeWidth * (type === 'stealth' ? 0.85 : 1.15);
+      const rad = angleDeg * Math.PI / 180;
+      const dir = { x: Math.cos(rad), y: Math.sin(rad) };
+      const perp = { x: -dir.y, y: dir.x };
+      const base = { x: point.x - dir.x * len, y: point.y - dir.y * len };
+      group.add(new Konva.Line({
+        points: [point.x, point.y, base.x + perp.x * half, base.y + perp.y * half, base.x - perp.x * half, base.y - perp.y * half],
+        closed: true, fill: stroke, opacity, listening: false,
+      }));
+    }
+  }
+
+  /**
+   * 曲线端点的切线方向（度）。贝塞尔用相邻控制点求切向，直线段用相邻点。
+   * 导出端会在 customGeometry 上生成箭头，预览必须同样画出来，
+   * 否则 curve-quadratic 的箭头就成了单向渲染。
+   */
+  function curveTangent(pointArr, atEnd) {
+    if (!Array.isArray(pointArr) || pointArr.length < 2) return null;
+    const n = pointArr.length;
+    const anchor = atEnd ? pointArr[n - 1] : pointArr[0];
+    const seg = atEnd ? pointArr[n - 1] : pointArr[1];
+    const prev = atEnd ? pointArr[n - 2] : null;
+    const control = atEnd
+      ? (seg.curve?.type === 'cubic' ? { x: seg.curve.x2, y: seg.curve.y2 }
+        : seg.curve?.type === 'quadratic' ? { x: seg.curve.x1, y: seg.curve.y1 }
+          : seg.controlPoint?.type === 'quadratic' ? { x: seg.controlPoint.x, y: seg.controlPoint.y }
+            : prev)
+      : (seg.curve?.type === 'cubic' ? { x: seg.curve.x1, y: seg.curve.y1 }
+        : seg.curve?.type === 'quadratic' ? { x: seg.curve.x1, y: seg.curve.y1 }
+          : seg.controlPoint?.type === 'quadratic' ? { x: seg.controlPoint.x, y: seg.controlPoint.y }
+            : seg);
+    const dx = anchor.x - control.x, dy = anchor.y - control.y;
+    if (!dx && !dy) return null;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  }
+
+  /** 描边折线：按两端箭头类型决定用 Konva.Arrow 指针还是独立头部节点 */
+  function addPolyline(group, elop, pa, { defaultEnd = null } = {}) {
+    const pts = pa.flatMap(p => [p.x, p.y]);
+    if (pts.length < 4) return;
+    const stroke = elop.lineColor || elop.stroke || '#333333';
+    const strokeWidth = elop.lineWidth || elop.strokeWidth || 2;
+    const opacity = elop.opacity ?? 1;
+    const pick = v => (v && v !== 'none' ? v : null);
+    const begin = pick(elop.lineBeginArrowType);
+    const end = pick(elop.lineEndArrowType) || pick(defaultEnd);
+    const beginPointer = begin ? POINTER_HEADS[begin] : null;
+    const endPointer = end ? POINTER_HEADS[end] : null;
+    if (beginPointer || endPointer) {
+      const ref = endPointer || beginPointer;
+      group.add(new Konva.Arrow({
+        points: pts,
+        pointerLength: strokeWidth * ref[0],
+        pointerWidth: strokeWidth * ref[1],
+        pointerAtBeginning: Boolean(beginPointer),
+        pointerAtEnding: Boolean(endPointer),
+        stroke, strokeWidth, fill: stroke,
+        dash: dashArray(elop), opacity,
+        lineCap: 'round', lineJoin: 'round',
+      }));
+    } else {
+      group.add(new Konva.Line({
+        points: pts, stroke, strokeWidth,
+        dash: dashArray(elop), opacity,
+        lineCap: elop.lineCap || 'round', lineJoin: elop.lineJoin || 'round',
+      }));
+    }
+    const last = pa.length - 1;
+    if (begin && !beginPointer) addHeadNode(group, begin, pa[0], headAngle(pa[1], pa[0]), stroke, strokeWidth, opacity);
+    if (end && !endPointer) addHeadNode(group, end, pa[last], headAngle(pa[last - 1], pa[last]), stroke, strokeWidth, opacity);
   }
 
   /* ---------- 元素渲染 ---------- */
@@ -143,12 +243,15 @@
       // 与导出端 imageSizing 保持一致：兼容 "contain" 与 {type:"contain"}，并容忍多层包装
       let sizingType = elop.sizing;
       while (sizingType && typeof sizingType === 'object') sizingType = sizingType.type;
-      const sizing = sizingType === 'contain' ? 'contain' : 'cover'; // 默认 cover，与导出一致
-      const cfg = {
+      const sizing = sizingType === 'contain' ? 'contain' : sizingType === 'crop' ? 'crop' : 'cover';
+      // transparency 与 opacity 共同决定可见度，与导出端的 combinedTransparency 等价
+      const transparency = Math.min(100, Math.max(0, elop.transparency ?? 0));
+      const cfg = applyFlip({
         x: elop.x, y: elop.y, rotation: elop.rotation || elop.rotate || 0,
-        opacity: elop.opacity ?? 1, cornerRadius: elop.cornerRadius || 0, stroke: elop.stroke, strokeWidth: elop.strokeWidth,
+        opacity: (elop.opacity ?? 1) * (1 - transparency / 100),
+        cornerRadius: elop.cornerRadius || 0, stroke: elop.stroke, strokeWidth: elop.strokeWidth,
         image: img, ...konvaShadow(elop),
-      };
+      }, elop, elop.width, elop.height);
       if (sizing === 'contain') {
         // 完整容纳：等比缩放置中（不拉伸）
         const scale = Math.min(elop.width / img.width, elop.height / img.height);
@@ -156,6 +259,16 @@
         cfg.height = img.height * scale;
         cfg.x = elop.x + (elop.width - cfg.width) / 2;
         cfg.y = elop.y + (elop.height - cfg.height) / 2;
+      } else if (sizing === 'crop') {
+        // 裁剪框以 0–1 比例表达（与导出端同一约定），换算到源图像素——Konva.crop 的原生空间
+        const spec = elop.sizing && typeof elop.sizing === 'object' ? elop.sizing : {};
+        const cl = v => { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; };
+        const fx = cl(spec.x), fy = cl(spec.y);
+        const fw = Math.min(cl(spec.width), 1 - fx);
+        const fh = Math.min(cl(spec.height), 1 - fy);
+        cfg.width = elop.width;
+        cfg.height = elop.height;
+        cfg.crop = { x: fx * img.width, y: fy * img.height, width: fw * img.width, height: fh * img.height };
       } else {
         // 裁满：居中裁剪
         const scale = Math.max(elop.width / img.width, elop.height / img.height);
@@ -209,12 +322,15 @@
       padding: elop.padding || 0,
       rotation: elop.rotation || elop.rotate || 0,
       opacity: elop.opacity ?? 1,
-      wrap: elop.wrap || 'word',
+      // 换行由编译期统一解析（style-map.resolveWrap）：避免 wrap:false 在两端表现不同
+      wrap: elop._konvaWrap || 'word',
       ellipsis: elop.ellipsis || false,
       ...konvaShadow(elop),
     };
     if (elop.underline) cfg.textDecoration = 'underline';
-    if (elop.strikethrough) cfg.textDecoration = 'line-through';
+    // strike 与旧字段 strikethrough 等价；导出端同样落到 PPT 原生 strike
+    if (elop.strike ?? elop.strikethrough) cfg.textDecoration = 'line-through';
+    applyFlip(cfg, elop, elop.width || 0, elop.height || 0);
     const node = new Konva.Text(cfg);
     if (opts.onDiagnostic) {
       const measure = new Konva.Text({ ...cfg, height: undefined });
@@ -238,7 +354,7 @@
   }
 
   function renderRect(elop, group) {
-    group.add(new Konva.Rect({
+    const cfg = applyFlip({
       x: elop.x, y: elop.y, width: elop.width, height: elop.height,
       cornerRadius: elop.cornerRadius ?? elop.rectRadius ?? 0,
       rotation: elop.rotation || elop.rotate || 0,
@@ -246,8 +362,10 @@
       ...konvaFill(elop),
       stroke: elop.stroke, strokeWidth: elop.strokeWidth,
       dash: dashArray(elop),
+      lineJoin: elop.lineJoin || 'round',
       ...konvaShadow(elop),
-    }));
+    }, elop, elop.width, elop.height);
+    group.add(new Konva.Rect(cfg));
   }
 
   function renderCircle(elop, group) {
@@ -266,43 +384,61 @@
   }
 
   function renderLine(elop, group) {
-    const pts = (elop.pointArr || []).flatMap(p => [p.x, p.y]);
-    if (pts.length < 4) return;
-    const stroke = elop.lineColor || elop.stroke || '#333333';
-    const strokeWidth = elop.lineWidth || elop.strokeWidth || 2;
-    const endArrow = elop.lineEndArrowType;
-    if (endArrow && endArrow !== 'none') {
-      // 导出端 lineEndArrowType 会生成 tailEnd；预览用 Konva.Arrow 保持一致
-      group.add(new Konva.Arrow({
-        points: pts,
-        pointerLength: strokeWidth * 2.4, pointerWidth: strokeWidth * 2.2,
-        stroke, strokeWidth, fill: stroke,
-        dash: dashArray(elop),
-        opacity: elop.opacity ?? 1,
-      }));
-      return;
-    }
-    group.add(new Konva.Line({
-      points: pts, // 多段折线全程渲染（导出端 >2 点走 customGeometry，一致）
-      stroke, strokeWidth,
-      dash: dashArray(elop),
-      lineCap: 'round', lineJoin: 'round',
-      opacity: elop.opacity ?? 1,
-    }));
+    addPolyline(group, elop, elop.pointArr || []);
   }
 
   function renderArrow(elop, group) {
-    const pts = (elop.pointArr || []).flatMap(p => [p.x, p.y]);
-    if (pts.length < 4) return;
-    const lw = elop.lineWidth || elop.strokeWidth || 2;
-    const stroke = elop.lineColor || elop.stroke || '#333333';
-    group.add(new Konva.Arrow({
-      points: pts,
-      pointerLength: lw * 2.4, pointerWidth: lw * 2.2,
-      stroke, strokeWidth: lw, fill: stroke,
-      dash: dashArray(elop),
+    // 与导出端一致：shape-arrow 未显式指定时默认带 stealth 箭头
+    addPolyline(group, elop, elop.pointArr || [], { defaultEnd: 'stealth' });
+  }
+
+  /**
+   * 形状库：几何在编译期由 core/shape-geometry.mjs 算好（与 PPTX 的 preset 同源），
+   * 这里只负责画出来，保证两个渲染器不各写一套形状公式。
+   */
+  function renderShape(elop, group) {
+    const data = elop._shapeData;
+    // 几何在编译期生成；缺失说明 deck 未编译或形状名不受支持——严格模式不静默画空。
+    if (!data) throw new Error(`形状缺少几何数据（未编译或形状名不受支持）: ${elop.shape || elop.elType}`);
+    const w = elop.width || 0, h = elop.height || 0;
+    const cfg = applyFlip({
+      x: elop.x || 0, y: elop.y || 0, data,
+      rotation: elop.rotation || elop.rotate || 0,
       opacity: elop.opacity ?? 1,
-    }));
+      ...konvaFill(elop),
+      stroke: elop.stroke, strokeWidth: elop.strokeWidth,
+      dash: dashArray(elop),
+      lineJoin: elop.lineJoin || 'round',
+      lineCap: elop.lineCap || 'butt',
+      ...konvaShadow(elop),
+    }, elop, w, h);
+    group.add(new Konva.Path(cfg));
+    // PowerPoint 以描边绘制 preset 的内部细节线（圆柱顶盖前沿、立方体棱、流程图分隔线…），
+    // 预览必须补画，否则两端外观不一致。
+    const detail = Array.isArray(elop._shapeDetail) ? elop._shapeDetail : [];
+    if (detail.length) {
+      const stroke = colorToFill(elop.stroke ?? elop.lineColor) || colorToFill(konvaFill(elop).fill) || '#333333';
+      for (const d of detail) {
+        group.add(new Konva.Path({
+          x: elop.x || 0, y: elop.y || 0, data: d,
+          stroke, strokeWidth: elop.strokeWidth || 1,
+          opacity: elop.opacity ?? 1, listening: false,
+        }));
+      }
+    }
+  }
+
+  /** 给开放路径补画两端箭头；与导出端 lineBegin/EndArrowType 对齐 */
+  function addEndpointHeads(group, elop, pointArr, ox, oy, stroke, strokeWidth, opacity) {
+    if (elop.closePath !== false && elop.elType !== 'curve-quadratic') return; // 闭合路径无端点箭头
+    for (const [key, atEnd] of [['lineBeginArrowType', false], ['lineEndArrowType', true]]) {
+      const type = elop[key];
+      if (!type || type === 'none') continue;
+      const angle = curveTangent(pointArr, atEnd);
+      if (angle === null) continue;
+      const p = atEnd ? pointArr[pointArr.length - 1] : pointArr[0];
+      addHeadNode(group, type, { x: ox + p.x, y: oy + p.y }, angle, stroke, strokeWidth, opacity);
+    }
   }
 
   function renderCurve(elop, group) {
@@ -319,25 +455,39 @@
       });
     }
     if (!d) return;
+    const ox = elop.x || 0, oy = elop.y || 0;
+    const stroke = elop.stroke || elop.lineColor || '#333333';
+    const strokeWidth = elop.strokeWidth || elop.lineWidth || 2;
+    const opacity = elop.opacity ?? 1;
     const close = elop.closePath === true;
     group.add(new Konva.Path({
-      x: elop.x || 0, y: elop.y || 0, data: d + (close ? ' Z' : ''),
-      stroke: elop.stroke || '#333333', strokeWidth: elop.strokeWidth || 2,
-      dash: dashArray(elop), opacity: elop.opacity ?? 1,
+      x: ox, y: oy, data: d + (close ? ' Z' : ''),
+      stroke, strokeWidth,
+      dash: dashArray(elop), opacity,
       lineCap: 'round', lineJoin: 'round',
     }));
+    // 端点箭头：与导出端 lineBegin/EndArrowType 对齐（过去预览完全不画）
+    addEndpointHeads(group, elop, pointArr, ox, oy, stroke, strokeWidth, opacity);
   }
 
   function renderPath(elop, group) {
     if (!elop.data) return;
+    const ox = elop.x || 0, oy = elop.y || 0;
+    const stroke = elop.stroke || elop.lineColor;
+    const strokeWidth = elop.strokeWidth || elop.lineWidth || 2;
+    const opacity = elop.opacity ?? 1;
     group.add(new Konva.Path({
-      x: elop.x || 0, y: elop.y || 0, data: elop.data,
+      x: ox, y: oy, data: elop.data,
       rotation: elop.rotation || elop.rotate || 0,
       ...konvaFill(elop),
-      stroke: elop.stroke, strokeWidth: elop.strokeWidth,
-      dash: dashArray(elop), opacity: elop.opacity ?? 1,
+      stroke, strokeWidth,
+      dash: dashArray(elop), opacity,
       lineCap: elop.lineCap || 'butt', lineJoin: elop.lineJoin || 'round',
     }));
+    // 宏展开出的连接线（connector-s/elbow）也是 shape-path，箭头同样要画
+    if (Array.isArray(elop.pointArr) && stroke) {
+      addEndpointHeads(group, elop, elop.pointArr, ox, oy, stroke, strokeWidth, opacity);
+    }
   }
 
   /* ---------- chart：原生 Konva 绘制（预览用；导出 PPTX 为真实可编辑图表） ---------- */
@@ -609,6 +759,14 @@
     'shape-path': renderPath,
     'chart': renderChart,
     'table': renderTable,
+    // 形状库：全部走同一渲染器，几何来自编译期（core/shape-geometry.mjs）
+    'shape-preset': renderShape,
+    'shape-ellipse': renderShape,
+    'shape-star': renderShape,
+    'shape-polygon': renderShape,
+    'shape-wedge': renderShape,
+    'shape-arc': renderShape,
+    'shape-ring': renderShape,
   };
 
   /** 渲染一组元素到 Konva.Group（带元素索引，供编辑回写定位） */

@@ -243,6 +243,13 @@
             "shape-arrow",
             "shape-path",
             "curve-quadratic",
+            "shape-preset",
+            "shape-ellipse",
+            "shape-star",
+            "shape-polygon",
+            "shape-wedge",
+            "shape-arc",
+            "shape-ring",
             "chart",
             "table",
             "connector-s",
@@ -252,6 +259,82 @@
             "repeat",
             "text-path"
           ]
+        },
+        "shape": {
+          "type": "string",
+          "description": "shape-preset 的 OOXML preset 名（如 star5/hexagon/rightArrow/flowChartDecision），可选形状见 references/shape-library.md"
+        },
+        "sides": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "shape-polygon 的边数；一律经共享顶点列导出为 customGeometry，两端几何一致"
+        },
+        "points": {
+          "type": "integer",
+          "description": "shape-star 的角数，仅支持 4/5/6/7/8/10/12/16/24/32"
+        },
+        "adjust": {
+          "description": "覆盖 preset 默认调整值（OOXML 百分比整数）。注意：PptxGenJS 无通用调整值参数，adjust 只影响预览，PPTX 使用 preset 默认几何",
+          "oneOf": [
+            { "type": "number" },
+            { "type": "array", "items": { "type": "number" } }
+          ]
+        },
+        "angleRange": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number", "minimum": 0, "maximum": 360 },
+          "description": "pie/chord/arc/blockArc 的 [起始角, 结束角]，0°=正右、顺时针为正；扫角取有符号差 end-start（OOXML 语义，arc 默认 [270,0] 即 -270°）"
+        },
+        "arcThicknessRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "blockArc 的环厚比例，映射到 OOXML adj3 = 比例×50000，实际厚度为 比例/2×半径"
+        },
+        "strike": {
+          "description": "删除线；true 或 'dblStrike'。预览与 PPTX 均生效",
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string", "enum": ["sngStrike", "dblStrike"] }
+          ]
+        },
+        "wrap": {
+          "type": "boolean",
+          "description": "文本是否自动换行，默认 true；false 时预览 wrap=none、PPTX bodyPr wrap=none"
+        },
+        "bgRadius": {
+          "type": "number",
+          "minimum": 0,
+          "description": "文本框底色圆角（px）；导出映射为 roundRect + rectRadius"
+        },
+        "objectName": {
+          "type": "string",
+          "description": "PPTX 选择窗格中的对象名；缺省用元素 id。仅 PPTX 生效"
+        },
+        "altText": {
+          "type": "string",
+          "description": "无障碍替代文字。仅 PPTX 生效"
+        },
+        "hyperlink": {
+          "type": "object",
+          "description": "链接目标 {url} 或 {slide}；仅 PPTX 生效（预览是画布，不提供可点击链接）",
+          "properties": {
+            "url": { "type": "string" },
+            "slide": { "type": "integer" },
+            "tooltip": { "type": "string" }
+          }
+        },
+        "lineBeginArrowType": {
+          "type": "string",
+          "enum": ["none", "arrow", "triangle", "stealth", "diamond", "oval"],
+          "description": "起点箭头；none/arrow/triangle 两端严格一致，stealth/diamond/oval 为等价近似"
+        },
+        "lineEndArrowType": {
+          "type": "string",
+          "enum": ["none", "arrow", "triangle", "stealth", "diamond", "oval"],
+          "description": "终点箭头；shape-arrow 缺省为 stealth"
         },
         "id": {
           "type": "string"

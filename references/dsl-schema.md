@@ -96,6 +96,9 @@
 - `{{index}}`、`{{number}}`、固定模板文字和混合插值（如 `第 {{number}} 项`）都是派生结果，没有唯一源字段，因此在网页预览中只读；这样不会把改字错误写进模板或展开后的虚假路径。
 - `repeat` 与 `group` 可以嵌套；内层 item 的同名字段覆盖外层，`index/number/item` 是当前循环的保留变量。内层 `items:"{{children}}"` 可直接读取父 item 数组。未定义变量立即报错。
 - 网页修改绑定文字后会保留源字段类型、重新编译所有依赖对象；数字输入无效或新布局不合法时拒绝修改。嵌套模板也会保留真实 item 路径。
+- **模板坐标相对 repeat 的 `x`/`y` 原点**：即使写成 `"y":"{{field}}"`，该值也会再叠加 repeat 自身的 `y`
+  （x 同理，另加 `index × stepX`）。要让每个实例使用绝对坐标，把 repeat 的 `x`/`y` 设为 0，
+  再把绝对值写进 `items`。把 repeat 的 `y` 当成"第一个实例的 y"是最常见的错位原因。
 
 ### anchor — 相对定位
 
@@ -142,7 +145,11 @@
 | `allowOverlap` | boolean | 明确允许该文本框与其他文本框叠放时跳过疑似重叠告警 |
 | `fill` | 颜色 / `{color, transparency}` / `{type:"gradient", stops:[{offset,color}], angle}` | 填充。**渐变仅预览显示真渐变；导出 PPTX 压平为首色**（可编辑性限制，校验器会提示），要真渐变用 `image-svg` 或图片 |
 | `stroke` / `strokeWidth` | 颜色 / px | 描边 |
-| `dashType` | `"dash"` | 虚线 |
+| `dashType` | `"dash"` | 虚线。完整族：`solid`/`dash`/`dashDot`/`lgDash`/`lgDashDot`/`lgDashDotDot`/`sysDash`/`sysDot`（`longDash`、`dot`、`dotDash` 为别名）。编译期统一解析：PPTX 用命名值，预览用等价数值数组 |
+| `lineBeginArrowType` / `lineEndArrowType` | `none`/`arrow`/`triangle`/`stealth`/`diamond`/`oval` | 两端箭头。`shape-arrow` 缺省终点为 `stealth`。`none/arrow/triangle` 两端严格一致；`stealth/diamond/oval` 头部造型为等价近似（校验器告警） |
+| `objectName` | string | PPTX 选择窗格中的对象名；缺省取元素 `id`。仅 PPTX 生效（元数据，不告警） |
+| `altText` | string | 无障碍替代文字。仅 PPTX 生效（元数据，不告警） |
+| `hyperlink` | `{url}` / `{slide}` / `{tooltip}` | 链接目标。仅 PPTX 生效（预览是画布，不提供可点击链接，会告警） |
 | `shadowColor` `shadowBlur` `shadowOffsetX/Y` `shadowOpacity` | 阴影（Konva 风格） | 自动转换为 PPT outer shadow |
 | `cornerRadius` | px | shape-rect 圆角；图片圆角仅预览可见，PPTX 不原生裁圆角 |
 | `webUnsupported` | string[] | WebSlide 提取器记录的 CSS 降级项；校验器会告警 |
@@ -161,6 +168,9 @@
 - `lineHeight` 导出为 lineSpacingMultiple（0.5-3）。
 - **`fill` 对 text 是字体颜色**（Konva 约定），不会成为文本框底色；
   需要带底色的文本框时用 `bgFill`（如 `"bgFill":"#1E3A5F"`），别用 `fill`。
+- 删除线用 `strike`（`true` 或 `"dblStrike"`）；`strikethrough` 是等价旧字段。两端都生效。
+- `wrap: false` 表示不自动换行，预览与 PPTX 都关闭换行。
+- `bgFill` + `bgRadius` 的圆角由导出映射为 `roundRect` + `rectRadius`（两端一致）。
 - 浅色表面上的强调文字用 `$accentText`；`$accent` 主要用于装饰和填充；accent 色块上的文字用 `$onAccent`。
 - 文本框可带 `shadow`（预览与导出均生效）。`stroke`/`strokeWidth` 只写入 PPTX，Konva 预览不绘制文字描边——需要预览也可见时改用 shape 叠加或图片。
 
@@ -172,7 +182,13 @@
 - 图片来源优先级：`path`/`url`（http(s) 下载、本地相对 deck.json 路径）→ 生成 base64 嵌入。
 - 只有 `prompt` 时严格构建会失败。生图完成后必须补 `path` 或 `data`，不允许最终导出静默跳过。
 - 也可直接给 `data`（data URI），预览/导出均支持。
-- `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）。也接受简写字符串 `"sizing":"contain"`；语义版式 `split.image.sizing` 同样两种写法都可。
+- `sizing.type`: `cover`（默认裁满）/ `contain`（完整容纳）/ `crop`（精确裁切）。
+  也接受简写字符串 `"sizing":"contain"`（含 `"crop"`）；语义版式 `split.image.sizing` 同样两种写法都可。
+- **`crop` 的 `x`/`y`/`width`/`height` 是相对源图的 0–1 比例**，不是像素：
+  `{"sizing":{"type":"crop","x":0.25,"y":0.25,"width":0.5,"height":0.5}}` 取图中居中的四分之一。
+  用比例而非像素，是因为 pptxgenjs 在 Node 下拿不到图片自然尺寸（其 `getSizeFromImage` 未启用），
+  其 `srcRect` 百分比以图片框为参照；比例表达让两端裁切同一块区域，且无需知道图片像素数。
+- `flipH`/`flipV`、`rotate`、`transparency`（0–100）、`altText`、`hyperlink`、`shadow` 两端均支持。
 - 图片宽高比由 `width`/`height` 与 `sizing` 决定，没有独立的 `ratio` 字段。
 - `cornerRadius` 只在网页预览中裁切；需要 PPTX 也保留图片圆角时，先把透明圆角栅格化进图片本身。
 - `rounding:true` 表示椭圆/圆形图片裁切，不等价于普通圆角矩形。
@@ -197,6 +213,31 @@
 ```json
 {"elType":"shape-circle","x":640,"y":300,"width":56,"height":56,"fill":"$primary"}
 ```
+
+### 形状库 —— preset 双端对齐（推荐优先使用）
+
+需要标准图形（流程、层级、对比、汇聚）时用形状库，而不是自己拼 `shape-path`：它对应 OOXML
+preset，PowerPoint 按原生公式绘制，预览端由 `core/shape-geometry.mjs` 用同一套几何构造画出等价路径。
+
+```json
+{"elType":"shape-preset","shape":"hexagon","x":80,"y":160,"width":200,"height":110,"fill":"$primary"}
+{"elType":"shape-star","points":5,"x":320,"y":160,"width":140,"height":140,"fill":"$accent"}
+{"elType":"shape-polygon","sides":7,"x":500,"y":160,"width":140,"height":140,"fill":"$3"}
+{"elType":"shape-preset","shape":"blockArc","angleRange":[180,360],"arcThicknessRatio":0.4,
+ "x":680,"y":160,"width":160,"height":160,"fill":"$primary"}
+```
+
+- `x`/`y` 是**左上角**（与 `shape-rect` 一致；`shape-circle` 的圆心约定不适用于形状库）。
+- `shape-preset` 的 `shape` 支持 91 个名称；糖衣类型 `shape-ellipse`/`shape-star`(`points`)/
+  `shape-polygon`(`sides`)/`shape-wedge`/`shape-arc`/`shape-ring` 是等价写法。
+- `pie`/`chord`/`arc`/`blockArc` 用 `angleRange: [起始角, 结束角]`：0° 指向正右、顺时针为正，
+  角度必须在 0–360，**扫角取有符号差 `end - start`**（因此 `arc` 的默认 `[270,0]` 是 −270°）。
+  跨 0° 的弧请拆成两段。
+- `adjust` 覆盖 preset 默认调整值，但 **PptxGenJS 没有通用调整值参数，`adjust` 只影响预览**，会告警。
+- 形状分三级可信度（`preset` 严格一致 / `aspect` 非等比包围盒下有差异 / `approximate` 等价构造），
+  后两级校验器会告警。
+- 完整清单、参数与可信度见 [形状库](shape-library.md)。
+- 未知形状名、越界 `angleRange`、非法 `arcThicknessRatio` 都是**严格错误**，不会静默退化。
 
 ### shape-line / shape-arrow — 直线/箭头
 ```json
@@ -321,6 +362,14 @@ Konva 预览与 PPTX 导出自动一致：
 7. emoji 在 Windows PowerPoint 中渲染为彩色、在部分 WPS/Mac 中风格不同；关键图标用 image-svg。
 8. 未知 `chartType`、只有 prompt 的图片、`text-path` 和 SVG path data 都是严格错误，不会回退成别的对象。
 9. `webUnsupported` 表示已知降级，必须逐条判断是接受、重做为原生元素，还是局部栅格化。
+10. 形状库的 `x`/`y` 是**左上角**，与 `shape-circle` 的圆心约定不同，混用会整体错位。
+11. `angleRange` 必须落在 0–360 且扫角取**有符号差**：写 `[300, 60]` 会得到 −240°（反向长弧），
+    想顺时针跨 0° 必须拆成 `[300, 360]` 与 `[0, 60]` 两个元素。
+12. `adjust` 只影响预览；PPTX 里 PowerPoint 仍按 preset 默认调整值绘制（校验器会告警）。
+13. 形状的 `exact: "aspect"`（星形族、pentagon）在非正方形包围盒下与 PowerPoint 有可见差异，
+    优先使用接近正方形的包围盒。
+14. 未指定描边色的线条/连接线会被编译期补成 `#333333`；两端因此一致，但如果你要"无描边"，
+    请显式设 `strokeWidth: 0` 而不是留空。
 
 
 ## shape-path 坐标约束

@@ -4,6 +4,8 @@ import { expandConnectors, pointsToSvgPath } from './connectors.mjs';
 import { normalizeShapePaths } from './shape-path.mjs';
 import { expandCreativeElements } from './creative-expand.mjs';
 import { expandLayoutSlide, isSemanticSlide } from './layouts.mjs';
+import { buildShape, isShapeElement } from './shape-geometry.mjs';
+import { resolveDash, resolveWrap, DEFAULT_LINE_COLOR, LINE_ELEMENT_TYPES } from './style-map.mjs';
 
 export const CURRENT_DSL_VERSION = 3;
 
@@ -68,6 +70,24 @@ export function compileDeck(deck, opts = {}) {
   if (opts.normalizeShapePaths !== false) normalizeShapePaths(compiled);
   for (const slide of compiled.slides) for (const el of slide.elements) {
     if (el.elType === 'shape-path' && Array.isArray(el.pointArr)) el.data = pointsToSvgPath(el.pointArr) + (el.closePath !== false ? ' Z' : '');
+    if (isShapeElement(el.elType)) {
+      // 形状库的几何与导出端共用同一纯函数；这里预先把预览要用的 path 算好，
+      // 使 Konva 侧不再需要模块访问，也不会出现两份形状逻辑。
+      const built = buildShape(el);
+      if (built) {
+        el._shapeData = built.data;
+        el._shapeDetail = built.detail;
+        el._shapeExact = built.exact;
+      }
+    }
+    // 虚线族在编译期解析：PPTX 用命名值，Konva 用数值数组，两个渲染器不再各写一份映射。
+    const dash = resolveDash(el.dashType ?? el.dash);
+    if (typeof (el.dashType ?? el.dash) === 'string' && dash.pptx) el.dashType = dash.pptx;
+    if (dash.konva) el._dashArray = dash.konva;
+    // 线条/连接线缺描边色时补齐默认色：否则预览画 #333 而 PPTX 走 PowerPoint 默认色。
+    if (LINE_ELEMENT_TYPES.includes(el.elType) && el.stroke == null && el.lineColor == null) {
+      el.lineColor = DEFAULT_LINE_COLOR;
+    }
     if (el.elType === 'text') {
       el.fontSize ??= 18;
       el.fontFamily ||= theme.fontFamily;
@@ -75,6 +95,8 @@ export function compileDeck(deck, opts = {}) {
       el.padding ??= 0;
       el.fill ??= '#' + theme.text;
       el.verticalAlign ||= el.valign || 'top';
+      // 换行语义在编译期解析一次，导出端与预览端读取同一结论
+      el._konvaWrap = resolveWrap(el.wrap).konva;
     }
   }
   return { deck: compiled, theme };

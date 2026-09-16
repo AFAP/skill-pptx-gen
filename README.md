@@ -76,6 +76,23 @@ Creative DSL 直接组合可编辑 primitive，并在源文件中支持样式类
 
 内置版式和字段见 [紧凑语义版式](references/layout-dsl.md)。
 
+### 形状库
+
+标准图形（流程、层级、对比、汇聚、星形、扇形、括号…）用形状库而不是手拼路径：
+
+```json
+{ "elType": "shape-preset", "shape": "hexagon", "x": 80, "y": 160, "width": 200, "height": 110, "fill": "$primary" }
+```
+
+91 个形状对应 OOXML preset，PowerPoint 按原生公式绘制，预览端由 `core/shape-geometry.mjs`
+用**同一套几何构造**画出等价路径——两端不各写一份形状公式。形状分三级可信度：
+
+- `preset`（62 个）：两端几何严格一致，不告警；
+- `aspect`（11 个，星形族与 pentagon）：非等比包围盒下 PowerPoint 有额外轴向缩放，会告警；
+- `approximate`（18 个）：曲线控制点或内部细节为等价构造，会告警。
+
+完整清单与参数见 [形状库](references/shape-library.md)。
+
 ### WebSlide
 
 ```html
@@ -115,6 +132,10 @@ npm run test:browser
 
 网页与 PPTX 共用编译后的 DSL，但浏览器、PowerPoint 和 WPS 的字体度量与图表渲染并不相同，因此项目保证的是可追踪转换和明确降级，而不是虚假的像素级承诺。完整能力矩阵见 [转换一致性契约](references/parity-contract.md)。
 
+“哪些字段两端一致”由 `core/capabilities.mjs` 声明——它是唯一真相源，校验器据此**自动**为所有
+单向字段生成告警。历史上"预览画了、PPTX 丢了"的字段（`strike`、`lineBeginArrowType`、`bgRadius`、
+`wrap:false`、线条缺省色）已全部打通，`tests/parity.mjs` 会断言这一点以防回退。
+
 默认字号换算已校正为 `px × 0.75 = pt`，避免导出后文字整体缩小。旧稿需要保持原字号时，在主题对象中显式设置 `fontScale: 0.6666666667`。文字换行和原生图表仍需实际打开 PPTX 核对。
 
 参考截图默认采用“可编辑元素 + 局部无文字图片”的混合策略；不会把含中文和关键数据的整页生图作为常规方案。见 [参考图分析协议](references/reference-image-analysis.md)。
@@ -125,6 +146,10 @@ npm run test:browser
 ## 目录
 
 - `core/compile-deck.mjs`：所有创作入口到统一 primitive scene 的编译入口。
+- `core/capabilities.mjs`：两端一致性能力注册表（唯一真相源），校验器据此自动生成单向渲染告警。
+- `core/shape-geometry.mjs`：形状库——OOXML preset 与同一套几何构造的双端对齐，含三级可信度。
+- `core/style-map.mjs`：虚线族/箭头/换行/默认线色的共享映射，编译期解析。
+- `references/shape-library.md`：91 个可用形状的清单、参数与可信度分级。
 - `core/shape-path.mjs`：shape-path 的坐标模式校验与自动归一化。
 - `core/dsl-validate.mjs`：严格校验器（结构、边界、文本溢出估算、对比度、图表/表格形态、能力告警）。
 - `core/creative-expand.mjs`：样式类、分组、重复器与锚点展开。
@@ -138,6 +163,8 @@ npm run test:browser
 - `core/presentation.mjs`：Node/浏览器共用 PPTX 构建与转换报告。
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏。
 - `tools/build_all.mjs`：推荐的一键管线。
+- `tests/shapes.mjs`：91 个形状的几何自检与形状文档防漂移。
+- `tests/parity.mjs`：选项映射 + 能力注册表 + 真实 OOXML 断言（preset/adj/srcRect/strike/wrap/对象名/虚线/箭头）。
 - `tools/check_preview.mjs`：真实浏览器渲染诊断与逐页截图。
 - `tests/fixtures/`：独立的版式、图表和 HTML 工程测试，不依赖公开示例的命名或页数。
 - `examples/`：原始研究报告、23 页创意案例及其交付物。
