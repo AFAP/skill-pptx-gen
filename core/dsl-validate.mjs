@@ -15,6 +15,7 @@ import { LAYOUT_TYPES, normalizeLayoutName } from './layouts.mjs';
 import { isShapeElement, isSupportedShape, shapeInfo, resolveShape } from './shape-geometry.mjs';
 import { capabilityIssues } from './capabilities.mjs';
 import { resolveArrowHead, ARROW_HEADS } from './style-map.mjs';
+import { CHART_OPTIONS, unknownChartOptionKeys, isSupportedFormatCode } from './chart-options.mjs';
 
 /** 形状库元素类型（几何来自 core/shape-geometry.mjs，与 PPTX preset 双端对齐） */
 export const SHAPE_ELEMENT_TYPES = [
@@ -220,6 +221,33 @@ export function validateDeck(deck, opts = {}) {
         if (el.adjust != null) {
           const okAdjust = numericOrBinding(el.adjust) || (Array.isArray(el.adjust) && el.adjust.length && el.adjust.every(v => numericOrBinding(v)));
           if (!okAdjust) errors.push(`${at}: adjust 必须是数字或数字数组（支持直接字段绑定）`);
+        }
+      }
+      // 图表选项：未登记键直接报错，而不是传下去被 PowerPoint 忽略、
+      // 或让预览悄悄不画。白名单见 core/chart-options.mjs。
+      if (el.elType === 'chart') {
+        const unknown = unknownChartOptionKeys(el);
+        if (unknown.length) {
+          errors.push(`${at}: 不支持的图表选项 ${unknown.join(', ')}；可用键名与 PptxGenJS IChartOpts 同名，清单见 references/dsl-schema.md`);
+        }
+        for (const [key, spec] of Object.entries(CHART_OPTIONS)) {
+          const value = el[key];
+          if (value == null) continue;
+          if (spec.type === 'enum' && !spec.values.includes(value)) {
+            errors.push(`${at}: ${key} "${value}" 无法识别；可选 ${spec.values.join(' / ')}`);
+          } else if (spec.type === 'num' && !numericOrBinding(value)) {
+            errors.push(`${at}: ${key} 必须是数字或直接字段绑定`);
+          } else if (spec.type === 'bool' && typeof value !== 'boolean') {
+            errors.push(`${at}: ${key} 必须是布尔值`);
+          } else if (spec.type === 'gridLine') {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) errors.push(`${at}: ${key} 必须是 {style,color,size} 对象`);
+            else if (value.style != null && !['solid', 'dash', 'dot', 'none'].includes(value.style)) errors.push(`${at}: ${key}.style "${value.style}" 无法识别；可选 solid / dash / dot / none`);
+          }
+        }
+        for (const key of ['dataLabelFormatCode', 'valAxisLabelFormatCode']) {
+          if (el[key] != null && !isSupportedFormatCode(el[key])) {
+            warnings.push(`${at}: ${key} "${el[key]}" 不在支持列表内，预览与 PPTX 的数字格式可能不一致`);
+          }
         }
       }
       // 图片精确裁切：结构阶段校验 0–1 比例，源错误时也能一次性报全

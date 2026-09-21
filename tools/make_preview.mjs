@@ -122,6 +122,9 @@ const html = `<!DOCTYPE html>
 <script>
 const { resolveTheme, chartModel } = __pptModules['core/dsl-to-pptx.mjs'];
 const { pointsToSvgPath } = __pptModules['core/connectors.mjs'];
+// 预览核心（独立 <script>）通过全局词法作用域读取这些名字：
+// 图表选项归一化与数字格式化只有一份实现（core/chart-options.mjs），预览不另写一份。
+const { formatNumber, normalizeChartOptions } = __pptModules['core/chart-options.mjs'];
 const { editDeckText } = __pptModules['core/source-edit.mjs'];
 const { presentationFromScene } = __pptModules['core/presentation.mjs'];
 const { sanitizePptxData } = __pptModules['core/pptx-sanitize.mjs'];

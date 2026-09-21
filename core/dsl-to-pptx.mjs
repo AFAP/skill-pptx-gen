@@ -11,6 +11,7 @@
 
 import { buildShape, isShapeElement, resolveShape } from './shape-geometry.mjs';
 import { resolveDash, resolveArrowHead, resolveWrap, DEFAULT_LINE_COLOR, LINE_ELEMENT_TYPES } from './style-map.mjs';
+import { normalizeChartOptions } from './chart-options.mjs';
 
 export const PPT_WIDTH = 1280;
 export const PPT_HEIGHT = 720;
@@ -342,7 +343,28 @@ export function chartModel(elop) {
   const values = series.flatMap(s => s.values);
   if (['pie', 'doughnut', 'radar'].includes(type) && values.some(v => v < 0)) throw new Error(`${type} 不支持负数，请选择柱状图或折线图`);
   if (['pie', 'doughnut'].includes(type) && !values.some(v => v > 0)) throw new Error(`${type} 合计必须大于 0`);
-  return { type, series, labels, nativeData: series.map(s => ({ name: s.name, labels, values: s.values })), yDomain: domain(values) };
+
+  // 堆叠柱的数值域必须按"每类累计"计算：单系列最大值 ≠ 堆叠后的高度。
+  // 若沿用单系列最大值，堆叠总高会顶出坐标轴上限——预览会画到绘图区之外，PPTX 的轴范围也会不对。
+  // 两个渲染器共用本函数，所以在这里统一修正。
+  const grouping = (elop._chart && elop._chart.barGrouping) || elop.barGrouping || 'clustered';
+  const stacked = type === 'bar' && (grouping === 'stacked' || grouping === 'percentStacked');
+  const percentStacked = stacked && grouping === 'percentStacked';
+  const nativeData = series.map(s => ({ name: s.name, labels, values: s.values }));
+  if (percentStacked) {
+    // 百分比堆叠的坐标轴按定义固定为 0–100，不加 8% 余量，两端因此一致
+    return { type, series, labels, nativeData, stacked, percentStacked, grouping, yDomain: { min: 0, max: 100 } };
+  }
+  let domainValues = values;
+  if (stacked) {
+    const n = series[0].values.length;
+    domainValues = Array.from({ length: n }, (_, i) =>
+      series.reduce((a, s) => a + Math.max(0, Number(s.values[i]) || 0), 0));
+  }
+  return {
+    type, series, labels, nativeData, stacked, percentStacked, grouping,
+    yDomain: domain(domainValues),
+  };
 }
 
 function combinedTransparency(color, opacity = 1) {
@@ -692,46 +714,110 @@ export function applyElement(pptx, slide, elop, theme) {
     if (!typeMap[typeKey]) throw new Error(`未知 chartType: ${typeKey}`);
     const chartType = pptx.ChartType[typeMap[typeKey]];
     const opt = baseOptions(elop);
+    // 选项在编译期已归一化；未编译的 deck 也走同一个纯函数，两端不会漂移
+    const c = elop._chart || normalizeChartOptions(elop);
     if (Array.isArray(elop.chartColors) && elop.chartColors.length) {
-      opt.chartColors = elop.chartColors.map(c => parseColor(c)?.color).filter(Boolean);
+      opt.chartColors = elop.chartColors.map(v => parseColor(v)?.color).filter(Boolean);
     } else {
       opt.chartColors = theme.palette.slice(0, 6);
     }
-    opt.showLegend = elop.showLegend === true; // 两端统一：缺省隐藏
-    if (elop.showTitle && (elop.chartTitle || elop.title)) { opt.showTitle = true; opt.title = elop.chartTitle || elop.title; } // pptxgenjs 的标题字段是 title
-    opt.showValue = elop.showValue ?? false;
     const model = chartModel(elop);
     const isPie = ['pie', 'doughnut'].includes(typeKey);
-    const titleH = opt.showTitle ? 22 : 0;
-    const legendH = opt.showLegend ? 26 : 0;
-    const labelH = !isPie && model.labels.length ? 18 : 0;
-    opt.layout = { x: 10 / elop.width, y: (titleH + legendH + 6) / elop.height,
-      w: (elop.width - 20) / elop.width, h: (elop.height - titleH - legendH - 6 - labelH - 8) / elop.height };
-    opt.dataLabelFormatCode = 'General';
-    opt.dataLabelFontFace = theme.fontFamily;
-    opt.dataLabelFontSize = 6.75;
-    opt.dataLabelColor = theme.textSecondary;
-    opt.dataLabelPosition = isPie ? 'ctr' : typeKey === 'bar' ? 'outEnd' : 't';
-    opt.catAxisLabelFontSize = 7.5;
-    opt.catAxisLabelColor = theme.textSecondary;
-    opt.catAxisLabelPos = 'low';
-    opt.catAxisLineColor = 'CBD5E1';
-    opt.catAxisLineSize = 0.75;
-    opt.catAxisMajorTickMark = opt.catAxisMinorTickMark = 'none';
-    opt.valAxisHidden = true;
-    opt.valGridLine = opt.catGridLine = { style: 'none' };
-    opt.legendFontSize = 8.25;
-    opt.legendColor = theme.textSecondary;
-    opt.legendPos = 't';
+    const color = (v, fallback) => (v ? parseColor(v)?.color : null) || fallback;
+
+    // 标题
+    const hasTitle = elop.showTitle === true && Boolean(elop.chartTitle || elop.title);
+    opt.showTitle = hasTitle;
+    if (hasTitle) opt.title = String(elop.chartTitle || elop.title);
     opt.titleFontFace = theme.fontFamily;
-    opt.titleFontSize = 10.5;
-    opt.lineSize = 1.5;
-    opt.lineDataSymbolSize = 5; // OOXML marker size is an integer, even when other sizes are points.
-    opt.holeSize = 55;
-    opt.valAxisMinVal = model.yDomain.min;
-    opt.valAxisMaxVal = model.yDomain.max;
-    opt.lineSmooth = false;
-    opt.showMarker = true;
+    opt.titleFontSize = c.titleFontSize;
+    opt.titleColor = color(c.titleColor, theme.text);
+    opt.titleAlign = c.titleAlign;
+    opt.titleBold = c.titleBold;
+
+    // 图例
+    opt.showLegend = elop.showLegend === true; // 两端统一：缺省隐藏
+    opt.legendPos = c.legendPos;
+    opt.legendFontSize = c.legendFontSize;
+    opt.legendColor = color(c.legendColor, theme.textSecondary);
+    opt.legendFontFace = theme.fontFamily;
+
+    // 数值轴
+    opt.valAxisHidden = c.valAxisHidden;
+    opt.valAxisMinVal = c.valAxisMinVal != null ? c.valAxisMinVal : model.yDomain.min;
+    opt.valAxisMaxVal = c.valAxisMaxVal != null ? c.valAxisMaxVal : model.yDomain.max;
+    if (c.valAxisMajorUnit != null) opt.valAxisMajorUnit = c.valAxisMajorUnit;
+    opt.valAxisLabelFontSize = c.valAxisLabelFontSize;
+    opt.valAxisLabelColor = color(c.valAxisLabelColor, theme.textSecondary);
+    opt.valAxisLabelFormatCode = c.valAxisLabelFormatCode;
+    opt.valAxisLineShow = c.valAxisLineShow;
+    opt.valAxisLineColor = color(c.valAxisLineColor, theme.border);
+    opt.valAxisLineSize = c.valAxisLineSize;
+    opt.valAxisLabelFontFace = theme.fontFamily;
+    if (c.showValAxisTitle && c.valAxisTitle) {
+      opt.showValAxisTitle = true;
+      opt.valAxisTitle = c.valAxisTitle;
+      opt.valAxisTitleFontSize = c.valAxisTitleFontSize;
+      opt.valAxisTitleColor = theme.textSecondary;
+      opt.valAxisTitleFontFace = theme.fontFamily;
+    }
+
+    // 分类轴
+    opt.catAxisHidden = c.catAxisHidden;
+    opt.catAxisLabelRotate = c.catAxisLabelRotate;
+    opt.catAxisLabelFontSize = c.catAxisLabelFontSize;
+    opt.catAxisLabelColor = color(c.catAxisLabelColor, theme.textSecondary);
+    opt.catAxisLabelPos = 'low';
+    opt.catAxisLineShow = c.catAxisLineShow;
+    opt.catAxisLineColor = color(c.catAxisLineColor, 'CBD5E1');
+    opt.catAxisLineSize = c.catAxisLineSize;
+    opt.catAxisMajorTickMark = opt.catAxisMinorTickMark = 'none';
+    opt.catAxisLabelFontFace = theme.fontFamily;
+    if (c.showCatAxisTitle && c.catAxisTitle) {
+      opt.showCatAxisTitle = true;
+      opt.catAxisTitle = c.catAxisTitle;
+      opt.catAxisTitleFontSize = c.catAxisTitleFontSize;
+      opt.catAxisTitleColor = theme.textSecondary;
+      opt.catAxisTitleFontFace = theme.fontFamily;
+    }
+
+    // 网格线（style 为 none 时 pptxgenjs 不写 <c:majorGridlines>）
+    opt.valGridLine = { style: c.valGridLine.style, color: color(c.valGridLine.color, theme.border), size: c.valGridLine.size };
+    opt.catGridLine = { style: c.catGridLine.style, color: color(c.catGridLine.color, theme.border), size: c.catGridLine.size };
+
+    // 数据标签
+    opt.showValue = elop.showValue ?? false;
+    opt.showSerName = c.showSerName;
+    opt.showCatName = c.showCatName;
+    opt.showPercent = c.showPercent;
+    opt.dataLabelFormatCode = c.dataLabelFormatCode;
+    opt.dataLabelFontFace = theme.fontFamily;
+    opt.dataLabelFontSize = c.dataLabelFontSize;
+    opt.dataLabelColor = color(c.dataLabelColor, theme.textSecondary);
+    opt.dataLabelFontBold = c.dataLabelFontBold;
+    opt.dataLabelPosition = c.dataLabelPosition || (isPie ? 'ctr' : typeKey === 'bar' ? 'outEnd' : 't');
+
+    // 布局：为标题/图例/轴标签预留空间
+    const titleH = hasTitle ? 22 : 0;
+    const legendEdge = elop.showLegend === true ? c.legendPos : null;
+    const legendT = legendEdge === 't' || legendEdge === 'tr' ? 26 : 0;
+    const legendB = legendEdge === 'b' ? 22 : 0;
+    const legendSide = legendEdge === 'l' || legendEdge === 'r' ? 46 : 0;
+    const labelH = !isPie && !c.catAxisHidden && model.labels.length ? 18 : 0;
+    opt.layout = {
+      x: (10 + legendSide) / elop.width,
+      y: (titleH + legendT + 6) / elop.height,
+      w: (elop.width - 20 - legendSide) / elop.width,
+      h: (elop.height - titleH - legendT - legendB - 6 - labelH - 8) / elop.height,
+    };
+
+    opt.lineSize = c.lineSize;
+    opt.lineSmooth = c.lineSmooth;
+    opt.lineDataSymbol = c.lineDataSymbol;
+    opt.lineDataSymbolSize = c.lineDataSymbolSize; // OOXML marker size is an integer, even when other sizes are points.
+    opt.holeSize = c.holeSize;
+    opt.firstSliceAng = c.firstSliceAng;
+    opt.showMarker = c.lineDataSymbol !== 'none';
     opt.chartColorsOpacity = (elop.opacity ?? 1) * 100;
     if (typeKey === 'area') opt.chartColorsOpacity *= 0.2;
     if (typeKey === 'scatter') {
@@ -739,8 +825,13 @@ export function applyElement(pptx, slide, elop, theme) {
       opt.catAxisMaxVal = model.xDomain.max;
       opt.lineSize = 0;
     }
-    if (typeKey === 'bar') { opt.barDir = 'col'; opt.barGapWidthPct = 150; opt.catAxisLabelPos = 'low'; }
-    opt.catAxisLabelFontFace = opt.valAxisLabelFontFace = opt.legendFontFace = theme.fontFamily;
+    if (typeKey === 'bar') {
+      opt.barDir = c.barDir;
+      opt.barGrouping = c.barGrouping;
+      opt.barGapWidthPct = c.barGapWidthPct;
+      // 横向条（barDir: 'bar'）的分类轴在左侧，标签位置随之改变
+      opt.catAxisLabelPos = c.barDir === 'bar' ? 'nextTo' : 'low';
+    }
     slide.addChart(chartType, model.nativeData, opt);
   } else if (t === 'table') {
     if (!Array.isArray(elop.rows) || !elop.rows.length) throw new Error('table 缺少 rows');

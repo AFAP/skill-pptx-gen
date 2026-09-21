@@ -12,6 +12,7 @@ import { compileDeck } from '../core/compile-deck.mjs';
 import { validateDeck } from '../core/dsl-validate.mjs';
 import { editDeckText } from '../core/source-edit.mjs';
 import { applyElement, chartModel, resolveTheme } from '../core/dsl-to-pptx.mjs';
+import { normalizeChartOptions, formatNumber } from '../core/chart-options.mjs';
 import { buildPresentation, prefetchImages } from '../core/ppt-core.mjs';
 import { sanitizePptxData } from '../core/pptx-sanitize.mjs';
 import { browserBundle } from '../tools/lib/browser-bundle.mjs';
@@ -88,7 +89,7 @@ assert.equal(options.transparency, 60);
 const drawn = [];
 class Node { constructor(attrs = {}) { this.attrs = attrs; this.children = []; drawn.push(this); } add(...nodes) { this.children.push(...nodes); } batchDraw() {} }
 const Konva = Object.fromEntries(['Rect', 'Text', 'Circle', 'Line', 'Wedge', 'Ellipse', 'Group'].map(name => [name, class extends Node { constructor(attrs) { super(attrs); this.kind = name; } }]));
-const ctx = vm.createContext({ Konva, chartModel, console });
+const ctx = vm.createContext({ Konva, chartModel, normalizeChartOptions, formatNumber, console });
 vm.runInContext(await readFile(new URL('../core/ppt-preview-core.js', import.meta.url), 'utf8'), ctx);
 for (const type of ['bar', 'line', 'area', 'pie', 'doughnut', 'radar', 'scatter']) {
   drawn.length = 0;

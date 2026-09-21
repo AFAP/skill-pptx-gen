@@ -18,6 +18,7 @@
 | 图片 | 浏览器图片 | PPT 图片 | 作为媒体对象报告；`sizing: cover/contain/crop` 两端一致 |
 | SVG | 浏览器 SVG | Node 端转 PNG | 报告为 rasterized |
 | 图表 | Konva 近似预览 | PowerPoint 原生图表 | 数据和显式选项一致，外观允许小差异 |
+| **图表选项** | 同一份归一化选项 | 原生 IChartOpts | 键名与 PptxGenJS 同名；数值轴范围/网格线/图例位置/轴标题/数据标签组成/柱形方向与堆叠/环形开孔等 **49 项两端一致**（数字格式、标签位置、平滑曲线、标记造型为等价近似） |
 | 表格 | 固定网格预览 | PowerPoint 原生表格 | 显式 rowH，仍需检查换行 |
 | 渐变 | 真渐变 | 首色近似 | 告警；需要时预合成图片/SVG |
 | text-path | 可预览 | 不支持 | 严格模式报错 |
@@ -91,7 +92,8 @@
 - `npm test`：`smoke` / `shapes` / `semantic-layouts` / `integration` / `parity` / `regressions`，均不依赖浏览器。
   - `shapes`：91 个形状的几何自检（坐标必须落在包围盒内、曲线上点严格校验、`exact` 分类分布）与**文档防漂移**。
   - `parity`：选项映射 + 能力注册表 + **真实生成的 OOXML 断言**（preset 名、adj 调整值、`srcRect` 裁切百分比、
-    `strike`、`wrap`、对象名、虚线、箭头头部）——"原生文件正确"的唯一证据。
+    `strike`、`wrap`、对象名、虚线、箭头头部，以及图表 `c:max`/`c:majorGridlines`/`c:barDir`/`c:holeSize`/`c:smooth`）——"原生文件正确"的唯一证据。
+  - 每个受支持的图表选项都必须在能力注册表登记，`parity` 会逐个断言，防止新增选项时漏掉一致性声明。
 - `npm run test:browser`：额外执行真实浏览器改字导出与 CSS 提取。
 
 ## 字体

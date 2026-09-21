@@ -316,6 +316,42 @@ Konva 预览与 PPTX 导出自动一致：
 - `showLegend` 默认 `false`；只有显式写 `true` 才在预览和 PPTX 显示图例。
 - `showValue:true` 可在柱/线/面积图上显示数值标签；预览同步绘制。
 
+#### 图表选项
+
+键名**与 PptxGenJS 的 `IChartOpts` 完全相同**，因此可以直接对照上游 API 文档书写；
+白名单与默认值在 `core/chart-options.mjs`，未登记的键会被校验器判为**错误**
+（而不是传下去被 PowerPoint 忽略、或让预览悄悄不画）。
+
+```json
+{ "elType": "chart", "chartType": "bar", "x": 88, "y": 216, "width": 600, "height": 350,
+  "labels": ["类别 1", "类别 2", "类别 3", "类别 4"],
+  "data": [{ "name": "系列 A", "values": [4.5, 2.4, 4.3, 2.5] },
+           { "name": "系列 B", "values": [2.6, 2.6, 1.6, 2.1] }],
+  "chartColors": ["#C8161D", "#E8552F"], "showLegend": false,
+  "valAxisHidden": false, "valAxisMinVal": 0, "valAxisMaxVal": 6, "valAxisMajorUnit": 1,
+  "valGridLine": { "style": "solid", "color": "#E6DED2", "size": 1 } }
+```
+
+| 分组 | 可选键 |
+| --- | --- |
+| 数值轴 | `valAxisHidden`（默认 `true`）、`valAxisMinVal`、`valAxisMaxVal`、`valAxisMajorUnit`、`valAxisLabelFontSize`、`valAxisLabelColor`、`valAxisLabelFormatCode`、`valAxisTitle`、`showValAxisTitle`、`valAxisTitleFontSize` |
+| 分类轴 | `catAxisHidden`、`catAxisLabelRotate`、`catAxisLabelFontSize`、`catAxisLabelColor`、`catAxisTitle`、`showCatAxisTitle`、`catAxisTitleFontSize` |
+| 网格线与轴线 | `valGridLine` / `catGridLine`（`{style: solid\|dash\|dot\|none, color, size}`，默认 `none`）、`valAxisLineShow`/`Color`/`Size`、`catAxisLineShow`/`Color`/`Size` |
+| 图例 | `legendPos`（`t`/`b`/`l`/`r`/`tr`）、`legendFontSize`、`legendColor` |
+| 图表标题 | `titleFontSize`、`titleColor`、`titleAlign`、`titleBold`（显示与文案仍用 `showTitle` / `chartTitle`） |
+| 数据标签 | `showValue`、`showSerName`、`showCatName`、`showPercent`、`dataLabelPosition`（`ctr`/`inEnd`/`outEnd`/`t`/`b`/`l`/`r`/`bestFit`）、`dataLabelFontSize`、`dataLabelColor`、`dataLabelFontBold`、`dataLabelFormatCode` |
+| 柱/条 | `barDir`（`col`/`bar`，`bar` 为横向条）、`barGrouping`（`clustered`/`stacked`/`percentStacked`）、`barGapWidthPct` |
+| 折线 | `lineSize`、`lineSmooth`、`lineDataSymbol`（`circle`/`diamond`/`dot`/`square`/`triangle`/`dash`/`none`）、`lineDataSymbolSize` |
+| 饼/环 | `holeSize`（1–90）、`firstSliceAng`（0–360，自 12 点起顺时针） |
+
+- 未指定 `valAxisMinVal`/`valAxisMaxVal` 时沿用数据域（含 8% 余量），与既有行为一致。
+- `valAxisHidden` 默认 `true`：不显示数值轴与刻度标签。要"带刻度的常规图表"需显式设 `false`。
+- 数字格式代码只支持常见写法：`General`、定点（`0`/`0.0`/`0.00`/`0.000`）、百分比（`0%`/`0.0%`/`0.00%`/`#%`）、千分位（`#,##0`）。
+  百分号沿用 Excel 语义（数值 ×100），因此 `0.37` + `0%` → `37%`。其他代码会告警。
+- `barGrouping: percentStacked` 时数值轴按 0–100 归一，与原生图表一致。
+- 数据标签位置、`lineSmooth` 的曲线控制点、`lineDataSymbol` 的符号造型属于**等价近似**（校验器会告警）；
+  原生图表的标签避让由 PowerPoint 计算，预览不复制其布局算法。
+
 ### table — 表格（导出为真实可编辑表格）
 ```json
 {"elType":"table","x":120,"y":540,"width":1040,"height":160,"fontSize":14,

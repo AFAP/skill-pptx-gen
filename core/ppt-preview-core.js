@@ -491,72 +491,215 @@
   }
 
   /* ---------- chart：原生 Konva 绘制（预览用；导出 PPTX 为真实可编辑图表） ---------- */
+  /**
+   * 布局：标题条 / 图例 / 数值轴 / 分类轴 / 绘图区。
+   * 选项在编译期由 core/chart-options.mjs 归一化后写入 `_chart`，这里只按同一份结论绘制，
+   * 不做默认值判断——保证预览与 PPTX 用的是同一组选项值。
+   */
   function renderChart(elop, group, layer, opts = {}) {
+    // 优先用编译期写好的 _chart；未编译的 deck 走同一个归一化函数，不复制默认值
+    const c = elop._chart
+      || (typeof normalizeChartOptions === 'function' ? normalizeChartOptions(elop) : null);
+    if (!c) throw new Error('图表缺少编译期选项（请用当前 make_preview/build_all 重新编译 deck）');
     const { x = 0, y = 0, width: w = 400, height: h = 300 } = elop;
     const model = chartModel(elop);
     const { series, labels } = model;
     const defaultColors = (opts.palette && opts.palette.length ? opts.palette : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31']);
     const colors = (elop.chartColors && elop.chartColors.length ? elop.chartColors : defaultColors)
-      .map(c => typeof c === 'string' && !c.startsWith('#') && !c.startsWith('rgb') ? '#' + c : c);
+      .map(v => typeof v === 'string' && !v.startsWith('#') && !v.startsWith('rgb') ? '#' + v : v);
     const type = elop.chartType || 'bar';
     const isPieLike = type === 'pie' || type === 'doughnut';
+    const horizontal = type === 'bar' && c.barDir === 'bar';
+    // 堆叠状态由 chartModel 统一判定（数值域也依赖它），预览不再自己重算
+    const stacked = model.stacked === true;
+    const percentStacked = model.percentStacked === true;
     const secondary = opts.textSecondary || '#667085';
     const gridColor = opts.gridColor || '#CBD5E1';
+    const borderColor = opts.border || '#E2E8F0';
+    const bgColor = opts.slideBackground || '#FFFFFF';
+    const fmt = (v, code) => (typeof formatNumber === 'function' ? formatNumber(v, code) : String(v));
 
-    // 标题（导出端 showTitle/chartTitle 也会输出）
-    const chartTitle = elop.showTitle && (elop.chartTitle || elop.title) ? String(elop.chartTitle || elop.title) : '';
-    const titleH = chartTitle ? 22 : 0;
+    // 标题：位置/字号/颜色/对齐由选项决定
+    const chartTitle = elop.showTitle === true && (elop.chartTitle || elop.title) ? String(elop.chartTitle || elop.title) : '';
+    const titleH = chartTitle ? c.titleFontSize * 1.9 : 0;
     if (chartTitle) {
       group.add(new Konva.Text({
-        x, y: y + 2, width: w, height: titleH,
-        text: chartTitle, fontSize: 14, fontStyle: 'bold',
-        fill: opts.text || '#111111', align: 'center', verticalAlign: 'middle',
+        x, y, width: w, height: titleH,
+        text: chartTitle, fontSize: c.titleFontSize * 1.3,
+        fontStyle: c.titleBold ? 'bold' : 'normal',
+        fill: c.titleColor || opts.text || '#111111', align: c.titleAlign, verticalAlign: 'middle',
       }));
     }
 
-    // 图例：多系列或饼图时显示（预览默认给出以便核对文案）
+    // 图例：位置（t/b/l/r/tr）、字号、颜色
     const legendNames = isPieLike ? labels : series.map(s => s.name).filter(Boolean);
-    const wantLegend = elop.showLegend === true; // 与 PPTX 导出统一：缺省隐藏
-    const legendH = wantLegend && legendNames.length ? 26 : 0;
-    if (legendH) {
-      let lx = x + 8;
+    const wantLegend = elop.showLegend === true && legendNames.length > 0;
+    const legendPos = c.legendPos;
+    const legendFS = c.legendFontSize * 1.32;
+    const legendColor = c.legendColor || secondary;
+    const legendSide = legendPos === 'l' || legendPos === 'r';
+    const legendW = legendNames.reduce((a, n) => a + 14 + estTextWidth(String(n), legendFS) + 16, 12);
+    const legendH = wantLegend && !legendSide ? legendFS + 10 : 0;
+    const legendSideW = wantLegend && legendSide ? 92 : 0;
+    const legendSideH = wantLegend && legendSide ? legendNames.length * (legendFS + 6) + 8 : 0;
+    if (wantLegend) {
+      let lx, ly;
+      if (legendPos === 'b') { lx = x + Math.max(8, (w - legendW) / 2); ly = y + h - legendH + 3; }
+      else if (legendPos === 'tr') { lx = x + w - Math.min(legendW, w - 16) - 8; ly = y + titleH + 4; }
+      else if (legendSide) {
+        lx = legendPos === 'l' ? x + 6 : x + w - legendSideW + 4;
+        ly = y + titleH + Math.max(0, (h - titleH - legendSideH) / 2);
+      } else { lx = x + Math.max(8, (w - legendW) / 2); ly = y + titleH + 4; }
       legendNames.forEach((name, i) => {
-        const c = colors[i % colors.length];
-        group.add(new Konva.Rect({ x: lx, y: y + titleH + 8, width: 10, height: 10, fill: c, cornerRadius: 2 }));
-        const tw = estTextWidth(name, 11);
-        group.add(new Konva.Text({ x: lx + 14, y: y + titleH + 6, width: tw + 8, height: 16, text: String(name), fontSize: 11, fill: secondary, verticalAlign: 'middle' }));
-        lx += 14 + tw + 20;
+        const col = colors[i % colors.length];
+        group.add(new Konva.Rect({ x: lx, y: ly + 3, width: 10, height: 10, fill: col, cornerRadius: 2 }));
+        const tw = estTextWidth(String(name), legendFS);
+        group.add(new Konva.Text({
+          x: lx + 14, y: ly, width: legendSide ? 72 : tw + 8, height: legendFS + 6,
+          text: String(name), fontSize: legendFS, fill: legendColor, verticalAlign: 'middle',
+        }));
+        if (legendSide) ly += legendFS + 6; else lx += 14 + tw + 16;
       });
     }
 
-    const labelH = isPieLike ? 0 : (labels.length ? 18 : 0); // 底部类目标签区
-    const padL = 10, padT = titleH + legendH + 6, padB = labelH + 8;
-    const cw = w - padL * 2, ch = h - padT - padB;
-    const plotY = y + padT;
-    const plotValue = v => plotY + ch * (model.yDomain.max - v) / (model.yDomain.max - model.yDomain.min);
-    const zeroY = plotValue(0);
+    // 数值轴刻度：min/max/majorUnit 由选项决定，缺省沿用数据域
+    const vMin = c.valAxisMinVal != null ? c.valAxisMinVal : model.yDomain.min;
+    const vMax = c.valAxisMaxVal != null ? c.valAxisMaxVal : model.yDomain.max;
+    const scaleMin = vMin;
+    const scaleMax = vMax;
+    const vSpan = (scaleMax - scaleMin) || 1;
+    const vStep = c.valAxisMajorUnit != null && c.valAxisMajorUnit > 0 ? c.valAxisMajorUnit : vSpan / 5;
+    const valTicks = [];
+    for (let v = scaleMin; v <= scaleMax + vStep * 1e-6 && valTicks.length < 80; v += vStep) valTicks.push(Number(v.toFixed(6)));
+    const showValAxis = c.valAxisHidden !== true;
+    const valLabelFS = c.valAxisLabelFontSize * 1.32;
+    const valLabels = valTicks.map(v => fmt(v, c.valAxisLabelFormatCode));
+    const axisW = showValAxis ? Math.max(...valLabels.map(t => estTextWidth(t, valLabelFS)), 8) + 4 : 4;
 
-    const allVals = series.flatMap(s => s.values || []).flat().map(Number).filter(v => !isNaN(v));
-    const maxV = Math.max(1e-9, ...allVals.map(v => Math.abs(v)));
+    // 分类轴尺寸
+    const catLabelFS = c.catAxisLabelFontSize * 1.32;
+    const showCatAxis = c.catAxisHidden !== true && labels.length > 0;
+    const rot = c.catAxisLabelRotate;
+    const catLongest = labels.reduce((a, l) => Math.max(a, estTextWidth(String(l), catLabelFS)), 0);
+    const catBandW = showCatAxis && horizontal ? catLongest + 8 : 0;
+    const catTextH = !showCatAxis ? 0 : horizontal ? catLabelFS + 6
+      : (rot ? catLongest * Math.sin(Math.abs(rot) * Math.PI / 180) + catLabelFS : catLabelFS + 6);
+    const catTitleH = c.showCatAxisTitle && c.catAxisTitle ? c.catAxisTitleFontSize * 1.8 : 0;
+    const valTitleW = c.showValAxisTitle && c.valAxisTitle && !horizontal ? c.valAxisTitleFontSize * 1.8 : 0;
+
+    const labelH = isPieLike ? 0 : catTextH + catTitleH;
+    const padL = (horizontal ? catBandW : axisW + valTitleW) + 10;
+    const padT = titleH + (wantLegend && !legendSide && legendPos !== 'b' ? legendH : 0) + 6;
+    const padR = (wantLegend && legendPos === 'r' ? legendSideW : 0) + 10;
+    const padB = (wantLegend && legendPos === 'b' ? legendH : 0) + labelH + 8;
+    const cw = Math.max(10, w - padL - padR);
+    const ch = Math.max(10, h - padT - padB);
+    const plotX = x + padL;
+    const plotY = y + padT;
+    // 数值 → 坐标：水平条（barDir:'bar'）数值轴在下方、由左向右
+    const valueToPos = v => horizontal
+      ? plotX + cw * (v - scaleMin) / vSpan
+      : plotY + ch * (scaleMax - v) / vSpan;
+    const zeroPos = valueToPos(0);
+    const maxV = Math.max(1e-9, ...series.flatMap(s => s.values || []).flat().map(Number).filter(v => !isNaN(v)).map(Math.abs));
+
+    /** 数据标签文本：showCatName / showSerName / showValue / showPercent 组合 */
+    const labelText = (si, i, v, total) => {
+      const parts = [];
+      if (c.showCatName && labels[i] != null) parts.push(String(labels[i]));
+      if (c.showSerName && series[si] && series[si].name) parts.push(String(series[si].name));
+      if (elop.showValue === true) parts.push(fmt(v, c.dataLabelFormatCode));
+      if (c.showPercent && total) parts.push(fmt(v / total * 100, '0.0') + '%');
+      return parts.join(' ');
+    };
+    const dLabelFS = c.dataLabelFontSize * 1.4;
+
+    /* --- 网格线（style 为 none 时不画，与 PPTX 省略 <c:majorGridlines> 一致） --- */
+    const gridStyle = g => ({ stroke: g.color || borderColor, strokeWidth: g.size || 1, dash: g.style === 'dash' ? [6, 4] : g.style === 'dot' ? [2, 3] : undefined });
+    if (!isPieLike && c.valGridLine.style !== 'none') {
+      const gs = gridStyle(c.valGridLine);
+      valTicks.forEach(v => {
+        const p = valueToPos(v);
+        group.add(horizontal
+          ? new Konva.Line({ points: [p, plotY, p, plotY + ch], ...gs })
+          : new Konva.Line({ points: [plotX, p, plotX + cw, p], ...gs }));
+      });
+    }
+    if (!isPieLike && c.catGridLine.style !== 'none' && labels.length) {
+      const gs = gridStyle(c.catGridLine);
+      const n = labels.length;
+      for (let i = 0; i <= n; i++) {
+        group.add(horizontal
+          ? new Konva.Line({ points: [plotX, plotY + ch * i / n, plotX + cw, plotY + ch * i / n], ...gs })
+          : new Konva.Line({ points: [plotX + cw * i / n, plotY, plotX + cw * i / n, plotY + ch], ...gs }));
+      }
+    }
+
+    /* --- 数值轴标签与轴线 --- */
+    if (showValAxis && !isPieLike) {
+      const labelRight = plotX - 4;
+      valTicks.forEach((v, ti) => {
+        if (horizontal) {
+          group.add(new Konva.Text({
+            x: valueToPos(v) - axisW, y: plotY + ch + 3, width: axisW * 2, height: valLabelFS + 2,
+            text: valLabels[ti], fontSize: valLabelFS, fill: c.valAxisLabelColor || secondary, align: 'center',
+          }));
+        } else {
+          group.add(new Konva.Text({
+            x: labelRight - axisW, y: valueToPos(v) - valLabelFS / 2 - 1, width: axisW, height: valLabelFS + 2,
+            text: valLabels[ti], fontSize: valLabelFS, fill: c.valAxisLabelColor || secondary, align: 'right', verticalAlign: 'middle',
+          }));
+        }
+      });
+    }
+    if (c.valAxisLineShow && !isPieLike) {
+      group.add(horizontal
+        ? new Konva.Line({ points: [plotX, plotY + ch, plotX + cw, plotY + ch], stroke: c.valAxisLineColor || borderColor, strokeWidth: c.valAxisLineSize || 1 })
+        : new Konva.Line({ points: [plotX, plotY, plotX, plotY + ch], stroke: c.valAxisLineColor || borderColor, strokeWidth: c.valAxisLineSize || 1 }));
+    }
+    // 数值轴标题（竖排，绕中心旋转）
+    if (c.showValAxisTitle && c.valAxisTitle && !horizontal && !isPieLike) {
+      const fs = c.valAxisTitleFontSize * 1.35;
+      const tw = estTextWidth(c.valAxisTitle, fs) + 10;
+      group.add(new Konva.Text({
+        x: x + 6 + (fs + 4) / 2, y: plotY + ch / 2, width: tw, height: fs + 4,
+        text: c.valAxisTitle, fontSize: fs, fill: secondary, align: 'center', verticalAlign: 'middle',
+        rotation: -90, offsetX: tw / 2, offsetY: (fs + 4) / 2,
+      }));
+    }
 
     if (isPieLike) {
       const vals = (series[0]?.values || []).map(v => Number(v) || 0);
       const total = vals.reduce((a, b) => a + b, 0) || 1;
-      const cx = x + w / 2, cy = plotY + ch / 2, r = Math.min(w, ch) / 2 - 4;
-      let angle = -90;
+      const cx = plotX + cw / 2, cy = plotY + ch / 2, r = Math.min(cw, ch) / 2 - 4;
+      const holeRatio = type === 'doughnut' ? c.holeSize / 100 : 0;
+      // 标签半径取环带中点：挖孔越大越靠外，否则会被孔盖住
+      const labelR = r * (0.5 + holeRatio / 2);
+      let angle = -90 + (c.firstSliceAng || 0); // firstSliceAng 自 12 点起顺时针
       vals.forEach((v, i) => {
         const sweep = v / total * 360;
         group.add(new Konva.Wedge({ x: cx, y: cy, radius: r, angle: sweep, rotation: angle, fill: colors[i % colors.length] }));
-        if (elop.showValue) {
+        angle += sweep;
+      });
+      // 先挖孔再画标签：否则孔会盖住落在环带内侧的标签（holeSize 较大时尤其明显）
+      if (type === 'doughnut') {
+        group.add(new Konva.Circle({ x: cx, y: cy, radius: r * holeRatio, fill: bgColor }));
+      }
+      angle = -90 + (c.firstSliceAng || 0);
+      vals.forEach((v, i) => {
+        const sweep = v / total * 360;
+        const text = labelText(0, i, v, total);
+        if (text) {
           const mid = (angle + sweep / 2) * Math.PI / 180;
-          group.add(new Konva.Text({ x: cx + r * 0.78 * Math.cos(mid) - 20, y: cy + r * 0.78 * Math.sin(mid) - 6,
-            width: 40, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
+          group.add(new Konva.Text({
+            x: cx + labelR * Math.cos(mid) - 32, y: cy + labelR * Math.sin(mid) - dLabelFS / 2 - 1,
+            width: 64, height: dLabelFS + 2, text, fontSize: dLabelFS,
+            fontStyle: c.dataLabelFontBold ? 'bold' : 'normal',
+            fill: c.dataLabelColor || secondary, align: 'center',
+          }));
         }
         angle += sweep;
       });
-      if (type === 'doughnut') {
-        group.add(new Konva.Circle({ x: cx, y: cy, radius: r * 0.55, fill: opts.slideBackground || '#FFFFFF' }));
-      }
       return;
     }
 
@@ -600,7 +743,7 @@
         (s.values || []).forEach(pt => {
           const px = Array.isArray(pt) ? pt[0] : 0, py = Array.isArray(pt) ? pt[1] : 0;
           group.add(new Konva.Circle({
-            x: x + padL + (px - model.xDomain.min) / (model.xDomain.max - model.xDomain.min) * cw, y: plotValue(py),
+            x: x + padL + (px - model.xDomain.min) / (model.xDomain.max - model.xDomain.min) * cw, y: valueToPos(py),
             radius: 4, fill: colors[si % colors.length],
           }));
         });
@@ -611,62 +754,146 @@
 
     if (type === 'line' || type === 'area') {
       const n = Math.max(2, labels.length || series[0]?.values?.length || 2);
+      const dpos = c.dataLabelPosition;
       series.forEach((s, si) => {
         const pts = (s.values || []).map((v, i) => [
-          x + padL + cw * (i + 0.5) / (labels.length || n),
-          plotValue(v),
+          plotX + cw * (i + 0.5) / (labels.length || n),
+          valueToPos(v),
         ]);
-        const c = colors[si % colors.length];
+        const col = colors[si % colors.length];
         if (type === 'area') group.add(new Konva.Line({
-          points: [pts[0][0], zeroY, ...pts.flat(), pts.at(-1)[0], zeroY],
-          fill: c, opacity: 0.2, closed: true,
+          points: [pts[0][0], zeroPos, ...pts.flat(), pts.at(-1)[0], zeroPos],
+          fill: col, opacity: 0.2, closed: true,
         }));
         if (type !== 'area') group.add(new Konva.Line({
-          points: pts.flat(), stroke: c, strokeWidth: 2,
+          points: pts.flat(), stroke: col, strokeWidth: c.lineSize,
+          tension: c.lineSmooth ? 0.4 : 0, // lineSmooth → 样条张力
           lineCap: 'round', lineJoin: 'round',
         }));
         pts.forEach((p, i) => {
-          if (type !== 'area') group.add(new Konva.Circle({ x: p[0], y: p[1], radius: 3, fill: c }));
-          if (elop.showValue) {
-            group.add(new Konva.Text({ x: p[0] - 18, y: type === 'area' ? (p[1] + zeroY) / 2 - 6 : p[1] - 16, width: 36, height: 12, text: String(Number(s.values?.[i]) || 0), fontSize: 9, fill: secondary, align: 'center' }));
+          if (type !== 'area') addLineSymbol(group, p[0], p[1], col, c);
+          const text = labelText(si, i, Number(s.values?.[i]) || 0, null);
+          if (text) {
+            const above = dpos !== 'b' && dpos !== 'ctr';
+            group.add(new Konva.Text({
+              x: p[0] - 32, y: above ? p[1] - dLabelFS - 4 : p[1] + 4, width: 64, height: dLabelFS + 2,
+              text, fontSize: dLabelFS, fontStyle: c.dataLabelFontBold ? 'bold' : 'normal',
+              fill: c.dataLabelColor || secondary, align: 'center',
+            }));
           }
         });
       });
     } else {
-      // bar（默认）
+      // bar：支持 barDir（col/bar）与 barGrouping（clustered/stacked/percentStacked）
       const n = labels.length || series[0]?.values?.length || 1;
-      const slot = cw / n;
-      const bw = slot / (series.length + 1.5); // Same 150% category gap as native clustered bars.
+      const raw = series.map(s => (s.values || []).map(v => Number(v) || 0));
+      // 百分比堆叠按"每类绝对值合计"归一（合计只算一次，不在内层重复求）
+      const totals = percentStacked
+        ? Array.from({ length: n }, (_, i) => raw.reduce((a, r) => a + Math.abs(r[i] || 0), 0) || 1)
+        : null;
+      const plot = percentStacked
+        ? raw.map(row => row.map((v, i) => v / totals[i] * 100))
+        : raw;
+      const slot = (horizontal ? ch : cw) / n;
+      const groupCount = stacked ? 1 : series.length;
+      const bw = Math.max(1, slot / (groupCount + c.barGapWidthPct / 100));
+      const acc = new Array(n).fill(0);
+      const dpos = c.dataLabelPosition;
       for (let i = 0; i < n; i++) {
-        series.forEach((s, si) => {
-          const v = Number(s.values?.[i]) || 0;
-          const bh = Math.abs(plotValue(v) - zeroY);
-          const bx = x + padL + slot * i + slot / 2 - (bw * series.length) / 2 + si * bw;
-          const by = Math.min(zeroY, plotValue(v));
-          group.add(new Konva.Rect({
-            x: bx, y: by, width: bw, height: bh,
-            fill: colors[si % colors.length],
-          }));
-          if (elop.showValue) {
-            group.add(new Konva.Text({ x: bx - 10, y: v >= 0 ? plotValue(v) - 14 : plotValue(v) + 2, width: bw + 20, height: 12, text: String(v), fontSize: 9, fill: secondary, align: 'center' }));
+        for (let si = 0; si < series.length; si++) {
+          const v = plot[si][i] || 0;
+          const base = stacked ? acc[i] : 0;
+          const p1 = valueToPos(base);
+          const p2 = valueToPos(stacked ? base + v : v);
+          const lo = Math.min(p1, p2), hi = Math.max(p1, p2);
+          const center = (horizontal ? plotY : plotX) + slot * i + slot / 2;
+          const offset = stacked ? 0 : (si - (series.length - 1) / 2) * bw;
+          const col = colors[si % colors.length];
+          if (horizontal) {
+            group.add(new Konva.Rect({ x: lo, y: center + offset - bw / 2, width: hi - lo, height: bw, fill: col }));
+          } else {
+            group.add(new Konva.Rect({ x: center + offset - bw / 2, y: lo, width: bw, height: hi - lo, fill: col }));
           }
-        });
+          if (stacked) acc[i] = base + v;
+          const text = labelText(si, i, v, percentStacked ? 100 : null);
+          if (!text) continue;
+          const inside = dpos === 'inEnd' || dpos === 'ctr';
+          if (horizontal) {
+            group.add(new Konva.Text({
+              x: inside ? hi - bw - 2 : hi + 3, y: center + offset - dLabelFS / 2 - 1,
+              width: inside ? bw : 80, height: dLabelFS + 2, text, fontSize: dLabelFS,
+              fontStyle: c.dataLabelFontBold ? 'bold' : 'normal',
+              fill: inside ? bgColor : (c.dataLabelColor || secondary),
+              align: inside ? 'right' : 'left', verticalAlign: 'middle',
+            }));
+          } else {
+            group.add(new Konva.Text({
+              x: center + offset - bw / 2 - 12, y: inside ? lo + 3 : lo - dLabelFS - 4,
+              width: bw + 24, height: dLabelFS + 2, text, fontSize: dLabelFS,
+              fontStyle: c.dataLabelFontBold ? 'bold' : 'normal',
+              fill: inside ? bgColor : (c.dataLabelColor || secondary),
+              align: 'center',
+            }));
+          }
+        }
       }
     }
 
-    // 底部类目标签（bar/line/area/scatter 以外的类目轴）
-    if (labelH) {
+    // 分类轴标签（受 catAxisHidden / catAxisLabelRotate / catAxisLabelFontSize 控制）
+    if (showCatAxis) {
       const n = labels.length;
+      const slot = (horizontal ? ch : cw) / n;
       for (let i = 0; i < n; i++) {
-        group.add(new Konva.Text({
-          x: x + padL + (cw * i) / n, y: y + h - labelH, width: cw / n, height: labelH - 4,
-          text: String(labels[i]), fontSize: 10, fill: secondary, align: 'center', verticalAlign: 'top',
-        }));
+        const col = c.catAxisLabelColor || secondary;
+        if (horizontal) {
+          group.add(new Konva.Text({
+            x: plotX - catBandW - 4, y: plotY + slot * i, width: catBandW, height: slot,
+            text: String(labels[i]), fontSize: catLabelFS, fill: col, align: 'right', verticalAlign: 'middle',
+          }));
+        } else if (rot) {
+          const tw = estTextWidth(String(labels[i]), catLabelFS) + 8;
+          group.add(new Konva.Text({
+            x: plotX + slot * (i + 0.5), y: plotY + ch + 4 + (catLabelFS + 4) / 2,
+            width: tw, height: catLabelFS + 4,
+            text: String(labels[i]), fontSize: catLabelFS, fill: col, align: 'center', verticalAlign: 'middle',
+            rotation: rot, offsetX: tw / 2, offsetY: (catLabelFS + 4) / 2,
+          }));
+        } else {
+          group.add(new Konva.Text({
+            x: plotX + slot * i, y: plotY + ch + 3, width: slot, height: catLabelFS + 4,
+            text: String(labels[i]), fontSize: catLabelFS, fill: col, align: 'center', verticalAlign: 'top',
+          }));
+        }
       }
     }
     // 分类轴穿过零值，标签仍保持在底部，与原生负值图表一致。
-    group.add(new Konva.Line({ points: [x + padL, zeroY, x + padL + cw, zeroY], stroke: gridColor, strokeWidth: 1 }));
+    if (c.catAxisLineShow && labels.length) {
+      group.add(horizontal
+        ? new Konva.Line({ points: [zeroPos, plotY, zeroPos, plotY + ch], stroke: c.catAxisLineColor || gridColor, strokeWidth: c.catAxisLineSize || 1 })
+        : new Konva.Line({ points: [plotX, zeroPos, plotX + cw, zeroPos], stroke: c.catAxisLineColor || gridColor, strokeWidth: c.catAxisLineSize || 1 }));
     }
+    // 分类轴标题
+    if (c.showCatAxisTitle && c.catAxisTitle) {
+      group.add(new Konva.Text({
+        x, y: y + h - catTitleH - 2, width: w, height: catTitleH,
+        text: c.catAxisTitle, fontSize: c.catAxisTitleFontSize * 1.35,
+        fill: c.catAxisLabelColor || secondary, align: 'center', verticalAlign: 'middle',
+      }));
+    }
+    }
+
+  /** 折线数据点符号（lineDataSymbol / lineDataSymbolSize） */
+  function addLineSymbol(group, px, py, col, c) {
+    const kind = c.lineDataSymbol;
+    if (kind === 'none') return;
+    // lineDataSymbolSize 单位是**磅**（PptxGenJS 语义）：px = pt / 0.75，半径 = pt / 1.5
+    const r = Math.max(1.2, c.lineDataSymbolSize / 1.5);
+    if (kind === 'square') group.add(new Konva.Rect({ x: px - r, y: py - r, width: r * 2, height: r * 2, fill: col }));
+    else if (kind === 'diamond') group.add(new Konva.RegularPolygon({ x: px, y: py, sides: 4, radius: r * 1.35, fill: col }));
+    else if (kind === 'triangle') group.add(new Konva.RegularPolygon({ x: px, y: py, sides: 3, radius: r * 1.4, fill: col }));
+    else if (kind === 'dot') group.add(new Konva.Circle({ x: px, y: py, radius: Math.max(1.2, r * 0.6), fill: col }));
+    else group.add(new Konva.Circle({ x: px, y: py, radius: r, fill: col })); // circle / dash
+  }
 
     /* ---------- table ---------- */
     function renderTable(elop, group, layer, opts = {}) {

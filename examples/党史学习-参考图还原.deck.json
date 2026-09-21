@@ -238,7 +238,10 @@
             { "name": "系列 A", "values": [4.5, 2.4, 4.3, 2.5] },
             { "name": "系列 B", "values": [2.6, 2.6, 1.6, 2.1] }
           ],
-          "chartColors": ["#C8161D", "#E8552F"], "showLegend": false },
+          "chartColors": ["#C8161D", "#E8552F"], "showLegend": false,
+          "valAxisHidden": false, "valAxisMinVal": 0, "valAxisMaxVal": 6, "valAxisMajorUnit": 1,
+          "valGridLine": { "style": "solid", "color": "#E6DED2", "size": 1 },
+          "catAxisLineColor": "#C9BFB0", "catAxisLabelColor": "#6F6055" },
 
         { "elType": "repeat", "id": "sideNotes", "x": 736, "y": 150, "stepY": 118,
           "items": [

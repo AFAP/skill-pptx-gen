@@ -6,6 +6,7 @@ import { expandCreativeElements } from './creative-expand.mjs';
 import { expandLayoutSlide, isSemanticSlide } from './layouts.mjs';
 import { buildShape, isShapeElement } from './shape-geometry.mjs';
 import { resolveDash, resolveWrap, DEFAULT_LINE_COLOR, LINE_ELEMENT_TYPES } from './style-map.mjs';
+import { normalizeChartOptions } from './chart-options.mjs';
 
 export const CURRENT_DSL_VERSION = 3;
 
@@ -88,6 +89,9 @@ export function compileDeck(deck, opts = {}) {
     if (LINE_ELEMENT_TYPES.includes(el.elType) && el.stroke == null && el.lineColor == null) {
       el.lineColor = DEFAULT_LINE_COLOR;
     }
+    // 图表选项在编译期归一化（缺省值填好），两个渲染器读同一份结论，
+    // 与 dash / shape 的处理方式一致——渲染器不做选项分支。
+    if (el.elType === 'chart') el._chart = normalizeChartOptions(el);
     if (el.elType === 'text') {
       el.fontSize ??= 18;
       el.fontFamily ||= theme.fontFamily;

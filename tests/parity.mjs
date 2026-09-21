@@ -12,12 +12,13 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import zlib from 'node:zlib';
 import JSZip from 'jszip';
-import { applyElement, resolveTheme, imageSizing } from '../core/dsl-to-pptx.mjs';
+import { applyElement, resolveTheme, imageSizing, chartModel } from '../core/dsl-to-pptx.mjs';
 import { buildPresentation, sanitizePptxBuffer } from '../core/ppt-core.mjs';
 import { validateDeck } from '../core/dsl-validate.mjs';
-import { capabilityIssues, fieldParity, capabilityStats, PARITY } from '../core/capabilities.mjs';
+import { capabilityIssues, fieldParity, capabilityStats, PARITY, FIELD_CAPABILITIES } from '../core/capabilities.mjs';
 import { buildShape } from '../core/shape-geometry.mjs';
 import { resolveDash } from '../core/style-map.mjs';
+import { CHART_OPTION_KEYS, normalizeChartOptions, formatNumber, isSupportedFormatCode } from '../core/chart-options.mjs';
 
 const require = createRequire(import.meta.url);
 const PptxGenJS = require('pptxgenjs');
@@ -25,11 +26,16 @@ const theme = resolveTheme('navy-report');
 
 /* ============ 1. 选项映射层：单向字段必须已经被打通 ============ */
 const captured = [];
-const mockPptx = { shapes: { CUSTOM_GEOMETRY: 'custom' }, ShapeType: { rect: 'rect', ellipse: 'ellipse', line: 'line' }, ChartType: {} };
+const mockPptx = {
+  shapes: { CUSTOM_GEOMETRY: 'custom' },
+  ShapeType: { rect: 'rect', ellipse: 'ellipse', line: 'line' },
+  ChartType: { bar: 'bar', line: 'line', pie: 'pie', doughnut: 'doughnut', area: 'area', radar: 'radar', scatter: 'scatter' },
+};
 const mockSlide = {
   addShape: (type, opt) => captured.push({ type, opt }),
   addText: (text, opt) => captured.push({ type: 'text', text, opt }),
   addImage: opt => captured.push({ type: 'image', opt }),
+  addChart: (type, data, opt) => captured.push({ type: 'chart', data, opt }),
 };
 const grab = elop => { captured.length = 0; applyElement(mockPptx, mockSlide, elop, theme); return captured; };
 
@@ -234,4 +240,139 @@ for (const [i, key] of [[1, 'l'], [2, 'r'], [3, 't'], [4, 'b']]) {
   assert.ok(Math.abs(value - 25000) <= 5, `srcRect ${key}=${value} 应≈25000（比例 0.25）`);
 }
 
-console.log(`✅ parity tests passed（能力表 ${stats.total} 项：两端一致 ${stats.both}，近似 ${stats.approximate}，单向 ${stats.oneSided}）`);
+/* ============ 5. 图表选项：一致性登记 + 选项映射 + OOXML 真值 ============ */
+
+// 5a. 每个受支持的图表选项都必须在能力表登记，防止新增选项时漏掉一致性声明
+for (const key of CHART_OPTION_KEYS) {
+  assert.ok(FIELD_CAPABILITIES[key], `图表选项 ${key} 未在 core/capabilities.mjs 登记`);
+  assert.deepEqual(FIELD_CAPABILITIES[key].elements, ['chart'], `${key} 的 elements 应为 ['chart']`);
+}
+
+// 5b. 归一化：缺省值齐备，非法值回落，枚举不接受未知项
+const normalized = normalizeChartOptions({});
+assert.equal(Object.keys(normalized).length, CHART_OPTION_KEYS.length, '归一化结果必须覆盖全部选项');
+assert.equal(normalized.valAxisHidden, true, '数值轴默认隐藏（保持既有行为）');
+assert.equal(normalized.valGridLine.style, 'none', '网格线默认关闭（保持既有行为）');
+assert.equal(normalized.legendPos, 't');
+assert.equal(normalizeChartOptions({ legendPos: 'nowhere' }).legendPos, 't', '未知枚举回落默认值');
+assert.equal(normalizeChartOptions({ holeSize: 999 }).holeSize, 90, '数值越界被钳制');
+assert.equal(normalizeChartOptions({ valAxisMaxVal: 6 }).valAxisMaxVal, 6, '显式值不被改写');
+assert.equal(normalizeChartOptions({}).valAxisMaxVal, null, '未指定时交给数据域');
+
+// 数字格式：只支持常见写法。百分号沿用 Excel 语义（把数值乘 100），
+// 因此 0.37 + '0%' → '37%'，而 37 + '0%' → '3700%'。
+assert.equal(formatNumber(6, 'General'), '6');
+assert.equal(formatNumber(4.5, 'General'), '4.5');
+assert.equal(formatNumber(0.125, '0.0%'), '12.5%');
+assert.equal(formatNumber(0.37, '0%'), '37%');
+assert.equal(formatNumber(1234.5, '#,##0.0'), '1,234.5');
+assert.ok(isSupportedFormatCode('General') && isSupportedFormatCode('0.0%'));
+assert.ok(!isSupportedFormatCode('yyyy-mm-dd'), '未知格式代码应被识别为不支持');
+
+// 5c. 选项映射到 IChartOpts
+const chartOpt = grab({
+  elType: 'chart', chartType: 'bar', x: 0, y: 0, width: 400, height: 300,
+  labels: ['A', 'B'], data: [{ name: 'S', values: [1, 2] }],
+  valAxisMinVal: 0, valAxisMaxVal: 6, valAxisMajorUnit: 1, valAxisHidden: false,
+  valGridLine: { style: 'solid', color: '#EEEEEE', size: 1 },
+  catAxisLabelRotate: -30, catAxisHidden: true,
+  barDir: 'bar', barGrouping: 'stacked', legendPos: 'b',
+})[0].opt;
+assert.equal(chartOpt.valAxisMaxVal, 6);
+assert.equal(chartOpt.valAxisMinVal, 0);
+assert.equal(chartOpt.valAxisMajorUnit, 1);
+assert.equal(chartOpt.valAxisHidden, false);
+assert.equal(chartOpt.valGridLine.style, 'solid');
+assert.equal(chartOpt.valGridLine.color, 'EEEEEE');
+assert.equal(chartOpt.catGridLine.style, 'none', '未指定时保持 none（既有行为）');
+assert.ok(/^[0-9A-F]{6}$/.test(chartOpt.catGridLine.color), '网格线颜色应回落到主题边框色');
+assert.equal(chartOpt.catAxisLabelRotate, -30);
+assert.equal(chartOpt.catAxisHidden, true);
+assert.equal(chartOpt.barDir, 'bar');
+assert.equal(chartOpt.barGrouping, 'stacked');
+assert.equal(chartOpt.legendPos, 'b');
+// 横向条的分类轴在左侧，标签位置随之改变
+assert.equal(chartOpt.catAxisLabelPos, 'nextTo');
+assert.equal(grab({ elType: 'chart', chartType: 'bar', x: 0, y: 0, width: 400, height: 300,
+  labels: ['A'], data: [{ name: 'S', values: [1] }] })[0].opt.catAxisLabelPos, 'low');
+// 环形图的开孔与起始角
+const doughnutOpt = grab({ elType: 'chart', chartType: 'doughnut', x: 0, y: 0, width: 300, height: 300,
+  labels: ['A', 'B'], data: [{ name: 'S', values: [3, 7] }], holeSize: 70, firstSliceAng: 90 })[0].opt;
+assert.equal(doughnutOpt.holeSize, 70);
+assert.equal(doughnutOpt.firstSliceAng, 90);
+
+// 5d. 校验器：未知选项键报错、非法枚举报错、未知格式代码告警
+const badChartOpt = validateDeck({ slides: [{ elements: [
+  { elType: 'chart', chartType: 'bar', x: 0, y: 0, width: 400, height: 300, labels: ['A'], data: [{ name: 'S', values: [1] }],
+    valAxisMaxValue: 6, legendPos: 'middle', barDir: 'diagonal' },
+] }] });
+assert.ok(badChartOpt.errors.some(e => e.includes('valAxisMaxValue')), badChartOpt.errors.join('; '));
+assert.ok(badChartOpt.errors.some(e => e.includes('legendPos')), badChartOpt.errors.join('; '));
+assert.ok(badChartOpt.errors.some(e => e.includes('barDir')), badChartOpt.errors.join('; '));
+const oddFormat = validateDeck({ slides: [{ elements: [
+  { elType: 'chart', chartType: 'bar', x: 0, y: 0, width: 400, height: 300, labels: ['A'], data: [{ name: 'S', values: [1] }],
+    dataLabelFormatCode: 'yyyy-mm' },
+] }] });
+assert.equal(oddFormat.ok, true);
+assert.ok(oddFormat.warnings.some(w => w.includes('dataLabelFormatCode')), oddFormat.warnings.join('; '));
+// 只调整受支持选项时不得产生任何告警
+assert.deepEqual(validateDeck({ slides: [{ elements: [
+  { elType: 'chart', chartType: 'bar', x: 0, y: 0, width: 400, height: 300, labels: ['A'], data: [{ name: 'S', values: [1] }],
+    valAxisMinVal: 0, valAxisMaxVal: 6, valAxisMajorUnit: 1, valAxisHidden: false,
+    valGridLine: { style: 'solid', color: '#E5E5E5', size: 1 }, legendPos: 'r', barGrouping: 'stacked' },
+] }] }).warnings, []);
+
+// 5e. 堆叠柱的数值域必须按"每类累计"计算。
+// 回归背景：曾按单系列最大值定域，堆叠总高（5）超出轴上限（4.32），
+// 预览把柱子画到绘图区之外、PPTX 的轴范围也不对。
+const stackInput = {
+  elType: 'chart', chartType: 'bar', labels: ['A', 'B', 'C'],
+  data: [{ name: 'S1', values: [3, 2, 4] }, { name: 'S2', values: [2, 4, 1] }],
+};
+const stackedModel = chartModel({ ...stackInput, barGrouping: 'stacked' });
+assert.ok(stackedModel.yDomain.max >= 5, `堆叠域须覆盖每类累计，实际 ${stackedModel.yDomain.max}`);
+assert.equal(stackedModel.stacked, true);
+const clusteredModel = chartModel({ ...stackInput, barGrouping: 'clustered' });
+assert.ok(clusteredModel.yDomain.max < 5, `非堆叠仍按单系列最大值，实际 ${clusteredModel.yDomain.max}`);
+assert.equal(clusteredModel.stacked, false);
+const percentModel = chartModel({ ...stackInput, barGrouping: 'percentStacked' });
+assert.deepEqual(percentModel.yDomain, { min: 0, max: 100 }, '百分比堆叠的轴按定义固定 0–100');
+assert.equal(percentModel.percentStacked, true);
+
+// 5f. OOXML 真值：选项必须真的写进原生图表
+const chartDeck = {
+  slides: [{ elements: [
+    { elType: 'chart', id: 'axis', chartType: 'bar', x: 40, y: 40, width: 560, height: 340,
+      labels: ['A', 'B', 'C', 'D'], data: [{ name: 'S1', values: [3, 5, 2, 6] }, { name: 'S2', values: [2, 1, 4, 3] }],
+      valAxisMinVal: 0, valAxisMaxVal: 6, valAxisMajorUnit: 1, valAxisHidden: false, catAxisHidden: false,
+      valGridLine: { style: 'solid', color: '#E5E5E5', size: 1 }, barGrouping: 'stacked', barDir: 'bar' },
+    { elType: 'chart', id: 'ring', chartType: 'doughnut', x: 640, y: 40, width: 300, height: 300,
+      labels: ['A', 'B'], data: [{ name: 'S', values: [3, 7] }], holeSize: 70, firstSliceAng: 90, showPercent: true },
+    { elType: 'chart', id: 'trend', chartType: 'line', x: 40, y: 420, width: 560, height: 260,
+      labels: ['A', 'B', 'C'], data: [{ name: 'S', values: [1, 3, 2] }], lineSmooth: true, lineSize: 2.5, lineDataSymbol: 'diamond' },
+  ] }],
+};
+const chartBuilt = await buildPresentation(PptxGenJS, chartDeck, { strict: true, prefetch: false });
+assert.equal(chartBuilt.report.summary.failed, 0);
+let chartBuf = await chartBuilt.pptx.write({ outputType: 'nodebuffer' });
+chartBuf = await sanitizePptxBuffer(chartBuf, { warn() {} });
+const chartZip = await JSZip.loadAsync(chartBuf);
+// 原生图表是独立部件（ppt/charts/chartN.xml），slide 里只有 graphicFrame 引用
+const chartParts = Object.keys(chartZip.files).filter(f => /^ppt\/charts\/chart\d+\.xml$/.test(f)).sort();
+assert.equal(chartParts.length, 3, `应有 3 个图表部件，实际 ${chartParts.length}`);
+let chartXml = '';
+for (const p of chartParts) chartXml += await chartZip.file(p).async('string');
+const expectChart = (needle, label = needle) => assert.ok(chartXml.includes(needle), `图表 OOXML 缺少 ${label}`);
+expectChart('<c:max val="6"/>', 'valAxisMaxVal → c:max');
+expectChart('<c:min val="0"/>', 'valAxisMinVal → c:min');
+expectChart('<c:majorUnit val="1"/>', 'valAxisMajorUnit → c:majorUnit');
+expectChart('<c:majorGridlines>', 'valGridLine solid → c:majorGridlines');
+expectChart('<c:delete val="0"/>', 'valAxisHidden:false → c:delete val=0');
+expectChart('<c:barDir val="bar"/>', 'barDir → c:barDir');
+expectChart('<c:grouping val="stacked"/>', 'barGrouping → c:grouping');
+expectChart('<c:holeSize val="70"/>', 'holeSize → c:holeSize');
+expectChart('<c:firstSliceAng val="90"/>', 'firstSliceAng → c:firstSliceAng');
+expectChart('<c:smooth val="1"/>', 'lineSmooth → c:smooth');
+
+console.log(`✅ parity tests passed（能力表 ${stats.total} 项：两端一致 ${stats.both}，近似 ${stats.approximate}，单向 ${stats.oneSided}；图表选项 ${CHART_OPTION_KEYS.length} 项）`);
+

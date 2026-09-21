@@ -71,6 +71,9 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
   `approximate` 为等价构造。后两级会告警，不要对用户宣称这些形状像素一致。
 - 弧类形状的 `angleRange` 角度必须在 0–360，扫角取**有符号差** `end - start`；跨 0° 请拆成两段。
 - `adjust` 只影响预览（PptxGenJS 无通用调整值入口），PPTX 使用 preset 默认几何。
+- **图表选项与 PptxGenJS `IChartOpts` 同名**（`valAxisMinVal`/`valGridLine`/`legendPos`/`barGrouping`…），
+  白名单见 `core/chart-options.mjs`；未登记的键是**错误**，不会静默传给 PowerPoint。
+  数值轴缺省隐藏（`valAxisHidden:true`）、网格线缺省关闭，需要常规带刻度图表时显式打开。
 - Compact 容量超限会给出源路径并报错；自行拆页或转 Creative DSL，工具不会截断内容。图表数据必须为有限数字，分类标签与数值逐项对应。
 - `styleClass`、`group`、`repeat`、`anchor` 仅存在于源文件；构建前统一展开为 primitive，不进入两个渲染器的分支逻辑。
 - 网页预览与 PPTX 共用编译后的 primitive DSL，但文字排版和原生图表仍受浏览器、PowerPoint/WPS 字体度量影响；不要声称像素级完全相同。
@@ -135,6 +138,8 @@ npm run test:browser
 - `core/shape-geometry.mjs`：形状库。OOXML preset 名 ↔ 同一套几何构造，双端对齐；
   含 `preset`/`aspect`/`approximate` 三级可信度。
 - `core/style-map.mjs`：虚线族、箭头头部、换行与默认线色的共享映射（编译期解析，渲染器不做样式分支）。
+- `core/chart-options.mjs`：图表选项白名单（键名与 PptxGenJS `IChartOpts` 同名）、枚举校验与数字格式化；
+  编译期归一化为 `_chart`，两个渲染器读同一份结论。
 - `references/shape-library.md`：91 个可用形状清单、参数与可信度分级。
 - `core/shape-path.mjs`：shape-path 的局部/绝对坐标校验与自动归一化。
 - `references/image-to-editable-deck.md`：图片版 PPT / 截图还原为可编辑 deck 的流程、元素分类和验收清单。
