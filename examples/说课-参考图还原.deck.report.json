@@ -1,0 +1,922 @@
+{
+  "mode": "strict",
+  "slides": [
+    {
+      "slide": 1,
+      "id": "materials-map",
+      "elements": [
+        {
+          "id": "node-top",
+          "type": "shape-polygon",
+          "originPath": "/slides/0/elements/0",
+          "status": "editable"
+        },
+        {
+          "id": "s0-raw-1",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/1/text",
+          "originPath": "/slides/0/elements/1",
+          "status": "editable"
+        },
+        {
+          "id": "node-left",
+          "type": "shape-polygon",
+          "originPath": "/slides/0/elements/2",
+          "status": "editable"
+        },
+        {
+          "id": "s0-raw-3",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/3/text",
+          "originPath": "/slides/0/elements/3",
+          "status": "editable"
+        },
+        {
+          "id": "node-right",
+          "type": "shape-polygon",
+          "originPath": "/slides/0/elements/4",
+          "status": "editable"
+        },
+        {
+          "id": "s0-raw-5",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/5/text",
+          "originPath": "/slides/0/elements/5",
+          "status": "editable"
+        },
+        {
+          "id": "arc-a",
+          "type": "shape-path",
+          "originPath": "/slides/0/elements/6",
+          "status": "editable"
+        },
+        {
+          "id": "arc-b",
+          "type": "shape-path",
+          "originPath": "/slides/0/elements/7",
+          "status": "editable"
+        },
+        {
+          "id": "arc-c",
+          "type": "shape-path",
+          "originPath": "/slides/0/elements/8",
+          "status": "editable"
+        },
+        {
+          "id": "points-0-mark",
+          "type": "shape-preset",
+          "originPath": "/slides/0/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "points-0-item7",
+          "type": "text",
+          "originPath": "/slides/0/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "points-0-item8",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/0/title",
+          "originPath": "/slides/0/elements/9/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "points-0-item9",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/0/body",
+          "originPath": "/slides/0/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "points-1-mark",
+          "type": "shape-preset",
+          "originPath": "/slides/0/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "points-1-item11",
+          "type": "text",
+          "originPath": "/slides/0/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "points-1-item12",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/1/title",
+          "originPath": "/slides/0/elements/9/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "points-1-item13",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/1/body",
+          "originPath": "/slides/0/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "points-2-mark",
+          "type": "shape-preset",
+          "originPath": "/slides/0/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "points-2-item15",
+          "type": "text",
+          "originPath": "/slides/0/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "points-2-item16",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/2/title",
+          "originPath": "/slides/0/elements/9/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "points-2-item17",
+          "type": "text",
+          "sourcePath": "/slides/0/elements/9/items/2/body",
+          "originPath": "/slides/0/elements/9/template/3",
+          "status": "editable"
+        }
+      ]
+    },
+    {
+      "slide": 2,
+      "id": "task-focus",
+      "elements": [
+        {
+          "id": "rows-0-card-left",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rows-0-item1",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/0/left",
+          "originPath": "/slides/1/elements/0/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rows-0-label",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rows-0-item3",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/0/label",
+          "originPath": "/slides/1/elements/0/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rows-0-card-right",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rows-0-item5",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/0/right",
+          "originPath": "/slides/1/elements/0/template/5",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-card-left",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-item7",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/1/left",
+          "originPath": "/slides/1/elements/0/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-label",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-item9",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/1/label",
+          "originPath": "/slides/1/elements/0/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-card-right",
+          "type": "shape-rect",
+          "originPath": "/slides/1/elements/0/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rows-1-item11",
+          "type": "text",
+          "sourcePath": "/slides/1/elements/0/items/1/right",
+          "originPath": "/slides/1/elements/0/template/5",
+          "status": "editable"
+        }
+      ]
+    },
+    {
+      "slide": 3,
+      "id": "talk-materials",
+      "elements": [
+        {
+          "id": "badge",
+          "type": "shape-polygon",
+          "originPath": "/slides/2/elements/0",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-1",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/1/text",
+          "originPath": "/slides/2/elements/1",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-2",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/2",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-3",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/3",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-4",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/4/text",
+          "originPath": "/slides/2/elements/4",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-5",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/5/text",
+          "originPath": "/slides/2/elements/5",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-6",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/6/text",
+          "originPath": "/slides/2/elements/6",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-7",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/7/text",
+          "originPath": "/slides/2/elements/7",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-8",
+          "type": "shape-line",
+          "originPath": "/slides/2/elements/8",
+          "status": "editable"
+        },
+        {
+          "id": "s2-raw-9",
+          "type": "shape-line",
+          "originPath": "/slides/2/elements/9",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-0-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-0-core",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-0-name",
+          "type": "text",
+          "originPath": "/slides/2/elements/10/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-1-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-1-core",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-1-name",
+          "type": "text",
+          "originPath": "/slides/2/elements/10/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-2-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-2-core",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-2-name",
+          "type": "text",
+          "originPath": "/slides/2/elements/10/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-3-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-3-core",
+          "type": "shape-preset",
+          "originPath": "/slides/2/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "nodes-3-name",
+          "type": "text",
+          "originPath": "/slides/2/elements/10/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "cols-0-item13",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/11/items/0/body",
+          "originPath": "/slides/2/elements/11/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "cols-1-item14",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/11/items/1/body",
+          "originPath": "/slides/2/elements/11/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "cols-2-item15",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/11/items/2/body",
+          "originPath": "/slides/2/elements/11/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "cols-3-item16",
+          "type": "text",
+          "sourcePath": "/slides/2/elements/11/items/3/body",
+          "originPath": "/slides/2/elements/11/template/0",
+          "status": "editable"
+        }
+      ]
+    },
+    {
+      "slide": 4,
+      "id": "divider",
+      "elements": [
+        {
+          "id": "s3-raw-0",
+          "type": "shape-polygon",
+          "originPath": "/slides/3/elements/0",
+          "status": "editable"
+        },
+        {
+          "id": "s3-raw-1",
+          "type": "shape-polygon",
+          "originPath": "/slides/3/elements/1",
+          "status": "editable"
+        },
+        {
+          "id": "big-badge",
+          "type": "shape-polygon",
+          "originPath": "/slides/3/elements/2",
+          "status": "editable"
+        },
+        {
+          "id": "s3-raw-3",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/3/text",
+          "originPath": "/slides/3/elements/3",
+          "status": "editable"
+        },
+        {
+          "id": "s3-raw-4",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/4/text",
+          "originPath": "/slides/3/elements/4",
+          "status": "editable"
+        },
+        {
+          "id": "s3-raw-5",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/5/text",
+          "originPath": "/slides/3/elements/5",
+          "status": "editable"
+        },
+        {
+          "id": "checks-0-item1",
+          "type": "text",
+          "originPath": "/slides/3/elements/6/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "checks-0-item2",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/6/items/0",
+          "originPath": "/slides/3/elements/6/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "checks-1-item3",
+          "type": "text",
+          "originPath": "/slides/3/elements/6/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "checks-1-item4",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/6/items/1",
+          "originPath": "/slides/3/elements/6/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "checks-2-item5",
+          "type": "text",
+          "originPath": "/slides/3/elements/6/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "checks-2-item6",
+          "type": "text",
+          "sourcePath": "/slides/3/elements/6/items/2",
+          "originPath": "/slides/3/elements/6/template/1",
+          "status": "editable"
+        }
+      ]
+    },
+    {
+      "slide": 5,
+      "id": "talk-students",
+      "elements": [
+        {
+          "id": "badge",
+          "type": "shape-polygon",
+          "originPath": "/slides/4/elements/0",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-1",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/1/text",
+          "originPath": "/slides/4/elements/1",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-2",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/2",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-3",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/3",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-4",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/4/text",
+          "originPath": "/slides/4/elements/4",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-5",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/5/text",
+          "originPath": "/slides/4/elements/5",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-6",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/6/text",
+          "originPath": "/slides/4/elements/6",
+          "status": "editable"
+        },
+        {
+          "id": "s4-raw-7",
+          "type": "shape-line",
+          "originPath": "/slides/4/elements/7",
+          "status": "editable"
+        },
+        {
+          "id": "axis",
+          "type": "shape-line",
+          "originPath": "/slides/4/elements/8",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-0-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-0-core",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-0-icon",
+          "type": "image-svg",
+          "originPath": "/slides/4/elements/9/template/2",
+          "status": "rasterized"
+        },
+        {
+          "id": "iconNodes-0-name",
+          "type": "text",
+          "originPath": "/slides/4/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-1-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-1-core",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-1-icon",
+          "type": "image-svg",
+          "originPath": "/slides/4/elements/9/template/2",
+          "status": "rasterized"
+        },
+        {
+          "id": "iconNodes-1-name",
+          "type": "text",
+          "originPath": "/slides/4/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-2-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-2-core",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-2-icon",
+          "type": "image-svg",
+          "originPath": "/slides/4/elements/9/template/2",
+          "status": "rasterized"
+        },
+        {
+          "id": "iconNodes-2-name",
+          "type": "text",
+          "originPath": "/slides/4/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-3-ring",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-3-core",
+          "type": "shape-preset",
+          "originPath": "/slides/4/elements/9/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconNodes-3-icon",
+          "type": "image-svg",
+          "originPath": "/slides/4/elements/9/template/2",
+          "status": "rasterized"
+        },
+        {
+          "id": "iconNodes-3-name",
+          "type": "text",
+          "originPath": "/slides/4/elements/9/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-0-item18",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/0/title",
+          "originPath": "/slides/4/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-0-item19",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/0/body",
+          "originPath": "/slides/4/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-1-item20",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/1/title",
+          "originPath": "/slides/4/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-1-item21",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/1/body",
+          "originPath": "/slides/4/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-2-item22",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/2/title",
+          "originPath": "/slides/4/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-2-item23",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/2/body",
+          "originPath": "/slides/4/elements/10/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-3-item24",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/3/title",
+          "originPath": "/slides/4/elements/10/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "iconCols-3-item25",
+          "type": "text",
+          "sourcePath": "/slides/4/elements/10/items/3/body",
+          "originPath": "/slides/4/elements/10/template/1",
+          "status": "editable"
+        }
+      ]
+    },
+    {
+      "slide": 6,
+      "id": "talk-students-metrics",
+      "elements": [
+        {
+          "id": "badge",
+          "type": "shape-polygon",
+          "originPath": "/slides/5/elements/0",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-1",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/1/text",
+          "originPath": "/slides/5/elements/1",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-2",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/2",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-3",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/3",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-4",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/4/text",
+          "originPath": "/slides/5/elements/4",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-5",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/5/text",
+          "originPath": "/slides/5/elements/5",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-6",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/6/text",
+          "originPath": "/slides/5/elements/6",
+          "status": "editable"
+        },
+        {
+          "id": "s5-raw-7",
+          "type": "shape-line",
+          "originPath": "/slides/5/elements/7",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-track",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-arc1",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-arc2",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-pct",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/0/pct",
+          "originPath": "/slides/5/elements/8/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-ringTitle",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/0/title",
+          "originPath": "/slides/5/elements/8/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rings-0-ringBody",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/0/body",
+          "originPath": "/slides/5/elements/8/template/5",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-track",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-arc1",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-arc2",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-pct",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/1/pct",
+          "originPath": "/slides/5/elements/8/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-ringTitle",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/1/title",
+          "originPath": "/slides/5/elements/8/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rings-1-ringBody",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/1/body",
+          "originPath": "/slides/5/elements/8/template/5",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-track",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-arc1",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-arc2",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-pct",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/2/pct",
+          "originPath": "/slides/5/elements/8/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-ringTitle",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/2/title",
+          "originPath": "/slides/5/elements/8/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rings-2-ringBody",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/2/body",
+          "originPath": "/slides/5/elements/8/template/5",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-track",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/0",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-arc1",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/1",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-arc2",
+          "type": "shape-preset",
+          "originPath": "/slides/5/elements/8/template/2",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-pct",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/3/pct",
+          "originPath": "/slides/5/elements/8/template/3",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-ringTitle",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/3/title",
+          "originPath": "/slides/5/elements/8/template/4",
+          "status": "editable"
+        },
+        {
+          "id": "rings-3-ringBody",
+          "type": "text",
+          "sourcePath": "/slides/5/elements/8/items/3/body",
+          "originPath": "/slides/5/elements/8/template/5",
+          "status": "editable"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 136,
+    "editable": 132,
+    "rasterized": 4,
+    "skipped": 0,
+    "failed": 0
+  }
+}

@@ -1,10 +1,18 @@
 node_modules/
 .npm-cache/
-*.preview.html
-*.report.json
-!examples/南京埃斯顿深度研究报告-AI创意版.report.json
 output/
-.tmp/
 .DS_Store
 Thumbs.db
 agents/
+
+# 临时工作文件（.tmp-*.mjs / .tmp-shots/ 等）
+.tmp*
+
+# 构建产物默认不入库；但 examples/ 下的示例是完整交付物，整体保留，
+# 便于直接在 GitHub 上取用（预览 HTML 自包含，双击即可打开）。
+*.preview.html
+*.report.json
+!examples/**
+
+# 例外再例外：构建中途的暂存目录（build_all 正常结束时自会清理）
+.ppt-build-*/
