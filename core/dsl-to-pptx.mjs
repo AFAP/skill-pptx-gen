@@ -22,6 +22,8 @@ export const DEFAULT_FONT_SCALE = 0.75;
 const PX2INCH = INCH_W / PPT_WIDTH;
 /** 描边宽度/阴影的 px→pt（画布 1280px = 960pt，视觉等比缩放 0.75） */
 const PX2PT = 0.75;
+/** OOXML `a:bodyPr/@vert` 的合法取值（与 pptxgenjs 的 ITextOpts.vert 一致） */
+export const TEXT_VERT_VALUES = ['eaVert', 'horz', 'mongolianVert', 'vert', 'vert270', 'wordArtVert', 'wordArtVertRtl'];
 export function pxToInch(px) {
   return Number((px * PX2INCH).toFixed(4));
 }
@@ -537,6 +539,41 @@ function textOptions(elop, theme) {
     opt.shape = 'roundRect';
     opt.rectRadius = cap > 0 ? Math.min(r, cap) : r;
   }
+  // 文字描边：PPT 原生 <a:ln>（pptxgenjs 的文本 outline）。宽度按画布比例 px→pt，
+  // 与预览的 Konva 文字描边取同一个 width 值，两端粗细一致。
+  if (elop.outline && typeof elop.outline === 'object' && !Array.isArray(elop.outline)) {
+    const oc = parseColor(elop.outline.color ?? elop.fill ?? elop.color);
+    if (oc) opt.outline = { color: oc.color, size: Math.max(0.25, pxToPt(elop.outline.width ?? 1)) };
+  }
+  // 文字发光：PPT 原生 <a:glow>（pptxgenjs 的文本 glow）。
+  // pptxgenjs 的 size 单位是 pt（内部 ×12700 写 rad），与预览的 Konva shadowBlur 近似同量级，
+  // 故同样按 px→pt 换算；两端都是"字形外扩的柔光"，不承诺逐像素一致。
+  if (elop.glow && typeof elop.glow === 'object' && !Array.isArray(elop.glow)) {
+    const gc = parseColor(elop.glow.color);
+    if (gc) {
+      const opacity = Number(elop.glow.opacity);
+      opt.glow = {
+        color: gc.color,
+        size: Math.max(1, pxToPt(elop.glow.blur ?? 8)),
+        opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0.75,
+      };
+    }
+  }
+  // 文字版式能力（只由 PPTX 实现，预览是画布，不做竖排/自动缩字/高亮/上下标/段距）。
+  // 它们登记为 pptx-only，因此导出端**必须真的写进原生文件**：历史上这批字段
+  // 被注册表声明为"仅 PPTX 生效"，而导出端根本没有读，用户看到告警后打开 PPTX 仍是空的。
+  if (elop.fit != null) opt.fit = ['none', 'shrink', 'resize'].includes(elop.fit) ? elop.fit : 'shrink';
+  const vert = elop.vert ?? elop.textDirection;
+  if (vert != null && TEXT_VERT_VALUES.includes(vert)) opt.vert = vert;
+  if (elop.highlight) {
+    const hc = parseColor(typeof elop.highlight === 'object' ? elop.highlight.color : elop.highlight);
+    if (hc) opt.highlight = hc.color; // pptxgenjs 的 highlight 是十六进制字符串
+  }
+  if (elop.subscript) opt.subscript = true;
+  if (elop.superscript) opt.superscript = true;
+  // 段前/段后距：DSL 与其它尺寸一样用 px，pptxgenjs 写 <a:spcPts> 的单位是 pt
+  if (elop.paraSpaceBefore != null && Number.isFinite(Number(elop.paraSpaceBefore))) opt.paraSpaceBefore = pxToPt(Number(elop.paraSpaceBefore));
+  if (elop.paraSpaceAfter != null && Number.isFinite(Number(elop.paraSpaceAfter))) opt.paraSpaceAfter = pxToPt(Number(elop.paraSpaceAfter));
   return opt;
 }
 
@@ -839,6 +876,10 @@ export function applyElement(pptx, slide, elop, theme) {
     opt.fontSize = Math.max(6, Math.round((elop.fontSize || 16) * theme.fontScale * 10) / 10);
     if (theme.fontFamily || elop.fontFamily) opt.fontFace = String(elop.fontFamily || theme.fontFamily).split(',')[0].trim().replace(/^["']|["']$/g, '');
     const hd = elop.header || {};
+    // 表格边框色：预览按 cell 描边绘制 borderColor，导出映射为 PPT 原生单元格边框（同色同粗细）。
+    // 未显式设置时两端各自使用默认边框（预览 #E2E8F0 / PPT 666666），故这里只在显式给色时写入。
+    const borderColor = parseColor(elop.borderColor);
+    const cellBorder = borderColor ? { type: 'solid', pt: pxToPt(1), color: borderColor.color } : null;
     const rows = (elop.rows || []).map((row, ri) => row.map(cell => {
       const isHd = hd.enabled !== false && ri === 0;
       const cellColor = parseColor(isHd ? (hd.fill || '#' + theme.primary) : (ri % 2 && elop.stripeColor ? elop.stripeColor : null));
@@ -850,6 +891,7 @@ export function applyElement(pptx, slide, elop, theme) {
           fill: cellColor ? { color: cellColor.color } : undefined,
           align: elop.align || 'left',
           valign: 'middle',
+          border: cellBorder || undefined,
         },
       };
     }));

@@ -122,7 +122,7 @@ npm test
 npm run test:browser
 ```
 
-`--allow-partial` 只用于用户明确接受不完整调试输出的情况。`--no-validate` 会跳过校验直接构建，只用于定位构建阶段问题，不得用来掩盖转换错误。
+`--allow-partial` 只用于用户明确接受不完整调试输出的情况。`build_pptx --no-validate` 会跳过校验直接构建，只用于定位构建阶段问题，不得用来掩盖转换错误；`build_all` 没有该参数，它总是先做严格校验。
 
 常用可选参数：`--base-dir <目录>`（图片相对路径基准，`build_all` 自动传入原 deck 目录）、`--scale 0.75`（预览显示比例）、`make_preview --no-edit`（纯审阅预览）、`make_preview --no-embed-images`（不内嵌图片）、`build_pptx --skip-images`（跳过图片预取，仅调试）、`html_to_deck --theme <名称>`（提取时使用的主题）。
 
@@ -135,6 +135,9 @@ npm run test:browser
 “哪些字段两端一致”由 `core/capabilities.mjs` 声明——它是唯一真相源，校验器据此**自动**为所有
 单向字段生成告警。历史上"预览画了、PPTX 丢了"的字段（`strike`、`lineBeginArrowType`、`bgRadius`、
 `wrap:false`、线条缺省色）已全部打通，`tests/parity.mjs` 会断言这一点以防回退。
+本轮又打通了三处：文字 `outline`/`glow`（导出 `<a:ln>`/`<a:glow>`，预览画描边与柔光）、
+表格 `borderColor`（导出 PPT 原生单元格边框），以及一批原本"只在注册表里存在"的 PPTX 文字版式
+（`fit`/`vert`/`highlight`/上下标/段前段后距现在真的写进原生文件）。
 
 默认字号换算已校正为 `px × 0.75 = pt`，避免导出后文字整体缩小。旧稿需要保持原字号时，在主题对象中显式设置 `fontScale: 0.6666666667`。文字换行和原生图表仍需实际打开 PPTX 核对。
 

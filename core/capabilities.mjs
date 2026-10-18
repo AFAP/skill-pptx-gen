@@ -49,7 +49,13 @@ export const FIELD_CAPABILITIES = {
   strike: { elements: ['text', 'table'], ...BOTH },
   fontFamily: { elements: ['text', 'table'], ...BOTH },
   fontSize: { elements: ['text', 'table', 'chart'], ...BOTH },
-  align: { elements: ['text', 'table'], ...BOTH },
+  align: {
+    elements: ['text', 'table'],
+    // left/center/right 两端一致；Konva 的文本没有两端对齐，justify 只在 PPTX 生效
+    values: { left: PARITY.BOTH, center: PARITY.BOTH, right: PARITY.BOTH, justify: PARITY.PPTX_ONLY },
+    note: '预览的 Konva 文本不支持两端对齐，justify 会按左对齐绘制',
+    impact: 'visual',
+  },
   verticalAlign: { elements: ['text', 'table'], ...BOTH },
   lineHeight: { elements: ['text'], ...BOTH },
   letterSpacing: { elements: ['text'], ...BOTH },
@@ -62,8 +68,10 @@ export const FIELD_CAPABILITIES = {
   fit: { elements: ['text'], ...PPTX('PPTX 的自动缩放由 PowerPoint 在编辑/重排后才计算，预览不做等效缩字', 'behavior') },
   textDirection: { elements: ['text'], ...PPTX('竖排/堆叠文字未在预览实现') },
   vert: { elements: ['text'], ...PPTX('竖排/堆叠文字未在预览实现') },
-  glow: { elements: ['text'], ...PPTX('文字发光未在预览实现') },
-  outline: { elements: ['text'], ...PPTX('文字描边未在预览实现') },
+  // 描边/发光：导出写 PPT 原生 <a:ln>/<a:glow>，预览用 Konva 文字描边与零偏移阴影实现。
+  // 描边的宽度语义两端一致（同一 px 值、同样以字形轮廓为中心）；发光是半径量级近似。
+  outline: { elements: ['text'], ...BOTH },
+  glow: { elements: ['text'], ...APPROX('预览用零偏移阴影近似 glow（两者都是字形外扩柔光，半径量级一致，叠加外观略有差异）；与 shadow 同时设置时预览只画其一') },
   highlight: { elements: ['text'], ...PPTX('文字高亮底色未在预览实现') },
   subscript: { elements: ['text'], ...PPTX('上下标未在预览实现') },
   superscript: { elements: ['text'], ...PPTX('上下标未在预览实现') },
@@ -96,6 +104,9 @@ export const FIELD_CAPABILITIES = {
   shadowColor: { elements: ['*'], ...BOTH },
   shadowBlur: { elements: ['*'], ...BOTH },
   shadowOffset: { elements: ['*'], ...BOTH },
+  shadowOffsetX: { elements: ['*'], ...BOTH },
+  shadowOffsetY: { elements: ['*'], ...BOTH },
+  shadowOpacity: { elements: ['*'], ...BOTH },
 
   /* ---- 填充与描边 ---- */
   fill: { elements: ['*'], ...BOTH },
@@ -105,6 +116,9 @@ export const FIELD_CAPABILITIES = {
   lineJoin: { elements: ['shape-preset', 'shape-path', 'curve-quadratic', 'shape-line'], ...PREVIEW('PPTX 线连接由形状默认值决定，未映射') },
   dashType: { elements: ['shape-preset', 'shape-path', 'curve-quadratic', 'shape-line', 'shape-arrow', 'shape-rect'], ...BOTH },
   dash: { elements: ['shape-preset', 'shape-path', 'curve-quadratic', 'shape-line', 'shape-arrow'], ...BOTH },
+  // stroke/strokeWidth 的别名写法，两端由同一套回退顺序解析（lineColor/lineWidth 优先）
+  lineColor: { elements: ['shape-preset', 'shape-path', 'curve-quadratic', 'shape-line', 'shape-arrow'], ...BOTH },
+  lineWidth: { elements: ['shape-preset', 'shape-path', 'curve-quadratic', 'shape-line', 'shape-arrow'], ...BOTH },
   lineBeginArrowType: {
     elements: ['shape-line', 'shape-arrow', 'curve-quadratic'],
     values: { none: PARITY.BOTH, arrow: PARITY.BOTH, triangle: PARITY.BOTH, stealth: PARITY.APPROXIMATE, diamond: PARITY.APPROXIMATE, oval: PARITY.APPROXIMATE },
@@ -137,7 +151,7 @@ export const FIELD_CAPABILITIES = {
   chartType: { elements: ['chart'], ...BOTH },
   header: { elements: ['table'], ...BOTH },
   stripeColor: { elements: ['table'], ...BOTH },
-  borderColor: { elements: ['table'], ...PREVIEW('PPTX 表格边框取原生默认值，未映射 borderColor') },
+  borderColor: { elements: ['table'], ...BOTH, note: '显式设置时导出为 PPT 原生单元格边框；未设置时两端各自使用默认边框色（预览 #E2E8F0 / PPTX 666666）' },
   rows: { elements: ['table'], ...BOTH },
 
   /* ---- 图表选项（键名与 PptxGenJS IChartOpts 同名，白名单见 core/chart-options.mjs） ---- */

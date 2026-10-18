@@ -7,6 +7,11 @@
 新增能力时请改注册表（并让测试守住），不要只改这里——那正是历史上出现"预览画了、PPTX 丢了"
 却无人告警的原因。
 
+**"声明"必须配一条能证伪它的测试**：注册表曾经声明 `outline`/`glow`/`fit`/`vert`/`highlight` 等
+"仅 PPTX 生效"，而导出端根本没有读取这些字段——告警写着"仅 PPTX"，用户打开 PPTX 却是空的。
+单向能力最危险的不是差异，而是错方向：它让用户以为功能存在。因此 `tests/parity.mjs` 对每个
+单向字段都要么断言导出选项真的产生，要么断言另一端确实不读；新增单向声明时必须同时补这条断言。
+
 ## 能力矩阵
 
 | 能力 | 网页预览 | PPTX | 处理原则 |
@@ -18,7 +23,7 @@
 | 图片 | 浏览器图片 | PPT 图片 | 作为媒体对象报告；`sizing: cover/contain/crop` 两端一致 |
 | SVG | 浏览器 SVG | Node 端转 PNG | 报告为 rasterized |
 | 图表 | Konva 近似预览 | PowerPoint 原生图表 | 数据和显式选项一致，外观允许小差异 |
-| **图表选项** | 同一份归一化选项 | 原生 IChartOpts | 键名与 PptxGenJS 同名；数值轴范围/网格线/图例位置/轴标题/数据标签组成/柱形方向与堆叠/环形开孔等 **49 项两端一致**（数字格式、标签位置、平滑曲线、标记造型为等价近似） |
+| **图表选项** | 同一份归一化选项 | 原生 IChartOpts | 键名与 PptxGenJS 同名；数值轴范围/网格线/图例位置/轴标题/数据标签组成/柱形方向与堆叠/环形开孔等 **49 项中 43 项两端一致，6 项为等价近似**（数字格式、分类标签旋转、数据标签位置、平滑曲线、标记造型） |
 | 表格 | 固定网格预览 | PowerPoint 原生表格 | 显式 rowH，仍需检查换行 |
 | 渐变 | 真渐变 | 首色近似 | 告警；需要时预合成图片/SVG |
 | text-path | 可预览 | 不支持 | 严格模式报错 |
@@ -37,6 +42,11 @@
 | `bgRadius` | 只有预览生效 | 导出为 `roundRect` + `rectRadius`（单位英寸） |
 | `wrap: false` | 预览忽略（仍换行） | 预览 `wrap="none"`、PPTX `bodyPr wrap="none"` |
 | `ellipsis` | 单向且**无任何告警** | 仍为单向（PPTX 无截断），但校验器现在会告警 |
+| `outline` | 注册表声称"仅 PPTX"，实际两端都没实现 | 导出写 `<a:ln>`、预览用 Konva 文字描边，两端一致 |
+| `glow` | 同上，且预览无对应能力 | 导出写 `<a:glow>`、预览用零偏移阴影近似（告警说明差异） |
+| 表格 `borderColor` | 预览画 cell 边框、PPTX 忽略（WebSlide 提取的表格必带该字段，于是每次都要人工解释告警） | 导出为 PPT 原生 cell border（同色同粗细） |
+| 文本 `align: justify` | 注册表笼统标为两端一致，预览实际按左对齐 | 按取值细分：`left/center/right` 一致，`justify` 仅 PPTX（告警） |
+| 文本版式（`fit`/`vert`/`textDirection`/`highlight`/上下标/段前段后距） | 注册表声称"仅 PPTX 生效"，导出端却从未读取，用户拿到的是空效果 | 全部真正写入 `bodyPr`/`rPr`（`normAutofit`/`vert`/`highlight`/`baseline`/`spcBef`/`spcAft`） |
 | 线条缺省色 | 预览 `#333333`，PPTX 不写 `<a:ln>`（走 PowerPoint 默认色） | 编译期统一补默认色 |
 | 虚线族 | 只识别 `dash` | 完整族：`dash/dashDot/lgDash/lgDashDot/lgDashDotDot/sysDash/sysDot` |
 | `objectName` | 未写入 | 所有导出对象默认带元素 `id` 作为对象名，便于选择窗格定位 |
@@ -45,12 +55,12 @@
 
 这些不是缺陷，而是取舍；注册表会告警，`impact: metadata` 的则不告警（避免刷屏）：
 
-- **仅 PPTX**：`ellipsis`（PPTX 无截断）、`fit`、`textDirection`/`vert`、`glow`/`outline`/`highlight`、
-  上下标、段前段后距、`hyperlink`、`altText`、`objectName`、图片 `rounding`（椭圆裁切）。
-- **仅预览**：`lineCap`/`lineJoin`、图片 `cornerRadius`、表格 `borderColor`、
-  形状 `adjust`（PptxGenJS 无通用调整值入口）。
+- **仅 PPTX**：`fit`（自动缩字由 PowerPoint 计算）、`textDirection`/`vert`（竖排）、`highlight`、上下标、
+  段前段后距、文本 `align: justify`、`hyperlink`、`altText`、`objectName`、图片 `rounding`（椭圆裁切）。
+- **仅预览**：`lineCap`/`lineJoin`、图片 `cornerRadius`、形状 `adjust`（PptxGenJS 无通用调整值入口）、
+  `ellipsis`（PPTX 无截断，导出后文字会溢出而不是显示 …）。
 - **近似**：渐变压平、`stealth/diamond/oval` 箭头头部造型、`image-svg` 栅格化、
-  `adjust` 未覆盖时的星形 `hf`/`vf` 缩放。
+  `adjust` 未覆盖时的星形 `hf`/`vf` 缩放、文字 `glow`（预览用零偏移阴影近似）。
 
 ## 构建模式
 

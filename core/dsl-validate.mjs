@@ -6,7 +6,7 @@
  * 对比度（按透明度逐层混合实际背景）、文本框疑似重叠、图表/表格数据形态、渐变压平提示。
  */
 
-import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartModel, imageSizing } from './dsl-to-pptx.mjs';
+import { PPT_WIDTH, PPT_HEIGHT, BUILTIN_THEMES, parseColor, resolveTheme, chartModel, imageSizing, TEXT_VERT_VALUES } from './dsl-to-pptx.mjs';
 import { MACRO_TYPES } from './connectors.mjs';
 import { COMPOSITION_TYPES } from './creative-expand.mjs';
 import { compileDeck, CURRENT_DSL_VERSION } from './compile-deck.mjs';
@@ -467,6 +467,50 @@ export function validateDeck(deck, opts = {}) {
         if (el[key] != null && resolveArrowHead(el[key]) === null) {
           errors.push(`${at}: ${key} "${el[key]}" 无法识别；可选 ${ARROW_HEADS.join(' / ')}`);
         }
+      }
+      // 文字描边/发光：两端都已实现（PPT 原生 a:ln / a:glow，预览用 Konva 描边与零偏移阴影），
+      // 因此写错形状不再有"只影响一端"的缓冲——必须当场报错，而不是两端一起静默不画。
+      if (el.outline != null) {
+        if (!el.outline || typeof el.outline !== 'object' || Array.isArray(el.outline)) errors.push(`${at}: outline 必须是 {color, width} 对象`);
+        else {
+          if (el.outline.color != null && typeof el.outline.color !== 'string') errors.push(`${at}: outline.color 必须是颜色字符串`);
+          if (el.outline.width != null) {
+            if (!Number.isFinite(Number(el.outline.width))) errors.push(`${at}: outline.width 必须是数字`);
+            else if (Number(el.outline.width) <= 0) errors.push(`${at}: outline.width 必须 > 0`);
+          }
+        }
+      }
+      if (el.glow != null) {
+        if (!el.glow || typeof el.glow !== 'object' || Array.isArray(el.glow)) errors.push(`${at}: glow 必须是 {color, blur, opacity} 对象`);
+        else {
+          if (el.glow.color != null && typeof el.glow.color !== 'string') errors.push(`${at}: glow.color 必须是颜色字符串`);
+          if (el.glow.blur != null) {
+            if (!Number.isFinite(Number(el.glow.blur))) errors.push(`${at}: glow.blur 必须是数字`);
+            else if (Number(el.glow.blur) <= 0) errors.push(`${at}: glow.blur 必须 > 0`);
+          }
+          if (el.glow.opacity != null && !(Number.isFinite(Number(el.glow.opacity)) && Number(el.glow.opacity) >= 0 && Number(el.glow.opacity) <= 1)) {
+            errors.push(`${at}: glow.opacity 必须在 0–1`);
+          }
+        }
+      }
+      // 仅 PPTX 的文字版式能力：合法值必须限定，否则会写出 PowerPoint 打不开的 bodyPr/rPr
+      if (el.fit != null && !['none', 'shrink', 'resize'].includes(el.fit)) {
+        errors.push(`${at}: fit "${el.fit}" 无法识别；可选 none / shrink / resize`);
+      }
+      for (const key of ['vert', 'textDirection']) {
+        if (el[key] != null && !TEXT_VERT_VALUES.includes(el[key])) {
+          errors.push(`${at}: ${key} "${el[key]}" 无法识别；可选 ${TEXT_VERT_VALUES.join(' / ')}`);
+        }
+      }
+      if (el.highlight != null) {
+        const hl = typeof el.highlight === 'object' && !Array.isArray(el.highlight) ? el.highlight.color : el.highlight;
+        if (typeof hl !== 'string') errors.push(`${at}: highlight 必须是颜色字符串或 {color} 对象`);
+      }
+      for (const key of ['subscript', 'superscript']) {
+        if (el[key] != null && typeof el[key] !== 'boolean') errors.push(`${at}: ${key} 必须是布尔值`);
+      }
+      for (const key of ['paraSpaceBefore', 'paraSpaceAfter']) {
+        if (el[key] != null && !(Number.isFinite(Number(el[key])) && Number(el[key]) >= 0)) errors.push(`${at}: ${key} 必须是非负数字（px）`);
       }
 
       // 类型特定检查

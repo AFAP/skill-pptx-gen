@@ -1,7 +1,7 @@
 ---
 name: ppt-gen
 description: 把内容、文档、数据或报告转为可编辑的 PPTX。当用户要求制作 PPT、幻灯片、演示文稿或 slide deck，或提供参考图要求复刻版式时使用。通过紧凑语义版式或受约束 WebSlide 生成统一 PPT-DSL，由网页预览与 PptxGenJS 共用转换层导出；文本、形状、图表和表格保持可编辑。
-version: "2.2.0"
+version: "2.3.0"
 display_name: AI PPT 生成器
 display_name_en: AI PPT Generator
 category: office
@@ -27,7 +27,7 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 
 - 需要标准图形（流程、层级、对比、汇聚、星形、扇形、括号等）：[references/shape-library.md](references/shape-library.md)。优先用形状库而不是手拼路径。
 - 长文档、研究报告或多章节材料：[references/content-to-deck.md](references/content-to-deck.md)。
-- 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。提取视觉语法后重新创作，不把单张截图当作整套母版。
+- 参考截图：[references/reference-image-analysis.md](references/reference-image-analysis.md)。默认提取视觉语法后重新创作；用户要求“还原这张图”时走该文第 4 节复刻模式（量坐标取色 → 包围盒校准文字 → 叠加自检）。
 - 图片版 PPT、PPT 截图或拍屏要还原成可编辑 PPTX：[references/image-to-editable-deck.md](references/image-to-editable-deck.md)。先做结构与元素分类，再按 Creative DSL / WebSlide / Hybrid 重建。
 - 配色、字体、曲线和空间节奏：[references/styles.md](references/styles.md)。默认色板详见 [references/builtin-template.md](references/builtin-template.md)。样式是视觉语法，不是整页布局。
 - 脑图、弧形轨道、四象限、金字塔、SWOT 等几何配方：[references/design-system.md](references/design-system.md)，只读取当前页面所需部分。
@@ -65,6 +65,9 @@ description_en: "AI PPT generation pipeline: PPT-DSL → editable web preview wi
 - 未知形状名、未知箭头类型、越界 `angleRange`、非法图片裁切框同样中止，不会静默退化成别的图形。
 - **一致性由 `core/capabilities.mjs` 派生**：任何只在单侧生效的字段都会被校验器自动告警，
   不要靠记忆维护这份清单。单向能力要显式接受，不要让它静默存在。
+- **单向声明必须真的落地**：说"仅 PPTX 生效"的字段（`fit`、`vert`/`textDirection`、`highlight`、
+  上下标、段前段后距、`align:"justify"`）会真的写进 `bodyPr`/`rPr`；`tests/parity.mjs` 用 mock 选项
+  加真实 OOXML 断言守住每条声明，新增单向能力时要同时补这条断言，否则"告警说支持、文件里没有"。
 - 标准图形优先用形状库（`shape-preset` 及糖衣类型），而不是自己拼路径：它对应 OOXML preset，
   两端共用同一套几何构造，可编辑性与"PPT 原生图形"识别度都更好。见 [references/shape-library.md](references/shape-library.md)。
 - 形状可信度分三级：`preset` 两端严格一致；`aspect`（星形族、pentagon）在非等比包围盒下有差异；
@@ -125,8 +128,8 @@ npm run test:browser
 | `make_preview --no-edit` | 关闭双击改字，生成纯审阅预览 |
 | `make_preview --no-embed-images` | 不把图片内嵌为 data URI，预览体积更小但依赖原路径可访问 |
 | `build_pptx --skip-images` | 跳过图片预取（仅调试，缺图会记为失败） |
-| `html_to_deck --theme <名称>` | 指定 WebSlide 提取时使用的主题 |
-| `--no-validate` | 跳过校验直接构建。**不要用它掩盖转换错误**，只用于定位构建阶段问题 |
+| `html_to_deck --theme <名称>` | 指定 WebSlide 提取时使用的主题（不指定、页面也没写 `data-ppt-theme` 时提取为 `clean-minimal`） |
+| `build_pptx --no-validate` | 跳过校验直接构建。**不要用它掩盖转换错误**，只用于定位构建阶段问题。`build_all` 没有这个参数，它总是先跑 `check_deck` |
 
 只有用户明确接受不完整输出时才使用 `--allow-partial`。不要把 `--no-validate` 当成修复手段。
 

@@ -59,6 +59,12 @@
   }
 
 
+  /** DSL 的 verticalAlign 允许 center 作为 middle 的别名；Konva 只认 top/middle/bottom */
+  function normalizeValign(v) {
+    if (v === 'center') return 'middle';
+    return v === 'middle' || v === 'bottom' ? v : 'top';
+  }
+
   /** 估算文本像素宽（中文全宽、ASCII 0.55） */
   function estTextWidth(text, fontSize) {
     let u = 0;
@@ -187,8 +193,10 @@
   function addPolyline(group, elop, pa, { defaultEnd = null } = {}) {
     const pts = pa.flatMap(p => [p.x, p.y]);
     if (pts.length < 4) return;
-    const stroke = elop.lineColor || elop.stroke || '#333333';
-    const strokeWidth = elop.lineWidth || elop.strokeWidth || 2;
+    // 取色/取宽顺序必须与导出端 convertStroke 完全一致（stroke 优先，lineColor/lineWidth 为别名）：
+    // 两个别名同时出现且取值不同时，两端不能各挑一个。
+    const stroke = elop.stroke ?? elop.lineColor ?? '#333333';
+    const strokeWidth = elop.strokeWidth ?? elop.lineWidth ?? 2;
     const opacity = elop.opacity ?? 1;
     const pick = v => (v && v !== 'none' ? v : null);
     const begin = pick(elop.lineBeginArrowType);
@@ -298,12 +306,16 @@
   }
 
   function renderText(elop, group, layer, opts) {
-    // 文本框底色（bgFill）：先垫同尺寸色块（含 transparency/rotation），与导出端一致
-    if (elop.bgFill) {
+    // 文本框底色（bgFill）与边框（stroke）：先垫同尺寸色块（含 transparency/rotation），与导出端一致。
+    // stroke 对 text 是**文本框边框**（导出写 spPr 的 <a:ln>），不是文字轮廓——文字轮廓用 outline。
+    if (elop.bgFill || elop.stroke) {
       group.add(new Konva.Rect({
         x: elop.x, y: elop.y, width: elop.width, height: elop.height,
         ...fillAttr(elop.bgFill),
         cornerRadius: elop.bgRadius || 0,
+        stroke: colorToFill(elop.stroke),
+        strokeWidth: elop.stroke ? (elop.strokeWidth ?? 1) : undefined,
+        dash: dashArray(elop),
         rotation: elop.rotation || elop.rotate || 0,
         opacity: elop.bgOpacity ?? 1,
       }));
@@ -316,7 +328,9 @@
       fontStyle: elop.fontStyle || (elop.bold ? 'bold' : '') + (elop.italic ? ' italic' : '') || 'normal',
       fill: colorToFill(elop.fill) || '#111111',
       align: elop.align || 'left',
-      verticalAlign: elop.verticalAlign || elop.valign || 'top',
+      // Konva 只认 top/middle/bottom；`center` 是 DSL 的 middle 别名，必须在这里归一，
+      // 否则 <a:bodyPr anchor="ctr"> 与预览会一个居中一个顶对齐。
+      verticalAlign: normalizeValign(elop.verticalAlign || elop.valign),
       lineHeight: elop.lineHeight || 1.25,
       letterSpacing: elop.letterSpacing || 0,
       padding: elop.padding || 0,
@@ -330,6 +344,30 @@
     if (elop.underline) cfg.textDecoration = 'underline';
     // strike 与旧字段 strikethrough 等价；导出端同样落到 PPT 原生 strike
     if (elop.strike ?? elop.strikethrough) cfg.textDecoration = 'line-through';
+    // 文字描边（导出端写 PPT 原生 <a:ln>）：Konva 的文字描边同样以字形轮廓为中心，
+    // fillAfterStrokeEnabled 保证填充画在描边之上，避免笔画变粗发虚。
+    if (elop.outline && typeof elop.outline === 'object' && !Array.isArray(elop.outline)) {
+      const oc = colorToFill(elop.outline.color ?? elop.fill ?? elop.color);
+      if (oc) {
+        cfg.stroke = oc;
+        cfg.strokeWidth = Math.max(0.5, Number(elop.outline.width) || 1);
+        cfg.fillAfterStrokeEnabled = true;
+      }
+    }
+    // 文字发光（导出端写 PPT 原生 <a:glow>）：Konva 没有 glow，用零偏移阴影近似。
+    // 已显式设置 shadow 时以 shadow 为准（Konva 每个节点只有一个阴影位）。
+    if (elop.glow && typeof elop.glow === 'object' && !Array.isArray(elop.glow) && !elop.shadowColor && !elop.shadowBlur && !elop.shadow) {
+      const gc = colorToFill(elop.glow.color);
+      if (gc) {
+        const opacity = Number(elop.glow.opacity);
+        cfg.shadowColor = gc;
+        cfg.shadowBlur = Math.max(1, Number(elop.glow.blur) || 8);
+        cfg.shadowOffsetX = 0;
+        cfg.shadowOffsetY = 0;
+        cfg.shadowOpacity = Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0.75;
+        cfg.shadowEnabled = true;
+      }
+    }
     applyFlip(cfg, elop, elop.width || 0, elop.height || 0);
     const node = new Konva.Text(cfg);
     if (opts.onDiagnostic) {
@@ -504,7 +542,9 @@
     const { x = 0, y = 0, width: w = 400, height: h = 300 } = elop;
     const model = chartModel(elop);
     const { series, labels } = model;
-    const defaultColors = (opts.palette && opts.palette.length ? opts.palette : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31']);
+    // 缺省系列色与导出端共用同一规则：取主题 palette 前 6 色（导出端同样 slice(0,6)），
+    // 系列多于 6 个时两端都按同一顺序循环，避免第 7 个系列起两端取色不同。
+    const defaultColors = (opts.palette && opts.palette.length ? opts.palette.slice(0, 6) : ['#4A90E2', '#6CC215', '#F5A623', '#9C27B0', '#00BCD4', '#ED7D31']);
     const colors = (elop.chartColors && elop.chartColors.length ? elop.chartColors : defaultColors)
       .map(v => typeof v === 'string' && !v.startsWith('#') && !v.startsWith('rgb') ? '#' + v : v);
     const type = elop.chartType || 'bar';

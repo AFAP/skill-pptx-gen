@@ -164,6 +164,7 @@
  "lineHeight":1.5,"letterSpacing":2,"padding":8,"underline":true}
 ```
 - `fontStyle` 字符串含 `bold`/`italic` 即生效；也可用布尔 `bold`/`italic`。
+- `align` 的 `left`/`center`/`right` 两端一致；`justify`（两端对齐）仅 PPTX 生效，预览按左对齐绘制并告警。
 - `verticalAlign` 接受 `center` 作为 `middle` 的别名（WebSlide 提取器可能产出任一种）。
 - `lineHeight` 导出为 lineSpacingMultiple（0.5-3）。
 - **`fill` 对 text 是字体颜色**（Konva 约定），不会成为文本框底色；
@@ -171,8 +172,20 @@
 - 删除线用 `strike`（`true` 或 `"dblStrike"`）；`strikethrough` 是等价旧字段。两端都生效。
 - `wrap: false` 表示不自动换行，预览与 PPTX 都关闭换行。
 - `bgFill` + `bgRadius` 的圆角由导出映射为 `roundRect` + `rectRadius`（两端一致）。
+- 文字描边用 `outline`（`{color, width}`，width 单位 px，默认 1；缺色时取文字颜色），导出为 PPT 原生 `<a:ln>`，
+  预览用 Konva 文字描边（`fillAfterStrokeEnabled`，同样以字形轮廓为中心）。
+- 文字发光用 `glow`（`{color, blur, opacity}`，blur 单位 px 默认 8，opacity 默认 0.75），导出为 PPT 原生 `<a:glow>`；
+  预览用零偏移阴影近似，属**近似一致**（校验器会告警）。同一元素同时设置 `shadow` 与 `glow` 时预览只画阴影。
 - 浅色表面上的强调文字用 `$accentText`；`$accent` 主要用于装饰和填充；accent 色块上的文字用 `$onAccent`。
-- 文本框可带 `shadow`（预览与导出均生效）。`stroke`/`strokeWidth` 只写入 PPTX，Konva 预览不绘制文字描边——需要预览也可见时改用 shape 叠加或图片。
+- 文本框可带 `shadow`（预览与导出均生效）。`stroke`/`strokeWidth` 是**文本框边框**（不是文字轮廓）：
+  导出写文本框的 `<a:ln>`，预览在文字下层画同尺寸边框矩形（`bgFill` 存在时共用同一个矩形与 `bgRadius` 圆角）。
+  文字轮廓描边请用 `outline`。
+- 仅 PPTX 生效的文字版式（预览是画布，不做竖排/自动缩字/高亮/上下标/段距，校验器会告警）：
+  - `fit`：`none` / `shrink`（文字过长时自动缩字，写 `<a:normAutofit/>`）/ `resize`（框随文字增高，写 `<a:spAutoFit/>`）。
+  - `vert` 或 `textDirection`：`vert` / `vert270` / `eaVert` / `mongolianVert` / `wordArtVert` / `wordArtVertRtl` / `horz`。
+  - `highlight`：高亮底色，颜色字符串或 `{color}`。
+  - `subscript` / `superscript`：上下标（写 `baseline`）。
+  - `paraSpaceBefore` / `paraSpaceAfter`：段前/段后距，单位 px（导出换算为 pt）。
 
 ### image — 图片
 ```json
@@ -308,7 +321,7 @@ Konva 预览与 PPTX 导出自动一致：
  "data":[{"name":"系列A","values":[12,18,26]},{"name":"系列B","values":[5,14,28]}],
  "chartColors":["#3182CE","#C9A96E"],"showLegend":true,"chartTitle":"标题","showTitle":true}
 ```
-- `chartColors` 缺省取 theme.palette 前 6 色。
+- `chartColors` 缺省取 theme.palette 前 6 色（两端同一规则；系列多于 6 个时按同一顺序循环取色）。
 - pie/doughnut 只接受一个系列，必须非负且总和大于 0；多个系列会报错，不会忽略。
 - scatter 的 `values` 为 `[[x,y],...]` 有限数字对。不同系列可以具有不同 X 值及重复 X；导出适配器会保存所有点。
 - 其他图表的 values 必须是有限数字，所有系列使用相同分类标签和数量。缺省标签使用 1、2、3…；提供标签时数量必须匹配。
@@ -372,18 +385,20 @@ Konva 预览与 PPTX 导出自动一致：
 | `width` / `height` | `w` / `h` | 通用几何简写 |
 | `rotation` | `rotate` | 同上，度 |
 | `fill`（text） | `color` | text 的字体颜色两种写法都接受 |
-| `verticalAlign` | `valign` | `center` 等价 `middle` |
+| `verticalAlign` | `valign` | `center` 等价 `middle`（两端都接受这两种写法） |
 | `dashType` | `dash` | 虚线 |
 | `cornerRadius` | `rectRadius` | 矩形圆角 |
 | `padding` | `inset` | 通用内边距 |
 | `shadowColor`/`shadowBlur`/… | `shadow:{type,blur,offset,angle,color,opacity}`、`shadowType` | Konva 风格标量字段与对象式任选其一 |
 | — | `flipH` / `flipV` | 水平/垂直翻转 |
-| — | `lineBeginArrowType` | 线段起点箭头；**仅导出生效，预览只画终点箭头** |
+| — | `lineBeginArrowType` | 线段起点箭头；`none/arrow/triangle` 两端严格一致，`stealth/diamond/oval` 头部造型为等价近似（校验器告警） |
 | — | `closePath` | `shape-path` 是否闭合，默认闭合 |
 | — | `bgOpacity` | `bgFill` 底色的不透明度（预览与导出均生效） |
-| — | `bgRadius` / `strikethrough` / `wrap` / `ellipsis` | **仅预览生效**，导出忽略 |
+| — | `bgRadius` / `strikethrough` / `wrap` | 两端一致：`bgRadius` 导出为 `roundRect`、`strikethrough` 等价 `strike`、`wrap:false` 两端都关闭换行 |
+| — | `ellipsis` | **仅预览生效**：PPTX 无截断，导出后文字会溢出（校验器告警） |
+| — | `outline` / `glow` | 文字描边/发光：导出为 PPT 原生 `<a:ln>`/`<a:glow>`，预览用 Konva 文字描边与零偏移阴影（`glow` 为近似，会告警） |
 
-`table` 额外支持 `header.enabled`（是否输出表头行）与 `height`（作为 `rowH`）；`borderColor` 仅预览生效。
+`table` 额外支持 `header.enabled`（是否输出表头行）与 `height`（作为 `rowH`）；显式设置 `borderColor` 时导出为 PPT 原生单元格边框，未设置时两端各自使用默认边框色（预览 `#E2E8F0` / PPTX `666666`）。
 
 `x`/`y`/`width`/`height`/`stepX`/`stepY`/`columns`/`scale`/`gap`/`dx`/`dy` 都接受**直接字段绑定**（如 `"height":"{{value}}"`），但只支持单个字段名——**不支持算式、函数或过滤器**（`{{320 - value}}` 会报错）。绑定只写在源文件，编译后即展开为字面量。
 

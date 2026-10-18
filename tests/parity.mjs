@@ -36,6 +36,7 @@ const mockSlide = {
   addText: (text, opt) => captured.push({ type: 'text', text, opt }),
   addImage: opt => captured.push({ type: 'image', opt }),
   addChart: (type, data, opt) => captured.push({ type: 'chart', data, opt }),
+  addTable: (rows, opt) => captured.push({ type: 'table', rows, opt }),
 };
 const grab = elop => { captured.length = 0; applyElement(mockPptx, mockSlide, elop, theme); return captured; };
 
@@ -98,12 +99,77 @@ assert.ok(Math.abs(crop.sizing.x - inch(200 * 0.25)) < 1e-3);
 assert.ok(Math.abs(crop.sizing.w - inch(200 * 0.5)) < 1e-3);
 assert.throws(() => grab({ elType: 'image', data: 'data:image/png;base64,AA==', x: 0, y: 0, width: 10, height: 10, sizing: { type: 'crop' } }), /需要 width\/height/);
 
+// 文字描边/发光：注册表曾声称"仅 PPTX 生效"，而导出端当时根本没有实现（两端都静默丢字段）。
+// 现在导出端写 PPT 原生 <a:ln>/<a:glow>，预览端画 Konva 描边与零偏移阴影，必须都落到选项上。
+const textEffect = grab({
+  elType: 'text', text: '描边发光', x: 0, y: 0, width: 300, height: 40,
+  outline: { color: '#FFFFFF', width: 2 }, glow: { color: '#F26322', blur: 8, opacity: 0.5 },
+})[0].opt;
+assert.deepEqual(textEffect.outline, { color: 'FFFFFF', size: 1.5 }, 'outline → PPT 文本描边（px→pt）');
+assert.equal(textEffect.glow.color, 'F26322');
+assert.equal(textEffect.glow.size, 6, 'glow.blur 8px → 6pt');
+assert.equal(textEffect.glow.opacity, 0.5);
+// 描边缺色时回落到文字颜色；未设置效果时不写选项（否则 PowerPoint 会画出默认白描边/白光）
+const outlineFallback = grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30, fill: '#09192C', outline: {} })[0].opt;
+assert.equal(outlineFallback.outline.color, '09192C');
+assert.equal(grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30 })[0].opt.outline, undefined);
+assert.equal(grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30 })[0].opt.glow, undefined);
+
+// 表格边框色：预览一直按 cell 描边绘制 borderColor，导出过去直接忽略它（WebSlide 提取的表格必定带色 → 每次都被迫接受一条告警）
+const bordered = grab({ elType: 'table', id: 'grid', x: 0, y: 0, width: 400, height: 120, borderColor: '#D8E1E8', rows: [['A', 'B'], ['1', '2']] })[0];
+assert.equal(bordered.rows[0][0].options.border.color, 'D8E1E8');
+assert.equal(bordered.rows[0][0].options.border.pt, 0.75, '预览 1px 描边 → 0.75pt');
+assert.equal(bordered.rows[1][1].options.border.type, 'solid');
+// 未显式给色时保持 PowerPoint 原生默认边框：不写 border，不改既有版式
+assert.equal(grab({ elType: 'table', id: 'plain', x: 0, y: 0, width: 400, height: 120, rows: [['A']] })[0].rows[0][0].options.border, undefined);
+
+// 仅 PPTX 的文字版式能力：注册表声明"仅 PPTX 生效"，导出端就必须**真的**写进原生文件。
+// 这批字段曾经只存在于注册表里（两端都不读），用户看到"仅 PPTX 生效"却什么也拿不到。
+const layoutText = grab({
+  elType: 'text', text: 'x', x: 0, y: 0, width: 200, height: 40,
+  fit: 'shrink', textDirection: 'vert270', highlight: '#FFF176', superscript: true,
+  paraSpaceBefore: 8, paraSpaceAfter: 4,
+})[0].opt;
+assert.equal(layoutText.fit, 'shrink');
+assert.equal(layoutText.vert, 'vert270', 'textDirection 是 vert 的别名');
+assert.equal(layoutText.highlight, 'FFF176', 'highlight → PPT 高亮色（十六进制字符串）');
+assert.equal(layoutText.superscript, true);
+assert.equal(layoutText.paraSpaceBefore, 6, '段前距 8px → 6pt');
+assert.equal(layoutText.paraSpaceAfter, 3, '段后距 4px → 3pt');
+assert.equal(grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30, vert: 'vert' })[0].opt.vert, 'vert');
+assert.equal(grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30, subscript: true })[0].opt.subscript, true);
+assert.equal(grab({ elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30 })[0].opt.fit, undefined, '未设置时不写 fit');
+// 非法枚举必须报错：写进 bodyPr 会让 PowerPoint 报"内容有问题"
+const badTextLayout = validateDeck({ slides: [{ elements: [
+  { elType: 'text', text: 'x', x: 0, y: 0, width: 100, height: 30, fit: 'squash' },
+  { elType: 'text', text: 'y', x: 0, y: 40, width: 100, height: 30, vert: 'diagonal' },
+  { elType: 'text', text: 'z', x: 0, y: 80, width: 100, height: 30, paraSpaceBefore: -3 },
+] }] });
+assert.ok(badTextLayout.errors.some(e => e.includes('fit')), badTextLayout.errors.join('; '));
+assert.ok(badTextLayout.errors.some(e => e.includes('vert')), badTextLayout.errors.join('; '));
+assert.ok(badTextLayout.errors.some(e => e.includes('paraSpaceBefore')), badTextLayout.errors.join('; '));
+// 两端对齐只在 PPTX 生效：注册表按取值区分，必须能诊断出来
+assert.equal(fieldParity('align', 'text', 'justify').parity, PARITY.PPTX_ONLY);
+assert.equal(fieldParity('align', 'text', 'left').parity, PARITY.BOTH);
+assert.ok(capabilityIssues({ elType: 'text', align: 'justify' }).some(i => i.field === 'align'));
+
 /* ============ 2. 能力注册表：单向字段必须被告警，一致字段不得误报 ============ */
 assert.equal(fieldParity('strike', 'text', true).parity, PARITY.BOTH, 'strike 已打通，应为两端一致');
 assert.equal(fieldParity('wrap', 'text', false).parity, PARITY.BOTH);
 assert.equal(fieldParity('bgRadius', 'text', 8).parity, PARITY.BOTH);
 assert.equal(fieldParity('ellipsis', 'text', true).parity, PARITY.PREVIEW_ONLY);
 assert.equal(fieldParity('adjust', 'shape-preset', 25000).parity, PARITY.PREVIEW_ONLY);
+// 已打通的字段必须登记为两端一致，且不再产生"单向"告警——否则用户仍会被迫逐条解释警告
+assert.equal(fieldParity('outline', 'text', {}).parity, PARITY.BOTH);
+assert.equal(fieldParity('glow', 'text', {}).parity, PARITY.APPROXIMATE);
+assert.equal(fieldParity('borderColor', 'table', '#D8E1E8').parity, PARITY.BOTH);
+assert.deepEqual(capabilityIssues({ elType: 'text', outline: { color: '#fff' }, fill: '#000000' }), []);
+assert.deepEqual(
+  capabilityIssues({ elType: 'table', borderColor: '#D8E1E8', rows: [['A']] }).filter(i => i.field === 'borderColor'),
+  [],
+  'borderColor 已映射到 PPT 单元格边框，不应再报"仅预览生效"');
+// 发光两端都画，但只是半径量级近似，仍须告警说明差异
+assert.ok(capabilityIssues({ elType: 'text', glow: { color: '#fff' } }).some(i => i.code === 'CAPABILITY_APPROXIMATE'));
 assert.equal(fieldParity('lineEndArrowType', 'shape-line', 'triangle').parity, PARITY.BOTH);
 assert.equal(fieldParity('lineEndArrowType', 'shape-line', 'stealth').parity, PARITY.APPROXIMATE);
 // 元数据类单向能力不产生告警（否则每页都要刷屏），但必须能被正确解析
@@ -125,8 +191,10 @@ assert.ok(capabilityIssues({ elType: 'shape-preset', shape: 'wedgeRectCallout', 
 assert.deepEqual(capabilityIssues({ elType: 'shape-preset', shape: 'hexagon', width: 180, height: 100 }), []);
 
 const stats = capabilityStats();
-assert.ok(stats.both >= 35, `两端一致字段偏少：${stats.both}`);
-assert.ok(stats.oneSided <= 26, `单向字段过多，说明一致性在退化：${stats.oneSided}`);
+// 94 = 1280px 基线能力里已打通的部分；align 因 justify 只在 PPTX 生效而按取值细分，不计入 both。
+assert.ok(stats.both >= 94, `两端一致字段偏少：${stats.both}`);
+// 单向能力只应减少：新增单向字段必须先显式抬高这个上限（旧值 21，打通的 outline/borderColor/align:justify 等已扣除）。
+assert.ok(stats.oneSided <= 18, `单向字段过多，说明一致性在退化：${stats.oneSided}`);
 
 /* ============ 3. 校验器：新能力必须可诊断 ============ */
 const bad = validateDeck({ slides: [{ elements: [
@@ -195,6 +263,12 @@ const ooxmlDeck = {
     { elType: 'text', id: 'nowrap', text: '不换行文本', x: 600, y: 300, width: 200, height: 40, fontSize: 18, fill: '#09192C', wrap: false },
     { elType: 'image', id: 'cropped', data: 'data:image/png;base64,' + makePng(100, 80).toString('base64'),
       x: 40, y: 380, width: 200, height: 160, sizing: { type: 'crop', x: 0.25, y: 0.25, width: 0.5, height: 0.5 } },
+    { elType: 'text', id: 'bevel', text: '描边发光', x: 40, y: 560, width: 260, height: 40, fontSize: 20, fill: '#09192C',
+      outline: { color: '#F26322', width: 2 }, glow: { color: '#F26322', blur: 8, opacity: 0.5 } },
+    { elType: 'table', id: 'grid', x: 340, y: 540, width: 420, height: 120, fontSize: 14, borderColor: '#D8E1E8',
+      rows: [['季度', '收入'], ['Q1', '12']] },
+    { elType: 'text', id: 'layout', text: '竖排高亮', x: 640, y: 540, width: 200, height: 90, fontSize: 18, fill: '#09192C',
+      fit: 'shrink', vert: 'vert270', highlight: '#FFF176', superscript: true, paraSpaceBefore: 8, paraSpaceAfter: 4 },
   ] }],
 };
 
@@ -216,9 +290,27 @@ expect('strike="sngStrike"', '删除线');
 expect('wrap="none"', '不换行');
 
 // 对象名写入选择窗格
-for (const name of ['star', 'hex', 'hept', 'st6', 'blk', 'pie', 'conn', 'struck', 'boxed', 'nowrap', 'cropped']) {
+for (const name of ['star', 'hex', 'hept', 'st6', 'blk', 'pie', 'conn', 'struck', 'boxed', 'nowrap', 'cropped', 'bevel', 'grid', 'layout']) {
   expect(`name="${name}"`, `对象名 ${name}`);
 }
+
+// 文字描边/发光：必须真的写进 <a:rPr>，而不是只存在于 DSL 与预览里
+// outline.width 2px → 1.5pt → 19050 EMU；glow.blur 8px → 6pt → 76200 EMU
+expect('<a:ln w="19050">', '文字描边 a:ln（1.5pt）');
+expect('<a:glow rad="76200">', '文字发光 a:glow（6pt）');
+expect('<a:srgbClr val="F26322"/>', '描边颜色');
+expect('<a:srgbClr val="F26322"><a:alpha val="50000"/>', '发光颜色与 0.5 透明度');
+
+// 表格边框：预览按 1px #D8E1E8 描边，导出必须是同一颜色的原生 cell border（0.75pt → 9525 EMU）
+assert.ok(/<a:ln[TRBL] w="9525"[^>]*>\s*<a:solidFill><a:srgbClr val="D8E1E8"\/>/.test(xml), '表格单元格边框未写入 OOXML');
+
+// 仅 PPTX 的文字版式：自动缩字/竖排/高亮/上标/段距必须出现在 bodyPr 与 rPr 里
+expect('<a:normAutofit/>', 'fit:shrink → normAutofit');
+assert.ok(/<a:bodyPr[^>]*vert="vert270"/.test(xml), 'vert 未写入 bodyPr');
+expect('<a:highlight><a:srgbClr val="FFF176"/></a:highlight>', 'highlight → a:highlight');
+expect('baseline="30000"', 'superscript → baseline');
+expect('<a:spcBef><a:spcPts val="600"/>', 'paraSpaceBefore 8px → spcPts 600');
+expect('<a:spcAft><a:spcPts val="300"/>', 'paraSpaceAfter 4px → spcPts 300');
 
 // 角度与厚度：pptxgenjs 按 度×60000 / 比例×50000 写入 adj
 expect('<a:gd name="adj1" fmla="val 10800000" />', 'blockArc 起始角 180°');
