@@ -1,11 +1,11 @@
 {
   "name": "ppt-gen",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "AI Creative DSL/WebSlide/Compact → 统一 PPT-DSL → Konva 预览与可编辑 PPTX",
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "check": "node tools/check_deck.mjs",
@@ -13,7 +13,10 @@
     "build:all": "node tools/build_all.mjs",
     "html": "node tools/html_to_deck.mjs",
     "preview": "node tools/make_preview.mjs",
-    "test": "node tests/smoke.mjs && node tests/shapes.mjs && node tests/semantic-layouts.mjs && node tests/integration.mjs && node tests/parity.mjs && node tests/regressions.mjs",
+    "doctor": "node tools/doctor.mjs",
+    "release:pack": "node tools/package_skill.mjs",
+    "release:verify": "node tools/verify_package.mjs",
+    "test": "node tests/smoke.mjs && node tests/shapes.mjs && node tests/semantic-layouts.mjs && node tests/integration.mjs && node tests/parity.mjs && node tests/regressions.mjs && node tests/tooling.mjs",
     "test:browser": "node tests/browser.mjs"
   },
   "dependencies": {

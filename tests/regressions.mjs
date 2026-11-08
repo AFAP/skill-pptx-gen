@@ -130,7 +130,7 @@ const svg = deckOf({ elType: 'image-svg', ...box, svgXml: '<svg xmlns="http://ww
 await prefetchImages(svg, { svgMode: 'browser' });
 assert.equal(svg.slides[0].elements[0]._error, undefined);
 
-// Text edits retain prefetched resources; changes to asset geometry invalidate the cache.
+// Resizing a bitmap retains its bytes; changing the source or SVG raster size invalidates them.
 const resources = { slides: [{ background: 'bg.png', elements: [text('Before'), { elType: 'image', ...box, path: 'asset.png' }] }] };
 const cached = compileDeck(resources).deck;
 Object.assign(cached.slides[0], { _backgroundSource: 'bg.png', _backgroundMedia: true, background: pixel });
@@ -139,7 +139,14 @@ const retained = editDeckText(resources, '/slides/0/elements/0/text', 'After', c
 assert.equal(retained.slides[0].background, pixel);
 assert.equal(retained.slides[0].elements[1]._data, pixel);
 const resized = structuredClone(resources); resized.slides[0].elements[1].width++;
-assert.equal(editDeckText(resized, '/slides/0/elements/0/text', 'After', cached).deck.slides[0].elements[1]._data, undefined);
+assert.equal(editDeckText(resized, '/slides/0/elements/0/text', 'After', cached).deck.slides[0].elements[1]._data, pixel);
+const replaced = structuredClone(resources); replaced.slides[0].elements[1].path = 'other.png';
+assert.equal(editDeckText(replaced, '/slides/0/elements/0/text', 'After', cached).deck.slides[0].elements[1]._data, undefined);
+const svgResources = deckOf(text('Before'), svg.slides[0].elements[0]);
+const svgCached = compileDeck(svgResources).deck;
+svgCached.slides[0].elements[1]._data = pixel;
+const svgResized = structuredClone(svgResources); svgResized.slides[0].elements[1].width++;
+assert.equal(editDeckText(svgResized, '/slides/0/elements/0/text', 'After', svgCached).deck.slides[0].elements[1]._data, undefined);
 
 // An export failure must not leave a new preview beside an old PPTX.
 const work = await mkdtemp(join(tmpdir(), 'ppt-build-test-'));

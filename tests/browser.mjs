@@ -1,6 +1,6 @@
 /** Optional real Chromium acceptance test; no browser automation npm dependency. */
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -19,11 +19,14 @@ try {
       { elType: 'text', id: 'derived', text: 'Derived {{label}}', x: 100, y: 150, width: 400, height: 40 },
       { elType: 'text', id: 'value', text: '{{value}}', x: 100, y: 200, width: 400, height: 40 },
       { elType: 'shape-rect', id: 'bar', x: 100, y: 250, width: '{{value}}', height: 40, fill: '$accent' },
+      { elType: 'image', id: 'asset', x: 100, y: 520, width: '{{value}}', height: 50, path: 'asset.png' },
     ] },
     { elType: 'chart', id: 'line', chartType: 'line', x: 600, y: 100, width: 500, height: 240, labels: ['A', 'B'], data: [{ name: 'S', values: [-10, 20] }], showValue: true },
     { elType: 'image', id: 'image', x: 100, y: 400, width: 100, height: 100, data: pixel },
   ] }] };
-  const input = join(temp, 'source.json'), preview = join(temp, 'preview.html');
+  const input = join(temp, 'source.json'), preview = join(temp, 'output', 'preview.html');
+  await mkdir(join(temp, 'output'));
+  await writeFile(join(temp, 'asset.png'), Buffer.from(pixel.split(',')[1], 'base64'));
   await writeFile(input, JSON.stringify(source));
   await run('make_preview.mjs', [input, '-o', preview]);
   let html = await readFile(preview, 'utf8');
@@ -40,6 +43,8 @@ try {
       result.width = DECK.slides[0].elements.find(e => e.id === 'r-0-bar').width;
       result.stages = stages.length;
       result.image = DECK.slides[0].elements.find(e => e.id === 'image').data;
+      const asset = DECK.slides[0].elements.find(e => e.id === 'r-0-asset');
+      result.asset = { width: asset.width, data: asset._data, path: asset.path };
       const built = presentationFromScene(PptxGenJS, DECK, THEME);
       const bytes = await built.pptx.write({ outputType: 'arraybuffer' });
       const clean = await sanitizePptxData(JSZip, bytes, { outputType: 'uint8array' });
@@ -60,6 +65,8 @@ try {
   assert.deepEqual(result.texts, ['After', 'Derived After', '200']);
   assert.equal(result.value, 200); assert.equal(result.width, 200); assert.equal(result.stages, 1);
   assert.equal(result.image, pixel);
+  assert.deepEqual(result.asset, { width: 200, data: pixel, path: 'asset.png' });
+  assert.ok(result.slideXml.includes('r-0-asset'));
   assert.ok(result.slideXml.includes('Derived After'));
   assert.ok(result.chartXml.includes('<c:v>-10</c:v>'));
   assert.equal(result.report.failed, 0);

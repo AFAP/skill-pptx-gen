@@ -27,9 +27,11 @@
 
 ## 环境依赖
 
+- Node.js 统一要求 **≥20.9.0**。首次使用或环境变化后运行 `node tools/doctor.mjs`；可加 `--json` 输出结构化结果。
+- SVG 任务使用 `node tools/doctor.mjs --require-svg`，HTML 提取或预览实测任务使用 `--require-browser`，两者可同时使用。显式要求的能力失败会返回非零退出码；默认缺少可选能力只提示。
 - `npm ci` 会安装 `jszip`、`pptxgenjs`；`sharp` 是 **optionalDependencies**，安装失败不会中断 `npm ci`，但 Node 端 `image-svg` 会记为失败。需要时可单独 `npm i sharp`。
 - 浏览器相关能力（WebSlide 提取、`check_preview`、`test:browser`、`--check-browser`、浏览器端导出）需要本机 Chrome/Edge，可用 `--browser <path>` 或 `PPT_BROWSER` 指定。
-- `npm test` 不需要浏览器，但它内部会 `spawn` 子进程跑一次真实构建；在禁止子进程的沙箱里该用例会失败。
+- `npm test` 不需要浏览器，但 `regressions` 会启动真实构建，`tooling` 会启动环境诊断与发布命令。在禁止子进程的沙箱里，明确的 `spawn EPERM` 会跳过相应子用例并告警；发布验收本身不跳过必需检查，仍需在允许子进程的环境完整运行。
 
 ## 最终检查
 

@@ -27,13 +27,15 @@ export function editDeckText(source, pointer, text, previousDeck) {
   const validation = validateDeck(next);
   if (!validation.ok) throw new Error(validation.errors.join('\n'));
   const { deck, theme } = compileDeck(next);
-  // Reuse already embedded assets only while their source and dimensions agree.
+  // Bitmap bytes do not depend on display size. SVG rasterizations do.
   deck.slides.forEach((slide, si) => {
     const previous = previousDeck?.slides[si];
     const oldElements = new Map((previous?.elements || []).map(e => [e.id, e]));
     for (const element of slide.elements) {
       const cached = oldElements.get(element.id);
-      if (cached && ['path', 'url', 'data', 'svgXml', 'width', 'height'].every(k => cached[k] === element[k])) {
+      const resourceKeys = ['elType', 'path', 'url', 'data', 'svgXml'];
+      if (element.elType === 'image-svg') resourceKeys.push('width', 'height');
+      if (cached && resourceKeys.every(k => cached[k] === element[k])) {
         if (cached._data) element._data = cached._data;
         if (cached._error) element._error = cached._error;
       }

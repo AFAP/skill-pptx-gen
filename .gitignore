@@ -1,9 +1,11 @@
 node_modules/
 .npm-cache/
 output/
+dist/
 .DS_Store
 Thumbs.db
 agents/
+.venv/
 
 # 临时工作文件（.tmp-*.mjs / .tmp-shots/ 等）
 .tmp*

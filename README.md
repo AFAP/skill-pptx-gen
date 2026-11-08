@@ -19,10 +19,11 @@ WebSlide HTML ──┘                           └─> PptxGenJS ─> PPTX + 
 
 ## 快速开始
 
-需要 Node.js 18 或更高版本。
+需要 Node.js **20.9.0 或更高版本**（与可选 SVG 转换依赖 sharp 的最低要求一致）。
 
 ```bash
 npm ci
+node tools/doctor.mjs
 
 # 23 页 AI 创意示例：校验、预览、PPTX、报告一次生成
 node tools/build_all.mjs examples/南京埃斯顿深度研究报告-AI创意版.deck.json -o output
@@ -37,6 +38,17 @@ node tools/build_all.mjs output/webslide.json -o output
 预览页默认支持双击有明确源路径的文字修改，可下载保留主题令牌和语义结构的新 `deck.json`，也可直接在浏览器导出 PPTX。循环序号、混合插值等派生文字为只读，避免错误回写；浏览器不会自动覆盖原始源文件。纯审阅可给 `make_preview` 传 `--no-edit`。
 
 改字会保留原数据类型，重新编译整套场景，同步刷新依赖该字段的文字和几何；不合法的输入不会保存。浏览器与 CLI 共用编译、导出和 OOXML 修复模块。
+
+首次使用或环境变化后运行 `npm run doctor`。SVG 任务加 `--require-svg`，WebSlide 或浏览器实测任务加 `--require-browser`；两者可同时使用，如 `npm run doctor -- --require-svg --require-browser`。默认缺少可选能力只提示；显式要求的能力不可用时返回非零退出码。`--json` 提供结构化诊断。
+
+## 市场发布包
+
+```bash
+npm run release:pack -- -o dist/ppt-gen.zip
+npm run release:verify -- dist/ppt-gen.zip --check-browser
+```
+
+第一条命令生成白名单 ZIP，逐文件 SHA-256 清单位于 ZIP 内的 `package-manifest.json`，ZIP 自身的校验值另存为 `*.zip.sha256`。第二条在系统临时目录解压，重新 `npm ci`，实测 SVG、严格构建及可选的 Chrome/Edge 检查，并在 ZIP 旁生成 `*.verify.json`。重新打包会清除同名旧验收报告；只上传通过最新验收的 ZIP。不指定 `-o` 时默认包名包含当前版本号。完整流程和打包范围见 [发布说明](docs/releasing.md)。
 
 ## 完整展示示例
 
@@ -166,6 +178,10 @@ npm run test:browser
 - `core/presentation.mjs`：Node/浏览器共用 PPTX 构建与转换报告。
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏。
 - `tools/build_all.mjs`：推荐的一键管线。
+- `tools/doctor.mjs`：基础依赖、SVG 和浏览器能力预检。
+- `tools/package_skill.mjs` / `tools/verify_package.mjs`：白名单打包与独立解压安装验收。
+- `tests/tooling.mjs`：环境诊断、跨平台 npm 定位、归档完整性与失败报告回归。
+- `docs/releasing.md`：市场发布流程与包内文件范围。
 - `tests/shapes.mjs`：91 个形状的几何自检与形状文档防漂移。
 - `tests/parity.mjs`：选项映射 + 能力注册表 + 真实 OOXML 断言（preset/adj/srcRect/strike/wrap/对象名/虚线/箭头）。
 - `tools/check_preview.mjs`：真实浏览器渲染诊断与逐页截图。
