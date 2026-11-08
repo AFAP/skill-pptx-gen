@@ -6,8 +6,8 @@ import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import JSZip from 'jszip';
-import { inspectSkillArchive, sha256 } from './lib/skill-package.mjs';
-import { findNpmCli } from './lib/npm-cli.mjs';
+import { inspectSkillArchive, sha256 } from './skill-package.mjs';
+import { findNpmCli } from './npm-cli.mjs';
 
 const argv = process.argv.slice(2), options = { checkBrowser: false };
 const usage = '用法: node tools/verify_package.mjs package.zip [--check-browser] [--browser path]';

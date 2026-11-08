@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, access } from 'node:fs/promises';
 import { compileDeck } from '../core/compile-deck.mjs';
 import { validateDeck } from '../core/dsl-validate.mjs';
-import { slides } from './fixtures/deck.mjs';
+import { slides } from './fixture-deck.mjs';
 
 for (const style of ['navy-report', 'clean-minimal', 'tech-dark', 'warm-editorial', 'data-dashboard']) {
   const deck = { dslVersion: 3, style, slides };

@@ -3,6 +3,7 @@ import { readFile, readdir, lstat } from 'node:fs/promises';
 import { resolve, join, posix } from 'node:path';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
+import { checkRepoLayout } from './repo-layout.mjs';
 
 const files = new Set([
   'SKILL.md', 'package.json', 'package-lock.json',
@@ -30,6 +31,7 @@ async function readRegularFile(root, path) {
 
 export async function createSkillArchive(root) {
   root = resolve(root);
+  await checkRepoLayout(root);
   const paths = new Set(files);
   const walk = async path => {
     for (const entry of await readdir(join(root, path), { withFileTypes: true })) {

@@ -327,9 +327,9 @@
     {
       "id": "ma-spectrum",
       "background": "$bg",
-      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：收购酷卓5.1\n- examples/assets/industrial-robot-editorial.png：AI生成示意视觉，不代表真实工厂或产品\n[/Sources]",
+      "notes": "[Sources]\n- 南京埃斯顿深度研究报告.md：收购酷卓5.1\n- examples/industrial-robot-editorial.png：AI生成示意视觉，不代表真实工厂或产品\n[/Sources]",
       "elements": [
-        { "elType": "image", "path": "assets/industrial-robot-editorial.png", "x": 720, "y": 0, "width": 560, "height": 720, "sizing": { "type": "cover" } },
+        { "elType": "image", "path": "industrial-robot-editorial.png", "x": 720, "y": 0, "width": 560, "height": 720, "sizing": { "type": "cover" } },
         { "elType": "shape-rect", "x": 680, "y": 0, "width": 130, "height": 720, "fill": "#F6F4EFDD" },
         { "elType": "text", "styleClass": "kicker", "text": "M&A PRODUCT SPECTRUM", "x": 70, "y": 52, "width": 360, "height": 24 },
         { "elType": "text", "styleClass": "title", "text": "酷卓把产品边界推向协作与人形", "x": 70, "y": 86, "width": 600, "height": 88 },

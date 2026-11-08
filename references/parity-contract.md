@@ -99,7 +99,7 @@
 
 回归测试分工：
 
-- `npm test`：`smoke` / `shapes` / `semantic-layouts` / `integration` / `parity` / `regressions` / `tooling`，均不依赖浏览器。
+- `npm test`：先检查仓库低层级结构，再执行 `smoke` / `shapes` / `semantic-layouts` / `integration` / `parity` / `regressions` / `tooling`，均不依赖浏览器。
   - `shapes`：91 个形状的几何自检（坐标必须落在包围盒内、曲线上点严格校验、`exact` 分类分布）与**文档防漂移**。
   - `parity`：选项映射 + 能力注册表 + **真实生成的 OOXML 断言**（preset 名、adj 调整值、`srcRect` 裁切百分比、
     `strike`、`wrap`、对象名、虚线、箭头头部，以及图表 `c:max`/`c:majorGridlines`/`c:barDir`/`c:holeSize`/`c:smooth`）——"原生文件正确"的唯一证据。

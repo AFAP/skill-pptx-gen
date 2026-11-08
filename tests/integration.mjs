@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { buildPresentation, sanitizePptxBuffer } from '../core/ppt-core.mjs';
 import { validateDeck } from '../core/dsl-validate.mjs';
-import deck from './fixtures/deck.mjs';
+import deck from './fixture-deck.mjs';
 
 const require = createRequire(import.meta.url);
 const PptxGenJS = require('pptxgenjs');

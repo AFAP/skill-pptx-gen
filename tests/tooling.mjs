@@ -7,15 +7,24 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import JSZip from 'jszip';
 import { supportsNode } from '../tools/environment.mjs';
-import { createSkillArchive, inspectSkillArchive, isPackageFile, sha256 } from '../tools/lib/skill-package.mjs';
-import { findNpmCli } from '../tools/lib/npm-cli.mjs';
+import { createSkillArchive, inspectSkillArchive, isPackageFile, sha256 } from '../tools/skill-package.mjs';
+import { findNpmCli } from '../tools/npm-cli.mjs';
+import { checkRepoLayout } from '../tools/repo-layout.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temp = await mkdtemp(join(tmpdir(), 'ppt-tooling-test-'));
 const exec = promisify(execFile);
 try {
   for (const [version, expected] of [['18.20.0', false], ['20.8.9', false], ['20.9.0', true], ['20.10.0', true], ['22.0.0', true], ['invalid', false]]) assert.equal(supportsNode(version, '20.9.0'), expected);
-  for (const path of ['.venv/bin/python', 'node_modules/jszip/index.js', 'tests/fixtures/deck.mjs', 'examples/report.pptx', '测试数据/input.pptx', 'docs/releasing.md', 'tools/verify_package.mjs', 'core/.secret.js', '../SKILL.md', 'core/nested/module.mjs', 'references/nested/notes.md', 'tools/lib/browser.mjs']) assert.equal(isPackageFile(path), false, path);
+  for (const path of ['.venv/bin/python', 'node_modules/jszip/index.js', 'tests/fixture-deck.mjs', 'examples/report.pptx', '测试数据/input.pptx', 'docs/releasing.md', 'tools/verify_package.mjs', 'core/.secret.js', '../SKILL.md', 'core/nested/module.mjs', 'references/nested/notes.md', 'tools/lib/browser.mjs']) assert.equal(isPackageFile(path), false, path);
+  const sourceTree = join(temp, 'source-layout');
+  await mkdir(join(sourceTree, 'tools'), { recursive: true });
+  await mkdir(join(sourceTree, 'node_modules/package/internal'), { recursive: true });
+  await mkdir(join(sourceTree, '.git/objects/internal'), { recursive: true });
+  assert.equal((await checkRepoLayout(sourceTree)).maxDirectoryDepth, 2);
+  await mkdir(join(sourceTree, 'tools/nested'));
+  await assert.rejects(() => checkRepoLayout(sourceTree), /目录层级超限.*tools\/nested/);
+  await assert.rejects(() => createSkillArchive(sourceTree), /目录层级超限/);
   const first = await createSkillArchive(root), second = await createSkillArchive(root);
   assert.deepEqual(first.bytes, second.bytes, 'unchanged sources must yield reproducible archives');
   const { contents, manifest, layout } = await inspectSkillArchive(first.bytes);

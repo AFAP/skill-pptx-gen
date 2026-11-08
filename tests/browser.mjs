@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dumpDOM } from '../tools/browser.mjs';
-import { pixel } from './fixtures/deck.mjs';
+import { pixel } from './fixture-deck.mjs';
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temp = await mkdtemp(join(tmpdir(), 'ppt-browser-test-'));
@@ -72,7 +72,7 @@ try {
   assert.equal(result.report.failed, 0);
 
   const extracted = join(temp, 'web.json');
-  await run('html_to_deck.mjs', [join(root, 'tests/fixtures/webslide.html'), '-o', extracted]);
+  await run('html_to_deck.mjs', [join(root, 'tests/fixture-webslide.html'), '-o', extracted]);
   const web = JSON.parse(await readFile(extracted, 'utf8'));
   const elements = web.slides[0].elements;
   const get = id => elements.find(e => e.id === id);

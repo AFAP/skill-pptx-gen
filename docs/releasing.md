@@ -6,6 +6,7 @@
 
 ```bash
 npm ci --include=optional
+npm run check:layout
 npm run doctor -- --require-svg --require-browser
 npm test
 npm run test:browser
@@ -30,14 +31,16 @@ npm run release:verify -- dist/ppt-gen.zip --check-browser
 
 ## 白名单范围
 
-`tools/lib/skill-package.mjs` 同时定义打包和验包白名单：
+`tools/skill-package.mjs` 同时定义打包和验包白名单：
 
 - `SKILL.md`、`package.json`、锁文件。
 - `core/` 中的 `.mjs`/`.js`、`references/` 中的 `.md`/`.json`。
 - 运行命令和所需的浏览器、环境预检工具库。
 - 两个离线浏览器运行库及技能 Logo。
 
-市场包只允许 `根目录/二级目录/文件`：技能根目录内的 `core/`、`tools/`、`references/`、`assets/` 都直接放文件，不再包含子目录。运行时的 `browser.mjs`、`browser-bundle.mjs`、`environment.mjs` 放在 `tools/`；仅供开发发布使用的 `tools/lib/` 不进入 ZIP。
+仓库与市场包采用相同的低层级结构：根目录下的资源目录都直接放文件，不再嵌套。运行及发布辅助模块统一放在 `tools/`；测试输入为 `tests/fixture-deck.mjs`、`tests/fixture-webslide.html`；示例图片直接放在 `examples/`。发布工具与测试仍按白名单排除，不通过移动目录改变打包范围。
+
+`npm run check:layout` 检查仓库结构，`npm test` 与打包也会先执行该检查。Git 元数据等隐藏目录，以及 `node_modules/`、`dist/`、`output/` 等依赖和产物目录不属于维护文件的层级约束。
 
 ```text
 ppt-gen/

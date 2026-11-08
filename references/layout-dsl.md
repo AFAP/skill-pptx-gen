@@ -13,7 +13,7 @@
 }
 ```
 
-`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整工程字段用例见 `tests/fixtures/deck.mjs`。
+`theme` 与 `style` 都可指定样式；同时存在时以 `theme` 为准。完整工程字段用例见 `tests/fixture-deck.mjs`。
 
 编辑器需要机器可读约束时，可使用 [deck.schema.json](deck.schema.json)；命令行仍以 `tools/check_deck.mjs` 的严格检查为准。
 

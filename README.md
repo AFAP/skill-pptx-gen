@@ -50,7 +50,7 @@ npm run release:verify -- dist/ppt-gen.zip --check-browser
 
 第一条命令生成白名单 ZIP，逐文件 SHA-256 清单位于 ZIP 内的 `package-manifest.json`，ZIP 自身的校验值另存为 `*.zip.sha256`。第二条在系统临时目录解压，重新 `npm ci`，实测 SVG、严格构建及可选的 Chrome/Edge 检查，并在 ZIP 旁生成 `*.verify.json`。重新打包会清除同名旧验收报告；只上传通过最新验收的 ZIP。不指定 `-o` 时默认包名包含当前版本号。完整流程和打包范围见 [发布说明](docs/releasing.md)。
 
-市场 ZIP 最多两级目录（`ppt-gen/资源目录/文件`），运行时辅助模块与命令平铺在 `tools/`，不包含 `tools/lib/`。打包时同时检查目录深度与相对 import 完整性；本地验收后还需通过平台解析。
+仓库与市场 ZIP 都采用低层级结构（`根目录/资源目录/文件`）：工具平铺在 `tools/`，测试及输入平铺在 `tests/`，示例及图片平铺在 `examples/`。`npm run check:layout` 防止维护目录重新嵌套，测试和打包也会执行该检查；ZIP 另查目录深度与相对 import 完整性，本地验收后还需通过平台解析。
 
 ## 完整展示示例
 
@@ -181,12 +181,13 @@ npm run test:browser
 - `core/connectors.mjs`：`connector-s`、`connector-elbow`、`arc-segment` 宏。
 - `tools/build_all.mjs`：推荐的一键管线。
 - `tools/doctor.mjs`：基础依赖、SVG 和浏览器能力预检。
+- `tools/repo-layout.mjs`：仓库低层级结构检查，排除依赖、隐藏目录和构建产物。
 - `tools/package_skill.mjs` / `tools/verify_package.mjs`：白名单打包与独立解压安装验收。
 - `tests/tooling.mjs`：环境诊断、跨平台 npm 定位、归档完整性与失败报告回归。
 - `docs/releasing.md`：市场发布流程与包内文件范围。
 - `tests/shapes.mjs`：91 个形状的几何自检与形状文档防漂移。
 - `tests/parity.mjs`：选项映射 + 能力注册表 + 真实 OOXML 断言（preset/adj/srcRect/strike/wrap/对象名/虚线/箭头）。
 - `tools/check_preview.mjs`：真实浏览器渲染诊断与逐页截图。
-- `tests/fixtures/`：独立的版式、图表和 HTML 工程测试，不依赖公开示例的命名或页数。
+- `tests/fixture-deck.mjs` / `tests/fixture-webslide.html`：独立的版式、图表和 HTML 工程输入，不依赖公开示例的命名或页数。
 - `examples/`：原始研究报告、23 页创意案例及其交付物。
 - `screenshot/`：历史实测截图，用于确认网页改字和 PowerPoint/WPS 对象可编辑。

@@ -2,7 +2,7 @@
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createSkillArchive, sha256 } from './lib/skill-package.mjs';
+import { createSkillArchive, sha256 } from './skill-package.mjs';
 
 const argv = process.argv.slice(2);
 const usage = '用法: node tools/package_skill.mjs [-o output.zip]';
