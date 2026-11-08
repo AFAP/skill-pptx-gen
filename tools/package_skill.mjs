@@ -14,12 +14,12 @@ for (let i = 0; i < argv.length; i++) {
 }
 try {
   const root = fileURLToPath(new URL('../', import.meta.url));
-  const { bytes, manifest } = await createSkillArchive(root);
+  const { bytes, manifest, layout } = await createSkillArchive(root);
   const path = resolve(output || resolve(root, 'dist', `${manifest.name}-${manifest.version}.zip`));
   await mkdir(dirname(path), { recursive: true });
   // A new archive requires a fresh verification even when the filename is reused.
   await rm(path + '.verify.json', { force: true });
   await writeFile(path, bytes);
   await writeFile(path + '.sha256', sha256(bytes) + '\n');
-  console.log(`✅ 发布包: ${path}\n${Object.keys(manifest.files).length} 个运行文件；${bytes.length} 字节\nSHA-256: ${sha256(bytes)}`);
+  console.log(`✅ 发布包: ${path}\n${Object.keys(manifest.files).length} 个运行文件；${bytes.length} 字节；最多 ${layout.maxDirectoryDepth} 级目录\nSHA-256: ${sha256(bytes)}`);
 } catch (error) { console.error(`打包失败: ${error.message}`); process.exitCode = 1; }

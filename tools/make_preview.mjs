@@ -13,7 +13,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { browserBundle } from './lib/browser-bundle.mjs';
+import { browserBundle } from './browser-bundle.mjs';
 import { sceneResourceErrors } from '../core/presentation.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

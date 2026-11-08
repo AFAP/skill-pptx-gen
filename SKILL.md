@@ -1,7 +1,7 @@
 ---
 name: ppt-gen
 description: 把内容、文档、数据或报告制作成可编辑的 PPTX。用于制作 PPT、幻灯片、演示文稿、slide deck，或根据参考图还原版式；支持网页预览改字和再次导出。
-version: "2.3.1"
+version: "2.3.2"
 display_name: AI PPT 生成器
 display_name_en: AI PPT Generator
 category: office

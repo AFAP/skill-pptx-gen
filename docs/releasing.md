@@ -37,6 +37,22 @@ npm run release:verify -- dist/ppt-gen.zip --check-browser
 - 运行命令和所需的浏览器、环境预检工具库。
 - 两个离线浏览器运行库及技能 Logo。
 
+市场包只允许 `根目录/二级目录/文件`：技能根目录内的 `core/`、`tools/`、`references/`、`assets/` 都直接放文件，不再包含子目录。运行时的 `browser.mjs`、`browser-bundle.mjs`、`environment.mjs` 放在 `tools/`；仅供开发发布使用的 `tools/lib/` 不进入 ZIP。
+
+```text
+ppt-gen/
+├── SKILL.md
+├── package.json
+├── package-lock.json
+├── package-manifest.json
+├── core/          （直接放 .mjs/.js 文件）
+├── tools/         （命令与运行时辅助文件平铺）
+├── references/    （直接放 .md/.json 文件）
+└── assets/        （运行库与 Logo）
+```
+
+官方技能结构示例见下方链接；两级深度限制同时以平台实际返回的“目录层级超限”错误为依据。打包、验包都会拒绝超深文件和空目录，并检查运行模块的相对 import 是否全部包含在 ZIP 中。验收报告的 `layout.maxDirectoryDepth` 记录实际目录级数。通过本地门禁后仍须提交平台解析，不能把本地运行验收等同于市场解析通过。
+
 不打包 `.git/`、`.venv/`、`node_modules/`、测试材料、展示成品、历史截图、开发文档和发布工具。发布包中的 `package.json` 只保留实际随包提供的运行命令。开发仓库的 README 保留展示案例与维护说明，运行说明从技能入口按需路由到参考文件。
 
-打包时检查市场必需字段、中英文使用案例、版本/Node 声明、运行文件完整性、文档本地链接和逐文件哈希。ZIP 路径或文件超出白名单、符号链接和哈希不符均拒绝验收。市场示例字段参见 [WorkBuddy 官方技能规范](https://open.workbuddy.cn/docs/skill)。
+打包时检查市场必需字段、中英文使用案例、版本/Node 声明、两级目录结构、运行文件及相对导入完整性、文档本地链接和逐文件哈希。ZIP 路径或文件超出白名单、符号链接和哈希不符均拒绝验收。市场结构示例及字段参见 [WorkBuddy 官方技能规范](https://open.workbuddy.cn/docs/skill)。

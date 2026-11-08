@@ -43,8 +43,9 @@ let temp, verification = { ok: false };
 try {
   const bytes = await readFile(options.input);
   verification.archiveSha256 = sha256(bytes);
-  const { manifest, contents } = await inspectSkillArchive(bytes);
+  const { manifest, contents, layout } = await inspectSkillArchive(bytes);
   verification.version = manifest.version;
+  verification.layout = layout;
   verification.fileCount = contents.size;
   temp = await mkdtemp(join(tmpdir(), 'ppt-package-check-'));
   const skill = join(temp, manifest.name);

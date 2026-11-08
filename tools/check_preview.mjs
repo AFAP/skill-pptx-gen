@@ -4,7 +4,7 @@ import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { dumpDOM } from './lib/browser.mjs';
+import { dumpDOM } from './browser.mjs';
 
 const argv = process.argv.slice(2);
 if (!argv[0] || argv.includes('--help')) {

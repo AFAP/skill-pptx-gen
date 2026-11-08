@@ -13,7 +13,7 @@ export function supportsNode(version, minimum) {
 }
 
 export async function checkEnvironment({ requireBrowser = false, requireSvg = false, browser } = {}) {
-  const pkg = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   const minimum = pkg.engines.node.replace(/^>=/, '');
   const checks = [];
   const add = (id, required, ok, message) => checks.push({ id, required, status: ok ? 'ok' : required ? 'error' : 'warning', message });

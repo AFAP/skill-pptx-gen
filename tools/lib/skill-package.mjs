@@ -8,13 +8,15 @@ const files = new Set([
   'SKILL.md', 'package.json', 'package-lock.json',
   'assets/konva.10.0.12.min.js', 'assets/pptxgen.4.0.1.js', 'assets/logo.png',
   ...['build_all', 'build_pptx', 'check_deck', 'check_preview', 'html_to_deck', 'make_preview', 'doctor'].map(name => `tools/${name}.mjs`),
-  ...['browser', 'browser-bundle', 'environment'].map(name => `tools/lib/${name}.mjs`),
+  ...['browser', 'browser-bundle', 'environment'].map(name => `tools/${name}.mjs`),
 ]);
 const trees = { core: new Set(['.mjs', '.js']), references: new Set(['.md', '.json']) };
 const runtimeScripts = new Set(['check', 'build', 'build:all', 'html', 'preview', 'doctor']);
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
 export function isPackageFile(path) {
+  // Relative to the skill root: one resource directory at most.
+  if (path.split('/').length > 2) return false;
   if (path.includes('\\') || path.startsWith('/') || path.split('/').some(part => !part || part.startsWith('.'))) return false;
   if (files.has(path)) return true;
   return Object.entries(trees).some(([dir, extensions]) => path.startsWith(`${dir}/`) && extensions.has(posix.extname(path)));
@@ -29,16 +31,16 @@ async function readRegularFile(root, path) {
 export async function createSkillArchive(root) {
   root = resolve(root);
   const paths = new Set(files);
-  const walk = async (directory, path) => {
+  const walk = async path => {
     for (const entry of await readdir(join(root, path), { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue;
       const child = `${path}/${entry.name}`;
       if (entry.isSymbolicLink()) throw new Error(`发布目录不接受符号链接: ${child}`);
-      if (entry.isDirectory()) await walk(directory, child);
+      if (entry.isDirectory()) throw new Error(`目录层级超限: ${child}；资源目录内不能再嵌套子目录`);
       else if (isPackageFile(child)) paths.add(child);
     }
   };
-  for (const tree of Object.keys(trees)) await walk(tree, tree);
+  for (const tree of Object.keys(trees)) await walk(tree);
   const payload = new Map();
   for (const path of [...paths].sort()) payload.set(path, await readRegularFile(root, path));
   const pkg = JSON.parse(payload.get('package.json'));
@@ -52,15 +54,20 @@ export async function createSkillArchive(root) {
   for (const [path, bytes] of payload) zip.file(`${pkg.name}/${path}`, bytes, options);
   zip.file(`${pkg.name}/package-manifest.json`, JSON.stringify(manifest, null, 2) + '\n', options);
   const bytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 }, platform: 'UNIX' });
-  await inspectSkillArchive(bytes);
-  return { bytes, manifest };
+  const { layout } = await inspectSkillArchive(bytes);
+  return { bytes, manifest, layout };
 }
 
 export async function inspectSkillArchive(bytes) {
   const zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
   const contents = new Map();
   let root;
+  let maxDirectoryDepth = 0;
   for (const entry of Object.values(zip.files)) {
+    const components = entry.name.replace(/\/$/, '').split('/');
+    const directoryDepth = components.length - (entry.dir ? 0 : 1);
+    if (directoryDepth > 2) throw new Error(`目录层级超限: ${entry.name}；仅支持 根目录/二级目录/文件`);
+    maxDirectoryDepth = Math.max(maxDirectoryDepth, directoryDepth);
     if (entry.dir) continue;
     const path = entry.name;
     if (entry.unsafeOriginalName !== path || path.includes('\\') || path.startsWith('/') || path.split('/').some(part => !part || part === '.' || part === '..')) throw new Error(`ZIP 路径非法: ${path}`);
@@ -90,6 +97,16 @@ export async function inspectSkillArchive(bytes) {
   if (pkg.name !== root || skillName !== root || pkg.version !== manifest.version || skillVersion !== pkg.version || lock.version !== pkg.version || lock.packages?.['']?.version !== pkg.version) throw new Error('技能、package、lock 与清单版本不一致');
   if (lock.packages[''].engines?.node !== pkg.engines?.node) throw new Error('Node 版本要求不一致');
   for (const path of payload.keys()) {
+    // Moving runtime helpers must not leave imports pointing at an omitted file.
+    if (/^(?:core|tools)\/.*\.m?js$/.test(path)) {
+      const source = payload.get(path).toString('utf8');
+      const imports = [...source.matchAll(/\b(?:import|export)\s+(?:[^'";]*?\s+from\s*)?['"](\.[^'"]+)['"]/g),
+        ...source.matchAll(/\bimport\(\s*['"](\.[^'"]+)['"]\s*\)/g)];
+      for (const match of imports) {
+        const target = posix.normalize(posix.join(posix.dirname(path), match[1]));
+        if (!payload.has(target)) throw new Error(`模块引用未打包: ${path} → ${match[1]}`);
+      }
+    }
     if (!path.endsWith('.md')) continue;
     const markdown = payload.get(path).toString('utf8');
     for (const match of markdown.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
@@ -99,5 +116,5 @@ export async function inspectSkillArchive(bytes) {
       if (!payload.has(linked)) throw new Error(`文档引用未打包: ${path} → ${target}`);
     }
   }
-  return { manifest, contents };
+  return { manifest, contents, layout: { root, maxDirectoryDepth } };
 }

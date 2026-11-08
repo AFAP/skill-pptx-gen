@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { checkEnvironment } from './lib/environment.mjs';
+import { checkEnvironment } from './environment.mjs';
 
 const argv = process.argv.slice(2);
 const usage = '用法: node tools/doctor.mjs [--json] [--require-svg] [--require-browser] [--browser path]';

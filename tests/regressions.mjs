@@ -15,7 +15,7 @@ import { applyElement, chartModel, resolveTheme } from '../core/dsl-to-pptx.mjs'
 import { normalizeChartOptions, formatNumber } from '../core/chart-options.mjs';
 import { buildPresentation, prefetchImages } from '../core/ppt-core.mjs';
 import { sanitizePptxData } from '../core/pptx-sanitize.mjs';
-import { browserBundle } from '../tools/lib/browser-bundle.mjs';
+import { browserBundle } from '../tools/browser-bundle.mjs';
 import { pixel } from './fixtures/deck.mjs';
 
 const box = { x: 80, y: 80, width: 400, height: 200 };

@@ -50,6 +50,8 @@ npm run release:verify -- dist/ppt-gen.zip --check-browser
 
 第一条命令生成白名单 ZIP，逐文件 SHA-256 清单位于 ZIP 内的 `package-manifest.json`，ZIP 自身的校验值另存为 `*.zip.sha256`。第二条在系统临时目录解压，重新 `npm ci`，实测 SVG、严格构建及可选的 Chrome/Edge 检查，并在 ZIP 旁生成 `*.verify.json`。重新打包会清除同名旧验收报告；只上传通过最新验收的 ZIP。不指定 `-o` 时默认包名包含当前版本号。完整流程和打包范围见 [发布说明](docs/releasing.md)。
 
+市场 ZIP 最多两级目录（`ppt-gen/资源目录/文件`），运行时辅助模块与命令平铺在 `tools/`，不包含 `tools/lib/`。打包时同时检查目录深度与相对 import 完整性；本地验收后还需通过平台解析。
+
 ## 完整展示示例
 
 [南京埃斯顿深度研究报告-AI创意版.deck.json](examples/南京埃斯顿深度研究报告-AI创意版.deck.json) 把同目录研究报告重构为 23 页内容驱动叙事。它不从固定模板出发，而是按每页的信息关系分别使用断裂曲线、竞争坐标、能力主轴、波形时间线、盈利桥、环形验证、激励阶梯、证据塔、情景扇面和风险树等构图；`styleClass/group/repeat/anchor` 负责压缩重复描述，最终仍统一编译为可编辑 primitive。

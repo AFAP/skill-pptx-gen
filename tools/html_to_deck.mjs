@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dumpDOM, findBrowser } from './lib/browser.mjs';
+import { dumpDOM, findBrowser } from './browser.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

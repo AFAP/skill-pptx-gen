@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import JSZip from 'jszip';
-import { supportsNode } from '../tools/lib/environment.mjs';
-import { createSkillArchive, inspectSkillArchive, isPackageFile } from '../tools/lib/skill-package.mjs';
+import { supportsNode } from '../tools/environment.mjs';
+import { createSkillArchive, inspectSkillArchive, isPackageFile, sha256 } from '../tools/lib/skill-package.mjs';
 import { findNpmCli } from '../tools/lib/npm-cli.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -15,10 +15,16 @@ const temp = await mkdtemp(join(tmpdir(), 'ppt-tooling-test-'));
 const exec = promisify(execFile);
 try {
   for (const [version, expected] of [['18.20.0', false], ['20.8.9', false], ['20.9.0', true], ['20.10.0', true], ['22.0.0', true], ['invalid', false]]) assert.equal(supportsNode(version, '20.9.0'), expected);
-  for (const path of ['.venv/bin/python', 'node_modules/jszip/index.js', 'tests/fixtures/deck.mjs', 'examples/report.pptx', '测试数据/input.pptx', 'docs/releasing.md', 'tools/verify_package.mjs', 'core/.secret.js', '../SKILL.md']) assert.equal(isPackageFile(path), false, path);
+  for (const path of ['.venv/bin/python', 'node_modules/jszip/index.js', 'tests/fixtures/deck.mjs', 'examples/report.pptx', '测试数据/input.pptx', 'docs/releasing.md', 'tools/verify_package.mjs', 'core/.secret.js', '../SKILL.md', 'core/nested/module.mjs', 'references/nested/notes.md', 'tools/lib/browser.mjs']) assert.equal(isPackageFile(path), false, path);
   const first = await createSkillArchive(root), second = await createSkillArchive(root);
   assert.deepEqual(first.bytes, second.bytes, 'unchanged sources must yield reproducible archives');
-  const { contents, manifest } = await inspectSkillArchive(first.bytes);
+  const { contents, manifest, layout } = await inspectSkillArchive(first.bytes);
+  assert.deepEqual(layout, { root: manifest.name, maxDirectoryDepth: 2 });
+  const archiveEntries = Object.keys((await JSZip.loadAsync(first.bytes)).files);
+  assert.ok(archiveEntries.every(path => path.split('/').length <= 3), 'market package must have only root/resource-directory/file');
+  assert.ok(contents.has('tools/browser.mjs'));
+  assert.ok(contents.has('tools/browser-bundle.mjs'));
+  assert.ok(contents.has('tools/environment.mjs'));
   const packaged = JSON.parse(contents.get('package.json'));
   assert.equal(packaged.version, manifest.version);
   assert.ok(packaged.scripts.doctor);
@@ -30,6 +36,21 @@ try {
   const extra = await JSZip.loadAsync(first.bytes);
   extra.file(`${manifest.name}/.venv/secret`, 'unexpected');
   await assert.rejects(() => inspectSkillArchive(extra.generateAsync({ type: 'nodebuffer' })), /白名单/);
+
+  // Reproduce the actual marketplace rejection, including empty nested directories.
+  const nested = await JSZip.loadAsync(first.bytes);
+  nested.file(`${manifest.name}/tools/lib/browser.mjs`, 'nested runtime', { createFolders: false });
+  await assert.rejects(() => inspectSkillArchive(nested.generateAsync({ type: 'nodebuffer' })), /目录层级超限/);
+  const nestedDirectory = await JSZip.loadAsync(first.bytes);
+  nestedDirectory.folder(`${manifest.name}/tools/lib`);
+  await assert.rejects(() => inspectSkillArchive(nestedDirectory.generateAsync({ type: 'nodebuffer' })), /目录层级超限/);
+  const brokenImport = await JSZip.loadAsync(first.bytes);
+  const badModule = "import './missing.mjs';\n";
+  brokenImport.file(`${manifest.name}/tools/doctor.mjs`, badModule);
+  const brokenManifest = structuredClone(manifest);
+  brokenManifest.files['tools/doctor.mjs'] = sha256(badModule);
+  brokenImport.file(`${manifest.name}/package-manifest.json`, JSON.stringify(brokenManifest));
+  await assert.rejects(() => inspectSkillArchive(brokenImport.generateAsync({ type: 'nodebuffer' })), /模块引用未打包/);
 
   // Verify both common installation layouts, regardless of the test host's OS.
   for (const [name, suffix] of [['windows', 'node_modules/npm/bin/npm-cli.js'], ['unix', 'lib/node_modules/npm/bin/npm-cli.js']]) {
@@ -43,8 +64,8 @@ try {
 
   // Preflight must run and diagnose missing packages before any npm install.
   const clean = join(temp, 'clean');
-  await mkdir(join(clean, 'tools/lib'), { recursive: true });
-  for (const path of ['package.json', 'tools/doctor.mjs', 'tools/lib/environment.mjs', 'tools/lib/browser.mjs']) await copyFile(join(root, path), join(clean, path));
+  await mkdir(join(clean, 'tools'), { recursive: true });
+  for (const path of ['package.json', 'tools/doctor.mjs', 'tools/environment.mjs', 'tools/browser.mjs']) await copyFile(join(root, path), join(clean, path));
   const run = args => exec(process.execPath, args, { windowsHide: true, timeout: 10000, env: { ...process.env, NODE_PATH: '' } });
   const expectFailure = async args => {
     try { await run(args); }
@@ -82,7 +103,7 @@ try {
     if (error.code === 'EPERM' && !error.stdout) console.warn('⚠️ skip child-process tooling checks: spawn EPERM; release verification still requires a permissive environment');
     else throw error;
   }
-  console.log('✅ environment and release packaging passed (clean install diagnostics, allowlist, hashes, reproducibility)');
+  console.log('✅ environment and release packaging passed (two-level layout, import closure, clean install diagnostics, allowlist, hashes, reproducibility)');
 } finally {
   assert.equal(dirname(resolve(temp)), resolve(tmpdir()));
   assert.ok(basename(temp).startsWith('ppt-tooling-test-'));

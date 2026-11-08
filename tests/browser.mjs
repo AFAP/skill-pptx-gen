@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { dumpDOM } from '../tools/lib/browser.mjs';
+import { dumpDOM } from '../tools/browser.mjs';
 import { pixel } from './fixtures/deck.mjs';
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../', import.meta.url));
