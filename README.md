@@ -16,6 +16,7 @@ WebSlide HTML ──┘                           └─> PptxGenJS ─> PPTX + 
 - primitive scene 是两端共用的唯一稳定中间层。
 - 默认严格构建；不支持的元素、缺失图片和转换异常不会被静默丢弃。
 - 文本、形状、图表、表格保持可编辑；图片与 SVG 会在报告中标为 `rasterized`。
+- 创作时可发现并调用当前 agent 本地可用的生图技能，为适合的页面生成局部插画、场景或背景；没有该能力时继续正常制作，详见 [按需生图](references/image-generation.md)。
 
 ## 快速开始
 

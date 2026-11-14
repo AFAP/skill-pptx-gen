@@ -1,19 +1,19 @@
 ---
 name: ppt-gen
 description: 把内容、文档、数据或报告制作成可编辑的 PPTX。用于制作 PPT、幻灯片、演示文稿、slide deck，或根据参考图还原版式；支持网页预览改字和再次导出。
-version: "2.3.3"
+version: "2.4.0"
 display_name: AI PPT 生成器
 display_name_en: AI PPT Generator
 category: office
 author: 阿富
-description_zh: "把报告、文档和数据整理成可编辑 PPT，支持参考图版式还原、网页预览改字与导出。文字、形状、图表和表格可继续编辑，并附转换检查报告。"
-description_en: "Turn reports, documents and data into editable PowerPoint slides. Recreate reference layouts, edit text in a web preview and export PPTX with a conversion report."
+description_zh: "把报告、文档和数据整理成可编辑 PPT，支持参考图版式还原、网页预览改字与导出；本地有生图技能时可按需生成局部配图。文字、形状、图表和表格可继续编辑，并附转换检查报告。"
+description_en: "Turn reports, documents and data into editable PowerPoint slides. Recreate reference layouts, edit text in a web preview and optionally use an available local image-generation skill for illustrations. Export PPTX with a conversion report."
 examples_zh:
-  - "把这份报告整理成 10 页管理层汇报，保留关键数据与来源，交付可编辑 PPT 和网页预览。"
+  - "把这份报告整理成 10 页管理层汇报，保留关键数据与来源；本地有生图技能时按需配插画，交付可编辑 PPT 和网页预览。"
   - "参考这张截图还原一页 PPT，标题、正文和主要图形保持可编辑，复杂背景可以局部使用图片。"
   - "把这组季度数据做成 5 页分析汇报，使用可编辑图表，说明主要变化，并提供可改字的网页预览。"
 examples_en:
-  - "Turn this report into a 10-slide executive presentation. Preserve key data and sources, and deliver editable PPTX plus a web preview."
+  - "Turn this report into a 10-slide executive presentation. Preserve key data and sources, use a local image-generation skill for suitable illustrations if available, and deliver editable PPTX plus a web preview."
   - "Recreate this reference screenshot as a slide. Keep text and key shapes editable; use images for complex background details."
   - "Create a 5-slide analysis from this quarterly data, with editable charts, key findings and a web preview where I can edit text."
 ---
@@ -33,6 +33,8 @@ node tools/doctor.mjs
 
 Node.js 要求 **≥20.9.0**。需要 SVG 时预检加 `--require-svg`；需要 HTML 提取或浏览器实测时加 `--require-browser`，可同时使用。先解决必需能力的错误，再开始创作；诊断与安装方式见 [故障排查](references/troubleshooting.md)。
 
+创作前同时查看当前 agent 的技能清单或技能发现工具：若本地有可调用的生图技能，读取其说明，并在适合的页面主动生成局部插画、场景或背景素材；没有则按现有方式继续。生图不是运行依赖，`doctor` 不负责检测 agent 技能。选页、提示词与图片落地见 [按需生图](references/image-generation.md)。
+
 ## 选择入口与参考
 
 只读取当前任务需要的资料；多页新稿先看 [创作工作流](references/creative-authoring.md)。
@@ -44,6 +46,7 @@ Node.js 要求 **≥20.9.0**。需要 SVG 时预检加 `--require-svg`；需要 
 | HTML/CSS 构图或已有网页（WebSlide） | [WebSlide 协议](references/webslide.md)，只提取显式 `data-ppt` 节点 |
 | 长文档、多章节报告 | [内容拆页](references/content-to-deck.md) |
 | 参考图风格或精确复刻 | [参考图分析](references/reference-image-analysis.md)，按用户意图选择重新构图或复刻模式 |
+| 本地有生图技能，部分页面适合插画、场景或氛围背景 | [按需生图](references/image-generation.md)，生成局部素材并叠加可编辑内容 |
 | 图片版 PPT、截图还原成可编辑稿 | [图片版还原](references/image-to-editable-deck.md) |
 | 标准图形 / 特殊几何 | [形状库](references/shape-library.md) / [几何配方](references/design-system.md)，只读所需部分 |
 | 配色、字体和主题 | [样式](references/styles.md)；默认 `navy-report`，默认色板见 [主题令牌](references/builtin-template.md) |
